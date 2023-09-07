@@ -1,0 +1,358 @@
+#version 460
+#extension GL_EXT_ray_tracing : require
+#extension GL_EXT_scalar_block_layout : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int64  : require
+#extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_buffer_reference2 : require
+#extension GL_EXT_nonuniform_qualifier : enable
+
+#include "shared_structs.h"
+#include "RNG.glsl"
+
+#define PI 3.14159f
+
+// The ray payload, attached to a ray; used to communicate between shader stages.
+layout(location=0) rayPayloadEXT RayPayload payload;
+
+// Push constant for ray tracing shaders
+layout(push_constant) uniform _PushConstantRay { PushConstantRay pcRay; };
+
+// Ray tracing descriptor set: 0:acceleration structure, and 1: color output image
+layout(set=0, binding=0) uniform accelerationStructureEXT topLevelAS;
+layout(set=0, binding=1, rgba32f) uniform image2D colCurr; // Output image: m_rtColCurrBuffer
+layout(set=0, binding=2, rgba32f) uniform image2D colPrev;
+layout(set=0, binding=3, rgba32f) uniform image2D NdCurr;
+layout(set=0, binding=4, rgba32f) uniform image2D NdPrev;
+layout(set=0, binding=5, rgba32f) uniform image2D KdCurr;
+layout(set=0, binding=6, rgba32f) uniform image2D KdPrev;
+
+// Object model descriptor set: 0: matrices, 1:object buffer addresses, 2: texture list
+layout(set=1, binding=0) uniform _MatrixUniforms { MatrixUniforms mats; };
+layout(set=1, binding=1, scalar) buffer ObjDesc_ { ObjDesc i[]; } objDesc;
+layout(set=1, binding=2) uniform sampler2D textureSamplers[];
+
+// Object buffered data; dereferenced from ObjDesc addresses
+layout(buffer_reference, scalar) buffer Vertices {Vertex v[]; }; // Position, normals, ..
+layout(buffer_reference, scalar) buffer Indices {ivec3 i[]; }; // Triangle indices
+layout(buffer_reference, scalar) buffer Materials {Material m[]; }; // Array of all materials
+layout(buffer_reference, scalar) buffer MatIndices {int i[]; }; // Material ID for each triangle
+
+// Project 4 functions
+vec3 EvalBrdf(vec3 N, vec3 L, vec3 V, Material mat);
+vec3 SampleLobe(vec3 A, float c, float phi);
+vec3 SampleBrdf(inout uint seed, in vec3 N);
+float PdfBrdf(vec3 N, vec3 Wi);
+
+void main() 
+{
+    //sanity test
+    if (pcRay.alignmentTest != 1234) 
+    {
+      imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy), vec4(1,0,0,0));
+      return;
+    }
+
+    // This invocation is for a pixel indicated by gl_LaunchIDEXT
+    const vec2 pixelCenter = vec2(gl_LaunchIDEXT.xy) + vec2(0.5);
+    vec2 pixelNDC = pixelCenter/vec2(gl_LaunchSizeEXT.xy)*2.0 - 1.0;
+ 
+    // W means world
+    vec3 eyeW   = (mats.viewInverse * vec4(0, 0, 0, 1)).xyz;
+    vec4 pixelH = mats.viewInverse * mats.projInverse * vec4(pixelNDC.x, pixelNDC.y, 1, 1);
+    vec3 pixelW = pixelH.xyz/pixelH.w;
+    vec3 rayOrigin    = eyeW;
+    vec3 rayDirection = normalize(pixelW - eyeW);
+
+    // Calculate Seed
+    payload.seed = tea( gl_LaunchIDEXT.y * gl_LaunchSizeEXT.x + gl_LaunchIDEXT.x, pcRay.frameSeed );
+    vec3 C = vec3(0.0);
+    vec3 W = vec3(1.0);
+
+    // Project 5 & 6
+    bool firstHit;
+    vec3 firstPos;
+    float firstDepth;
+    vec3 firstNrm;
+    vec3 firstKd;
+
+    // TODO: Loop through ray-by-ray along a path:
+    // LOOP THROUGH pcRay.depth iteration: // Predetermined russian roulette
+    for(int i = 0; i < pcRay.depth; ++i)
+    {
+        // Fire the ray;  hit or miss shaders will be invoked, passing results back in the payload
+        traceRayEXT(topLevelAS,           // acceleration structure
+                    gl_RayFlagsOpaqueEXT, // rayFlags
+                    0xFF,                 // cullMask
+                    0,                    // sbtRecordOffset for the hitgroups
+                    0,                    // sbtRecordStride for the hitgroups
+                    0,                    // missIndex
+                    rayOrigin,            // ray origin
+                    0.001,                // ray min range
+                    rayDirection,         // ray direction
+                    10000.0,              // ray max range
+                    0                     // payload (location = 0)
+                    );
+
+        if (!payload.hit)
+            break;
+
+        // If something was hit, find the object data.
+        // Object data (containg 4 device addresses)
+        ObjDesc    objResources = objDesc.i[payload.instanceIndex];
+        
+        // Dereference the object's 4 device addresses
+        Vertices   vertices    = Vertices(objResources.vertexAddress);
+        Indices    indices     = Indices(objResources.indexAddress);
+        Materials  materials   = Materials(objResources.materialAddress);
+        MatIndices matIndices  = MatIndices(objResources.materialIndexAddress);
+  
+        // Use gl_PrimitiveID to access the triangle's vertices and material
+        ivec3 ind    = indices.i[payload.primitiveIndex]; // The triangle hit
+        int matIdx   = matIndices.i[payload.primitiveIndex]; // The triangles material index
+        Material mat = materials.m[matIdx]; // The triangles material
+
+        // Vertex of the triangle (Vertex has pos, nrm, tex)
+        Vertex v0 = vertices.v[ind.x];
+        Vertex v1 = vertices.v[ind.y];
+        Vertex v2 = vertices.v[ind.z];
+
+        // Computing the normal and tex coord at hit position
+        const vec3 bc   = payload.bc; // The barycentric coordinates of the hit point
+        const vec3 nrm  = bc.x*v0.nrm      + bc.y*v1.nrm      + bc.z*v2.nrm;
+        const vec2 uv   = bc.x*v0.texCoord + bc.y*v1.texCoord + bc.z*v2.texCoord;
+
+        // If the material has a texture, read diffuse color from it.
+        if (mat.textureId >= 0) {
+            uint txtId = objResources.txtOffset + mat.textureId;
+            mat.diffuse = texture(textureSamplers[(txtId)], uv).xyz;
+        }
+
+        // Project 5 & 6
+        if (i == 0)
+        {
+            firstHit = payload.hit;
+            firstPos = payload.hitPos;
+            firstDepth = payload.hitDist;
+            firstNrm = nrm;
+            firstKd = mat.diffuse;  // Checked: Done after the texture lookup
+        }
+
+        if (dot(mat.emission, mat.emission) > 0.0f) 
+        {
+            // imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy), vec4(mat.emission,1.0)); // Proj3
+            C += mat.emission * W;
+            break;
+        }
+
+        // From the current hit point, setup N,L,V for BRDF calculation
+        vec3 P = payload.hitPos; // Current hit point
+        vec3 N = normalize(nrm); // Its normal
+
+        // Wi and Wo play the same role as L and V, in most presentations of BRDF
+        // … but makes more sense then L and V notation in the middle of a long path
+        vec3 Wi = SampleBrdf(payload.seed, N); // Importance sample output direction
+        vec3 Wo = -rayDirection;
+
+        vec3  f = EvalBrdf(N, Wi, Wo, mat); // Color (vec3) according to BRDF
+        float p = PdfBrdf(N, Wi) * pcRay.rr; // Probability (float) of above sample of Wi
+
+        const float epsilon = 1e-6;
+        if (p < epsilon) { // epsilon = 10^-6; Mathematically impossible, but due to roundoff ...
+            break;
+        }
+
+        W *= f / p; // Monte-Carlo estimator
+
+        // Step forward for next loop iteration
+        rayOrigin = payload.hitPos;
+        rayDirection = Wi;
+    }
+
+    // Project 4 - Accumulation Settings
+    //if (pcRay.clear)
+    //{
+    //    imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy), vec4(C, 1.0));
+    //}
+    //else
+    //{
+        // Average Accumulation
+        //vec4 old = imageLoad(colCurr, ivec2(gl_LaunchIDEXT.xy));
+        //vec3 Ave = old.xyz;
+        //float N = old.w;
+
+        //Ave += (C - Ave) / (N + 1.0);
+
+        //imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy), vec4(Ave, N + 1.0));
+    //}
+
+    //////////////////////////////////////////////////////////////////////////////////
+    //////////////////////// Project 5 - History Tracking ////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////
+    vec4 screenH = (mats.priorViewProj * vec4(firstPos, 1.0f));
+    vec2 screen = ((screenH.xy / screenH.w) + vec2(1.0f)) / 2.0f;
+
+    vec4 P = vec4(0.0f, 0.0f, 0.0f, 0.0f);
+    float n_threshold = 0.80f;
+    float d_threshold = 0.15f;
+
+    // Do P Calculations here
+    vec2 floc = screen * gl_LaunchSizeEXT.xy - vec2(0.5f);
+    vec2 offset = fract(floc);
+    ivec2 iloc = ivec2(floc);
+
+    vec3 prevNrm;
+    float prevDepth;
+
+    float final_weight = 0.0f, 
+          total_weight = 0.0f, 
+          bilinear_weight = 0.0f, 
+          depth_weight = 0.0f, 
+          normal_weight = 0.0f;
+
+    for (int i = 0; i <= 1; ++i)
+    {
+        for (int j = 0; j <= 1; ++j)
+        {
+            vec4 P_iloc = imageLoad(colPrev, iloc + ivec2(i, j));
+
+            // Weight Calculations
+            if (i == 0 && j == 0)
+                bilinear_weight = (1.0f - offset.x) * (1.0f - offset.y);
+            else if (i == 1 && j == 0)
+                bilinear_weight = (offset.x) * (1.0f - offset.y);
+            else if (i == 0 && j == 1)
+                bilinear_weight = (1.0f - offset.x) * (offset.y);
+            else
+                bilinear_weight = (offset.x) * (offset.y);
+
+            prevNrm = imageLoad(NdPrev, iloc + ivec2(i, j)).xyz;
+            prevDepth = imageLoad(NdPrev, iloc + ivec2(i, j)).w;
+
+            if (abs(firstDepth - prevDepth) < d_threshold)
+                depth_weight = 1.0f;
+            else
+                depth_weight = 0.0f;
+            
+            if (dot(firstNrm, prevNrm) > n_threshold)
+                normal_weight = 1.0f;
+            else
+                normal_weight = 0.0f;
+
+            final_weight = bilinear_weight * depth_weight * normal_weight;
+
+            // denominator
+            total_weight += final_weight;
+
+            P += P_iloc * final_weight;
+        }
+    }
+
+    // After P calulations
+    float oldN, newN;
+    vec3 oldAve, newAve;
+
+    if (!firstHit ||    // if no hit yet
+        ((screen.x < 0.0f || screen.x > 1.0f) || (screen.y < 0.0f || screen.y > 1.0f)) ||  // out of screen.x & .y == [0, 1]
+        (total_weight == 0.0f))   // all weight is 0
+    {
+        oldN = 1.0f;
+        oldAve = vec3(0.3f);
+
+        imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy), vec4(oldAve, oldN));
+    }
+    else
+    {
+        P = P / total_weight;
+
+        oldN = P.w;
+        oldAve = P.xyz;
+
+        newN = oldN + 1.0f;
+        newAve = oldAve + (C - oldAve) / newN;
+
+        if (!any(isnan(newAve)) && !any(isinf(newAve)) && !isnan(newN) && !isinf(newN))
+            imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy), vec4(newAve, newN));
+    }
+
+    if (!any(isnan(newAve)) && !any(isinf(newAve)))
+    {
+        if (!any(isnan(firstKd)) && !any(isinf(firstKd)))
+            imageStore(KdCurr,  ivec2(gl_LaunchIDEXT.xy), vec4(firstKd, 0.0f));
+
+        if (!any(isnan(firstNrm)) && !any(isinf(firstNrm)) && !isnan(firstDepth) && !isinf(firstDepth))
+            imageStore(NdCurr,  ivec2(gl_LaunchIDEXT.xy), vec4(firstNrm, firstDepth));
+    }
+}
+
+// Project 4 functions
+/////// ------------ GGX ----------
+float G1(vec3 V, vec3 H, vec3 N, float alpha, float tan_theta_m)
+{ // Note: V can wi or wo
+    float dotVH = dot(V, H);
+    float dotVN = dot(V, N);
+
+    return clamp(dotVH / dotVN, 0.0f, 1.0f) * 2.0f / (1.0f + sqrt(1.0f + pow(alpha * tan_theta_m, 2)));
+}
+
+vec3 EvalBrdf(vec3 N, vec3 L, vec3 V, Material mat) // wi = L, wo = V
+{
+    vec3 Kd = mat.diffuse;
+    vec3 Ks = mat.specular;
+    vec3 H = normalize(V + L);
+
+    float alpha = mat.shininess;
+    float alphaSqr = pow(alpha, 2);
+
+    float dotLN = dot(L, N);
+    float dotVN = dot(V, N);
+    float dotHN = dot(H, N);
+    float dotLH = dot(L, H);
+
+    float tan_theta_m = sqrt((1.0f - pow(dotHN, 2))) / dotHN;
+    float tan_theta_v = sqrt((1.0f - pow(dotVN, 2))) / dotVN;
+    float tan_square_theta_m = pow(tan_theta_m, 2);
+    float tan_square_theta_v = pow(tan_theta_v, 2);
+    
+    // F - Done
+    float dotLH5 = pow(1.0f - dotLH, 5);
+    vec3 F = Ks + (vec3(1.0) - Ks) * dotLH5;
+    
+    // D 
+    float denom = PI * pow(dotHN, 4) * pow(alphaSqr + tan_square_theta_m, 2);
+    float D = clamp(dotHN, 0.0, 1.0) * (alphaSqr / denom);
+
+    // G
+    float G = 1.0f;
+    if(dotVN <= 1.0f || tan_theta_v != 0.0f)
+        G = G1(L, H, N, alpha, tan_theta_v) * G1(V, H, N, alpha, tan_theta_v);
+
+    return max(dot(N, L), 0.0f) * ((Kd / PI) + ((D * F * G) / (4.0f * abs(dotLN) * abs(dotVN)) ) );
+}
+
+vec3 SampleLobe(vec3 A, float c, float phi)
+{
+    float s = sqrt(1.0 - pow(c, 2));
+    vec3 K = vec3(s * cos(phi), s * sin(phi), c);
+
+    if (abs(A.z - 1.0) < 1e-3)
+        return K;
+    
+    if (abs(A.z + 1.0) < 1e-3)
+        return vec3(K.x, -K.y, -K.z);
+
+    A = normalize(A);
+    vec3 B = normalize(vec3(-A.y, A.x, 0.0));
+    vec3 C = cross(A, B);
+
+    return K.x * B + K.y * C + K.z * A;
+}
+
+vec3 SampleBrdf(inout uint seed, in vec3 N)
+{
+    return SampleLobe(N, sqrt(rnd(seed)), 2 * PI * rnd(seed));
+}
+
+float PdfBrdf(vec3 N, vec3 Wi)
+{
+    return abs(dot(N, Wi)) / PI;
+}

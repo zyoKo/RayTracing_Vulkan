@@ -1,0 +1,121 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="app.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="camera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="descriptor_wrap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="extensions_vk.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vkapp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vkapp_fns.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vkapp_loadModel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vkapp_scanline.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libs\imgui-master\imgui_widgets.cpp">
+      <Filter>ImGui Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libs\imgui-master\imgui.cpp">
+      <Filter>ImGui Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libs\imgui-master\imgui_draw.cpp">
+      <Filter>ImGui Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libs\imgui-master\backends\imgui_impl_glfw.cpp">
+      <Filter>ImGui Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libs\imgui-master\backends\imgui_impl_vulkan.cpp">
+      <Filter>ImGui Files</Filter>
+    </ClCompile>
+    <ClCompile Include="acceleration_wrap.cpp" />
+    <ClCompile Include="vkapp_raytracing.cpp" />
+    <ClCompile Include="vkapp_denoise.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{a48782d0-3d60-452e-a330-da79c08ef4c4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{bcd75b93-652d-4fad-ae1a-645dd93008eb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shader Files">
+      <UniqueIdentifier>{26802777-62b4-47ec-a051-4ee8e4be1a67}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ImGui Files">
+      <UniqueIdentifier>{d5f3ee85-e382-436e-bc97-6f5786d5e5e7}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="app.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="buffer_wrap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="camera.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="descriptor_wrap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="extensions_vk.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="image_wrap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vkapp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="acceleration_wrap.h" />
+    <ClInclude Include="shaders\shared_structs.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="shaders\post.frag">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\post.vert">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\scanline.frag">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\scanline.vert">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\raytraceShadow.rmiss">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\raytrace.rchit">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\raytrace.rgen">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\raytrace.rmiss">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\raytraceShadow.rchit">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\rng.glsl" />
+    <None Include="shaders\denoise.comp" />
+  </ItemGroup>
+</Project>

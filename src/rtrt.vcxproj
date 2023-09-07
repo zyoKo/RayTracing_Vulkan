@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="app.cpp" />
+    <ClCompile Include="descriptor_wrap.cpp" />
+    <ClCompile Include="acceleration_wrap.cpp" />
+    <ClCompile Include="vkapp.cpp" />
+    <ClCompile Include="camera.cpp" />
+    <ClCompile Include="extensions_vk.cpp" />
+    <ClCompile Include="vkapp_denoise.cpp" />
+    <ClCompile Include="vkapp_fns.cpp" />
+    <ClCompile Include="vkapp_loadModel.cpp" />
+    <ClCompile Include="vkapp_raytracing.cpp" />
+    <ClCompile Include="vkapp_scanline.cpp" />
+    <ClCompile Include="..\libs\imgui-master\backends\imgui_impl_glfw.cpp" />
+    <ClCompile Include="..\libs\imgui-master\backends\imgui_impl_vulkan.cpp" />
+    <ClCompile Include="..\libs\imgui-master\imgui.cpp" />
+    <ClCompile Include="..\libs\imgui-master\imgui_draw.cpp" />
+    <ClCompile Include="..\libs\imgui-master\imgui_widgets.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="shaders\post.vert">
+      <FileType>Document</FileType>
+      <LinkObjects>false</LinkObjects>
+      <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
+      <Command>cmd /C "if exist %(Identity)    %VULKAN_SDK%/Bin/glslangValidator.exe -V --target-env vulkan1.2 -o spv\%(Filename)%(Extension).spv   %(Identity)"</Command>
+      <Message>Compiling shader %(Identity)</Message>
+      <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+    <CustomBuild Include="shaders\post.frag">
+      <FileType>Document</FileType>
+      <LinkObjects>false</LinkObjects>
+      <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
+      <Command>cmd /C "if exist %(Identity)    %VULKAN_SDK%/Bin/glslangValidator.exe -V --target-env vulkan1.2 -o spv\%(Filename)%(Extension).spv   %(Identity)"</Command>
+      <Message>Compiling shader %(Identity)</Message>
+      <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+    <CustomBuild Include="shaders\scanline.vert">
+      <FileType>Document</FileType>
+      <LinkObjects>false</LinkObjects>
+      <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
+      <Command>cmd /C "if exist %(Identity)    %VULKAN_SDK%/Bin/glslangValidator.exe -V  --target-env vulkan1.2 -o spv\%(Filename)%(Extension).spv   %(Identity)"</Command>
+      <Message>Compiling shader %(Identity)</Message>
+      <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+    <CustomBuild Include="shaders\scanline.frag">
+      <FileType>Document</FileType>
+      <LinkObjects>false</LinkObjects>
+      <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
+      <Command>cmd /C "if exist %(Identity)    %VULKAN_SDK%/Bin/glslangValidator.exe -V --target-env vulkan1.2 -o spv\%(Filename)%(Extension).spv   %(Identity)"</Command>
+      <Message>Compiling shader %(Identity)</Message>
+      <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+    <CustomBuild Include="shaders\denoise.comp">
+      <FileType>Document</FileType>
+      <LinkObjects>false</LinkObjects>
+      <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
+      <Command>cmd /C "if exist %(Identity)    %VULKAN_SDK%/Bin/glslangValidator.exe -V --target-env vulkan1.2 -o spv\%(Filename)%(Extension).spv   %(Identity)"</Command>
+      <Message>Compiling shader %(Identity)</Message>
+      <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+    <CustomBuild Include="shaders\raytrace.rchit">
+      <FileType>Document</FileType>
+      <LinkObjects>false</LinkObjects>
+      <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
+      <Command>cmd /C "if exist %(Identity)    %VULKAN_SDK%/Bin/glslangValidator.exe -V --target-env vulkan1.2 -o spv\%(Filename)%(Extension).spv   %(Identity)"</Command>
+      <Message>Compiling shader %(Identity)</Message>
+      <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+    <CustomBuild Include="shaders\raytrace.rgen">
+      <FileType>Document</FileType>
+      <LinkObjects>false</LinkObjects>
+      <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
+      <Command>cmd /C "if exist %(Identity)    %VULKAN_SDK%/Bin/glslangValidator.exe -V --target-env vulkan1.2 -o spv\%(Filename)%(Extension).spv   %(Identity)"</Command>
+      <Message>Compiling shader %(Identity)</Message>
+      <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+    <CustomBuild Include="shaders\raytrace.rmiss">
+      <FileType>Document</FileType>
+      <LinkObjects>false</LinkObjects>
+      <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
+      <Command>cmd /C "if exist %(Identity)    %VULKAN_SDK%/Bin/glslangValidator.exe -V --target-env vulkan1.2 -o spv\%(Filename)%(Extension).spv   %(Identity)"</Command>
+      <Message>Compiling shader %(Identity)</Message>
+      <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+    <CustomBuild Include="shaders\raytraceShadow.rchit">
+      <FileType>Document</FileType>
+      <LinkObjects>false</LinkObjects>
+      <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
+      <Command>cmd /C "if exist %(Identity)    %VULKAN_SDK%/Bin/glslangValidator.exe -V --target-env vulkan1.2 -o spv\%(Filename)%(Extension).spv   %(Identity)"</Command>
+      <Message>Compiling shader %(Identity)</Message>
+      <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+    <CustomBuild Include="shaders\raytraceShadow.rmiss">
+      <FileType>Document</FileType>
+      <LinkObjects>false</LinkObjects>
+      <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
+      <Command>cmd /C "if exist %(Identity)    %VULKAN_SDK%/Bin/glslangValidator.exe -V --target-env vulkan1.2 -o spv\%(Filename)%(Extension).spv   %(Identity)"</Command>
+      <Message>Compiling shader %(Identity)</Message>
+      <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="app.h" />
+    <ClInclude Include="buffer_wrap.h" />
+    <ClInclude Include="camera.h" />
+    <ClInclude Include="descriptor_wrap.h" />
+    <ClInclude Include="extensions_vk.hpp" />
+    <ClInclude Include="image_wrap.h" />
+    <ClInclude Include="vkapp.h" />
+    <ClInclude Include="acceleration_wrap.h" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{2422a7b3-65d1-4210-84fc-e88fc18befc1}</ProjectGuid>
+    <RootNamespace>RTRT</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;$(ProjectDir)..\libs\glfw/include;$(ProjectDir)..\libs\imgui-master;$(ProjectDir)..\libs\assimp\include;$(ProjectDir)..\libs\glm;$(ProjectDir)..\libs\</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>$(VULKAN_SDK)\Lib\vulkan-1.lib;$(ProjectDir)..\libs\assimp\64\assimp.lib;$(ProjectDir)..\libs\glfw-3.3.2.bin.WIN64\lib-vc2019\glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PostBuildEvent>
+      <Message>Copy assimp library to the exe file's positon.</Message>
+      <Command>xcopy ..\libs\assimp\64\assimp.dll .   /Y   /D</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;$(ProjectDir)..\libs\glfw/include;$(ProjectDir)..\libs\imgui-master;$(ProjectDir)..\libs\assimp\include;$(ProjectDir)..\libs\glm;$(ProjectDir)..\libs\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>$(VULKAN_SDK)\Lib\vulkan-1.lib;$(ProjectDir)..\libs\assimp\64\assimp.lib;$(ProjectDir)..\libs\glfw-3.3.2.bin.WIN64\lib-vc2019\glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PostBuildEvent>
+      <Message>What goes here?</Message>
+      <Command>xcopy ..\libs\assimp\64\assimp.dll .   /Y   /D</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
