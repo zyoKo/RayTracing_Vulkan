@@ -33,25 +33,25 @@ void VkApp::createRtBuffers()
         1);
 
     m_rtNdCurrBuffer = createBufferImage(windowSize);
-    transitionImageLayout(m_rtColPrevBuffer.image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    transitionImageLayout(m_rtNdCurrBuffer.image, VK_FORMAT_R32G32B32A32_SFLOAT,
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_GENERAL,
         1);
 
     m_rtNdPrevBuffer = createBufferImage(windowSize);
-    transitionImageLayout(m_rtColPrevBuffer.image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    transitionImageLayout(m_rtNdPrevBuffer.image, VK_FORMAT_R32G32B32A32_SFLOAT,
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_GENERAL,
         1);
 
     m_rtKdCurrBuffer = createBufferImage(windowSize);
-    transitionImageLayout(m_rtColPrevBuffer.image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    transitionImageLayout(m_rtKdCurrBuffer.image, VK_FORMAT_R32G32B32A32_SFLOAT,
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_GENERAL,
         1);
 
     m_rtKdPrevBuffer = createBufferImage(windowSize);
-    transitionImageLayout(m_rtColPrevBuffer.image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    transitionImageLayout(m_rtKdPrevBuffer.image, VK_FORMAT_R32G32B32A32_SFLOAT,
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_GENERAL,
         1);

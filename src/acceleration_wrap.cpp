@@ -2,6 +2,7 @@
 #include "acceleration_wrap.h"
 #include "vkapp.h"
 #include <numeric>
+#include <algorithm>
 
 //--------------------------------------------------------------------------------------------------
 // Initializing the allocator and querying the raytracing properties
@@ -95,7 +96,7 @@ void RaytracingBuilderKHR::buildBlas(const std::vector<BlasInput>& input,
 
             // Extra info
             asTotalSize += buildAs[idx].sizeInfo.accelerationStructureSize;
-            maxScratchSize = max(maxScratchSize, buildAs[idx].sizeInfo.buildScratchSize);
+            maxScratchSize = std::max(maxScratchSize, buildAs[idx].sizeInfo.buildScratchSize);
             nbCompactions += hasFlag(buildAs[idx].buildInfo.flags,
                                      VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR);
         }

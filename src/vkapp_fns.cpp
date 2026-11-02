@@ -25,6 +25,13 @@ void VkApp::destroyAllVulkanResources()
 
     // Destroy all vulkan objects.
     // ...  All objects created on m_device must be destroyed before m_device.
+    #ifdef GUI
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+    vkDestroyDescriptorPool(m_device, m_imguiDescPool, nullptr);
+    #endif
+
     destroySwapchain();
     vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
     vkDestroyCommandPool(m_device, m_cmdPool, nullptr);
@@ -41,7 +48,13 @@ void VkApp::destroyAllVulkanResources()
     vkDestroyPipeline(m_device, m_postPipeline, nullptr);
 
     for (auto t : m_objText) t.destroy(m_device);
-    //for (auto ob : m_objDesc) ob.destroy(m_device);
+    // m_objDesc only holds device addresses; the buffers themselves live in m_objData.
+    for (auto& ob : m_objData) {
+        ob.vertexBuffer.destroy(m_device);
+        ob.indexBuffer.destroy(m_device);
+        ob.matColorBuffer.destroy(m_device);
+        ob.matIndexBuffer.destroy(m_device);
+    }
 
     m_matrixBW.destroy(m_device);
     m_objDescriptionBW.destroy(m_device);
@@ -54,6 +67,7 @@ void VkApp::destroyAllVulkanResources()
     // Project 3 Cleanup
     m_rtColCurrBuffer.destroy(m_device);
     m_rtBuilder.destroy();
+    m_rtDesc.destroy(m_device);
     vkDestroyPipelineLayout(m_device, m_rtPipelineLayout, nullptr);
     vkDestroyPipeline(m_device, m_rtPipeline, nullptr);
     m_shaderBindingTableBW.destroy(m_device);
@@ -574,7 +588,11 @@ void VkApp::createSwapchain()
     
     VkSemaphoreCreateInfo semCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
     vkCreateSemaphore(m_device, &semCreateInfo, nullptr, &m_readSemaphore);
-    vkCreateSemaphore(m_device, &semCreateInfo, nullptr, &m_writtenSemaphore);
+    // A present may still be waiting on an image's semaphore, so each
+    // swapchain image gets its own.
+    m_writtenSemaphores.resize(m_imageCount);
+    for (VkSemaphore& sem : m_writtenSemaphores)
+        vkCreateSemaphore(m_device, &semCreateInfo, nullptr, &sem);
     //NAME(m_readSemaphore, VK_OBJECT_TYPE_SEMAPHORE, "m_readSemaphore");
     //NAME(m_writtenSemaphore, VK_OBJECT_TYPE_SEMAPHORE, "m_writtenSemaphore");
     //NAME(m_queue, VK_OBJECT_TYPE_QUEUE, "m_queue");
@@ -595,7 +613,9 @@ void VkApp::destroySwapchain()
     // Destroy the synchronization items: 
 	vkDestroyFence(m_device, m_waitFence, nullptr);
 	vkDestroySemaphore(m_device, m_readSemaphore, nullptr);
-	vkDestroySemaphore(m_device, m_writtenSemaphore, nullptr);
+	for (VkSemaphore sem : m_writtenSemaphores)
+		vkDestroySemaphore(m_device, sem, nullptr);
+	m_writtenSemaphores.clear();
 
     // Destroy the actual swapchain:
     vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
