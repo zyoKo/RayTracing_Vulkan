@@ -9,6 +9,9 @@
 *.vcxproj.filters
 *.vcxproj.user
 
+# Claude Code
+.claude/
+
 # User-specific files
 *.rsuser
 *.suo
