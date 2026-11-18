@@ -214,7 +214,7 @@ void ModelData::readAssimpFile(const std::string& path, const mat4& M)
             if (AI_SUCCESS == hs) Ks = vec3(spec.r, spec.g, spec.b);
             newmat.diffuse = {Kd[0], Kd[1], Kd[2]};
             newmat.specular = {Ks[0], Ks[1], Ks[2]};
-            newmat.shininess = alpha; //sqrtf(2.0f/(2.0f+alpha));
+            newmat.shininess = sqrtf(2.0f/(2.0f+alpha)); // Phong exponent -> GGX roughness
             newmat.emission = {0,0,0};
             newmat.textureId = -1;  }
         

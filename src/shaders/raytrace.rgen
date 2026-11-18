@@ -9,7 +9,7 @@
 #include "shared_structs.h"
 #include "RNG.glsl"
 
-#define PI 3.14159f
+#define PI 3.14159265f
 
 // The ray payload, attached to a ray; used to communicate between shader stages.
 layout(location=0) rayPayloadEXT RayPayload payload;
@@ -40,8 +40,8 @@ layout(buffer_reference, scalar) buffer MatIndices {int i[]; }; // Material ID f
 // Project 4 functions
 vec3 EvalBrdf(vec3 N, vec3 L, vec3 V, Material mat);
 vec3 SampleLobe(vec3 A, float c, float phi);
-vec3 SampleBrdf(inout uint seed, in vec3 N);
-float PdfBrdf(vec3 N, vec3 Wi);
+vec3 SampleBrdf(inout uint seed, vec3 N, vec3 V, Material mat);
+float PdfBrdf(vec3 N, vec3 L, vec3 V, Material mat);
 
 void main() 
 {
@@ -127,6 +127,21 @@ void main()
             mat.diffuse = texture(textureSamplers[(txtId)], uv).xyz;
         }
 
+        // Orient the normals towards the incoming ray: instances have culling disabled, so
+        // back faces are hit. Shading normal falls back to the geometric one if it faces away.
+        vec3 Wo = -rayDirection; // Wi and Wo play the same role as L and V, in most BRDF presentations
+
+        vec3 Ng = cross(v1.pos - v0.pos, v2.pos - v0.pos);
+        Ng = dot(Ng, Ng) > 0.0f ? normalize(Ng) : Wo;
+        if (dot(Ng, Wo) < 0.0f)
+            Ng = -Ng;
+
+        vec3 N = dot(nrm, nrm) > 0.0f ? normalize(nrm) : Ng;
+        if (dot(N, Ng) < 0.0f)
+            N = -N;
+        if (dot(N, Wo) <= 0.0f)
+            N = Ng;
+
         // Project 5 & 6
         if (i == 0)
         {
@@ -144,17 +159,15 @@ void main()
             break;
         }
 
-        // From the current hit point, setup N,L,V for BRDF calculation
-        vec3 P = payload.hitPos; // Current hit point
-        vec3 N = normalize(nrm); // Its normal
+        vec3 Wi = SampleBrdf(payload.seed, N, Wo, mat); // Importance sample output direction
 
-        // Wi and Wo play the same role as L and V, in most presentations of BRDF
-        // … but makes more sense then L and V notation in the middle of a long path
-        vec3 Wi = SampleBrdf(payload.seed, N); // Importance sample output direction
-        vec3 Wo = -rayDirection;
+        // A GGX sample can reflect below N, and a shading normal can send the sample
+        // through the surface it was generated from. Neither carries any energy.
+        if (dot(Wi, N) <= 0.0f || dot(Wi, Ng) <= 0.0f)
+            break;
 
         vec3  f = EvalBrdf(N, Wi, Wo, mat); // Color (vec3) according to BRDF
-        float p = PdfBrdf(N, Wi) * pcRay.rr; // Probability (float) of above sample of Wi
+        float p = PdfBrdf(N, Wi, Wo, mat) * pcRay.rr; // Probability (float) of above sample of Wi
 
         const float epsilon = 1e-6;
         if (p < epsilon) { // epsilon = 10^-6; Mathematically impossible, but due to roundoff ...
@@ -286,57 +299,62 @@ void main()
 
 // Project 4 functions
 /////// ------------ GGX ----------
-float G1(vec3 V, vec3 H, vec3 N, float alpha, float tan_theta_m)
-{ // Note: V can wi or wo
-    float dotVH = dot(V, H);
-    float dotVN = dot(V, N);
+// Smith masking term for one direction (Walter et al. 2007). dotVN must be > 0.
+float G1(float dotVN, float dotVH, float alphaSqr)
+{
+    if (dotVH <= 0.0f)
+        return 0.0f;
 
-    return clamp(dotVH / dotVN, 0.0f, 1.0f) * 2.0f / (1.0f + sqrt(1.0f + pow(alpha * tan_theta_m, 2)));
+    float cosSqr = dotVN * dotVN;
+    float tanSqr = (1.0f - cosSqr) / cosSqr;
+    return 2.0f / (1.0f + sqrt(1.0f + alphaSqr * tanSqr));
 }
 
 vec3 EvalBrdf(vec3 N, vec3 L, vec3 V, Material mat) // wi = L, wo = V
 {
+    float dotLN = dot(L, N);
+    float dotVN = dot(V, N);
+    if (dotLN <= 0.0f || dotVN <= 0.0f)
+        return vec3(0.0f);
+
     vec3 Kd = mat.diffuse;
     vec3 Ks = mat.specular;
     vec3 H = normalize(V + L);
 
-    float alpha = mat.shininess;
-    float alphaSqr = pow(alpha, 2);
+    float dotHN = clamp(dot(H, N), 0.0f, 1.0f);
+    float dotLH = clamp(dot(L, H), 0.0f, 1.0f);
+    float dotVH = clamp(dot(V, H), 0.0f, 1.0f);
 
-    float dotLN = dot(L, N);
-    float dotVN = dot(V, N);
-    float dotHN = dot(H, N);
-    float dotLH = dot(L, H);
+    // shininess holds GGX roughness; the floor keeps D finite for near-mirror surfaces
+    float alpha = max(mat.shininess, 1e-3f);
+    float alphaSqr = alpha * alpha;
 
-    float tan_theta_m = sqrt((1.0f - pow(dotHN, 2))) / dotHN;
-    float tan_theta_v = sqrt((1.0f - pow(dotVN, 2))) / dotVN;
-    float tan_square_theta_m = pow(tan_theta_m, 2);
-    float tan_square_theta_v = pow(tan_theta_v, 2);
-    
-    // F - Done
-    float dotLH5 = pow(1.0f - dotLH, 5);
-    vec3 F = Ks + (vec3(1.0) - Ks) * dotLH5;
-    
-    // D 
-    float denom = PI * pow(dotHN, 4) * pow(alphaSqr + tan_square_theta_m, 2);
-    float D = clamp(dotHN, 0.0, 1.0) * (alphaSqr / denom);
+    // F: Schlick. The grazing value is scaled so that materials authored with Ks = 0 stay non-specular.
+    float f90 = clamp(50.0f * max(Ks.r, max(Ks.g, Ks.b)), 0.0f, 1.0f);
+    float m = 1.0f - dotLH;
+    vec3 F = Ks + (vec3(f90) - Ks) * (m * m * m * m * m);
 
-    // G
-    float G = 1.0f;
-    if(dotVN <= 1.0f || tan_theta_v != 0.0f)
-        G = G1(L, H, N, alpha, tan_theta_v) * G1(V, H, N, alpha, tan_theta_v);
+    // D: GGX
+    float d = dotHN * dotHN * (alphaSqr - 1.0f) + 1.0f;
+    float D = alphaSqr / (PI * d * d);
 
-    return max(dot(N, L), 0.0f) * ((Kd / PI) + ((D * F * G) / (4.0f * abs(dotLN) * abs(dotVN)) ) );
+    // G: Smith, evaluated separately for each direction
+    float G = G1(dotLN, dotLH, alphaSqr) * G1(dotVN, dotVH, alphaSqr);
+
+    vec3 specular = (D * F * G) / (4.0f * dotLN * dotVN);
+    vec3 diffuse = (vec3(1.0f) - F) * Kd / PI; // Energy reflected specularly can't also scatter diffusely
+
+    return dotLN * (diffuse + specular);
 }
 
 vec3 SampleLobe(vec3 A, float c, float phi)
 {
-    float s = sqrt(1.0 - pow(c, 2));
+    float s = sqrt(max(1.0f - c * c, 0.0f));
     vec3 K = vec3(s * cos(phi), s * sin(phi), c);
 
     if (abs(A.z - 1.0) < 1e-3)
         return K;
-    
+
     if (abs(A.z + 1.0) < 1e-3)
         return vec3(K.x, -K.y, -K.z);
 
@@ -347,12 +365,76 @@ vec3 SampleLobe(vec3 A, float c, float phi)
     return K.x * B + K.y * C + K.z * A;
 }
 
-vec3 SampleBrdf(inout uint seed, in vec3 N)
+// Chance of sampling the specular lobe rather than the diffuse one, from the expected
+// reflectance of each. Clamped so that neither lobe is ever left unsampled.
+float SpecularProbability(vec3 N, vec3 V, Material mat)
 {
-    return SampleLobe(N, sqrt(rnd(seed)), 2 * PI * rnd(seed));
+    float f0 = max(mat.specular.r, max(mat.specular.g, mat.specular.b));
+    float kd = max(mat.diffuse.r, max(mat.diffuse.g, mat.diffuse.b));
+
+    float m = 1.0f - clamp(dot(N, V), 0.0f, 1.0f);
+    float f90 = clamp(50.0f * f0, 0.0f, 1.0f);
+    float F = f0 + (f90 - f0) * (m * m * m * m * m);
+
+    float total = F + kd * (1.0f - F);
+    return clamp(total > 0.0f ? F / total : 0.5f, 0.1f, 0.9f);
 }
 
-float PdfBrdf(vec3 N, vec3 Wi)
+// Sample the GGX distribution of normals visible from V, then reflect V (Heitz 2018).
+vec3 SampleGgx(inout uint seed, vec3 N, vec3 V, float alpha)
 {
-    return abs(dot(N, Wi)) / PI;
+    vec3 T = abs(N.z) < 0.999f ? normalize(cross(vec3(0.0f, 0.0f, 1.0f), N)) : vec3(1.0f, 0.0f, 0.0f);
+    vec3 B = cross(N, T);
+    vec3 Vlocal = vec3(dot(V, T), dot(V, B), dot(V, N));
+
+    vec3 Vh = normalize(vec3(alpha * Vlocal.x, alpha * Vlocal.y, Vlocal.z));
+    float lenSqr = Vh.x * Vh.x + Vh.y * Vh.y;
+    vec3 T1 = lenSqr > 0.0f ? vec3(-Vh.y, Vh.x, 0.0f) / sqrt(lenSqr) : vec3(1.0f, 0.0f, 0.0f);
+    vec3 T2 = cross(Vh, T1);
+
+    float r = sqrt(rnd(seed));
+    float phi = 2.0f * PI * rnd(seed);
+    float t1 = r * cos(phi);
+    float t2 = r * sin(phi);
+    float s = 0.5f * (1.0f + Vh.z);
+    t2 = (1.0f - s) * sqrt(max(1.0f - t1 * t1, 0.0f)) + s * t2;
+
+    vec3 Nh = t1 * T1 + t2 * T2 + sqrt(max(1.0f - t1 * t1 - t2 * t2, 0.0f)) * Vh;
+    vec3 Hlocal = normalize(vec3(alpha * Nh.x, alpha * Nh.y, max(Nh.z, 0.0f)));
+
+    return reflect(-V, Hlocal.x * T + Hlocal.y * B + Hlocal.z * N);
+}
+
+vec3 SampleBrdf(inout uint seed, vec3 N, vec3 V, Material mat)
+{
+    if (rnd(seed) < SpecularProbability(N, V, mat))
+        return SampleGgx(seed, N, V, max(mat.shininess, 1e-3f));
+
+    float c = sqrt(rnd(seed));
+    float phi = 2.0f * PI * rnd(seed);
+    return SampleLobe(N, c, phi);
+}
+
+// Pdf of SampleBrdf: both lobes can produce any direction, so this is always their mixture.
+float PdfBrdf(vec3 N, vec3 L, vec3 V, Material mat)
+{
+    float dotLN = dot(L, N);
+    float dotVN = dot(V, N);
+    if (dotLN <= 0.0f || dotVN <= 0.0f)
+        return 0.0f;
+
+    vec3 H = normalize(V + L);
+    float dotHN = clamp(dot(H, N), 0.0f, 1.0f);
+    float dotVH = clamp(dot(V, H), 0.0f, 1.0f);
+
+    float alpha = max(mat.shininess, 1e-3f);
+    float alphaSqr = alpha * alpha;
+    float d = dotHN * dotHN * (alphaSqr - 1.0f) + 1.0f;
+    float D = alphaSqr / (PI * d * d);
+
+    float pdfSpecular = G1(dotVN, dotVH, alphaSqr) * D / (4.0f * dotVN);
+    float pdfDiffuse = dotLN / PI;
+
+    float pS = SpecularProbability(N, V, mat);
+    return pS * pdfSpecular + (1.0f - pS) * pdfDiffuse;
 }
