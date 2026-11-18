@@ -68,26 +68,13 @@ void VkApp::myloadModel(const std::string& filename, glm::mat4 transform)
     printf("matIndx: %zd\n", meshdata.matIndx.size());
     printf("textures: %zd\n", meshdata.textures.size());
     
-    // @@ Go though the list of meshdata.materials, find the ones that
-    // are emitters, and scale the emission up by a factor of 5.  The
-    // model's original values produce very dark image.  We will have
-    // a better way to accomplish this later.
-    //
-    // Hint: meshdata.materials[i].emission is a vec3 color of light emitted.
+    // The model's emitters are too dim as authored; boost them.
     for (auto& material : meshdata.materials) {
         if (material.emission != vec3(0))
 	        material.emission *= 2.5f;
     }
 
-    // @@ The raytracer will eventually need a list of lights, that is
-    // a list of triangle indices whose associated material type has a
-    // non-zero emission vec3.  Create such a list.  The vkapp.h header
-    // file has no data member for this, so create your own.
-    //
-    // Hint: Triangle i has
-    //   vertices in meshdata.vertices, indexed by [3*i], [3*i+1], [3*i+2]
-    //   and a material in meshdata.materials, indexed by meshdata.matIndx[i]
-    //for (auto& material : meshdata.materials)
+    // Collect emissive geometry as a list of light-emitting triangles
     for (int i = 0; i < meshdata.materials.size(); ++i)
     {
 	    if (meshdata.materials[i].emission != vec3(0.0f))
@@ -146,10 +133,6 @@ void VkApp::myloadModel(const std::string& filename, glm::mat4 transform)
 
     m_objData.emplace_back(object);
     m_objDesc.emplace_back(desc);
-
-    // @@ At shutdown:
-    //   Destroy all textures with:  for (t:m_objText) t.destroy(m_device); 
-    //   Destroy all buffers with:   for (ob:objDesc) ob.destroy(m_device);
 }
 
 void ModelData::readAssimpFile(const std::string& path, const mat4& M)
@@ -247,8 +230,6 @@ void recurseModelNodes(ModelData* meshdata,
                        const int level)
 {
     // Print line with indentation to show structure of the model node hierarchy.
-    //for (int i=0;  i<level;  i++) printf("| ");
-    //printf("%s \n", node->mName.data);
 
     // Accumulating transformations while traversing down the hierarchy.
     aiMatrix4x4 childTr = parentTr*node->mTransformation;
@@ -257,7 +238,6 @@ void recurseModelNodes(ModelData* meshdata,
     // Loop through this node's meshes
     for (unsigned int m=0;  m<node->mNumMeshes; ++m) {
         aiMesh* aimesh = aiscene->mMeshes[node->mMeshes[m]];
-        //printf("  %d: %d:%d\n", m, aimesh->mNumVertices, aimesh->mNumFaces);
 
         // Loop through all vertices and record the
         // vertex/normal/texture/tangent data with the node's model

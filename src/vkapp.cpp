@@ -48,12 +48,6 @@ VkApp::VkApp(App* _app) : app(_app)
 
 	myloadModel("models/living_room/living_room.obj", glm::mat4(1.0f));
 
-	//createScBuffer();
-	//createRtBuffers();
-
-	//createScanlineRenderPass();
-	//createStuff();
-
 	createMatrixBuffer();
 	createObjDescriptionBuffer();
 	createScanlineRenderPass();
@@ -87,7 +81,8 @@ void VkApp::drawFrame()
 		if (useRaytracer) 
 		{
 			raytrace();
-			denoise();
+			if (m_denoiseEnabled && m_viewMode == eViewFinal)
+				denoise();
 		}
 		else 
 		{

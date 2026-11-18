@@ -9,5 +9,5 @@ layout(location=0) rayPayloadInEXT RayPayload payload;
 
 void main()
 {
-    // Intentionally empty;  To be filled in later in the semester
+    // Intentionally empty
 }

@@ -42,7 +42,6 @@ glm::mat4 Camera::view(float time)
     if (time < endTime) {
         modified = true;
         float t = (time-startTime)/(endTime-startTime);
-        //t = 2*t-t*t;
         t = (3-2*t)*t*t;
         currSpin = (1-t)*startSpin + t*spin;
         currTilt = (1-t)*startTilt + t*tilt;
@@ -82,11 +81,8 @@ void Camera::setMousePosition(const float x, const float y)
 
 void Camera::wheel(const int dir)
 {
-    //printf("wheel: %d\n", dir);
 }
 
 void Camera::viewParms()
 {
-    //printf("%5.2f, %5.2f, glm::vec3(%5.2f,%5.2f,%5.2f)\n",
-    //       spin, tilt, eye[0], eye[1], eye[2]);
 }

@@ -24,7 +24,6 @@ void VkApp::createDenoiseBuffer()
     transitionImageLayout(m_denoiseBuffer.image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED,
                           VK_IMAGE_LAYOUT_GENERAL, 1);
-    // @@ destroy m_denoiseBuffer
 }
 
 void VkApp::createDenoiseDescriptorSet()
@@ -40,12 +39,10 @@ void VkApp::createDenoiseDescriptorSet()
     m_denoiseDesc.write(m_device, 1, m_denoiseBuffer.Descriptor());   // The output image
     m_denoiseDesc.write(m_device, 2, m_rtKdCurrBuffer.Descriptor());  // The color buffer
     m_denoiseDesc.write(m_device, 3, m_rtNdCurrBuffer.Descriptor());  // The normal:depth buffer
-    // @@ destroy m_denoiseDesc
 }
 
 void VkApp::createDenoiseCompPipeline()
 {
-    // pushing time
     VkPushConstantRange pc_info = {VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantDenoise)};
     VkPipelineLayoutCreateInfo plCreateInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     plCreateInfo.setLayoutCount         = 1;
@@ -61,9 +58,6 @@ void VkApp::createDenoiseCompPipeline()
                                                VK_SHADER_STAGE_COMPUTE_BIT);
     vkCreateComputePipelines(m_device, {}, 1, &cpCreateInfo, nullptr, &m_denoisePipeline);
     vkDestroyShaderModule(m_device, cpCreateInfo.stage.module, nullptr);
-
-    // @@ destroy m_denoiseCompPipelineLayout
-    // @@ destroy m_denoisePipeline
 }
 
 void VkApp::denoise()
@@ -82,10 +76,7 @@ void VkApp::denoise()
                          VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                          VK_DEPENDENCY_DEVICE_GROUP_BIT, 0, nullptr, 0, nullptr, 1, &imgMemBarrier);
 
-    // Project 6 De-noise
-    m_pcDenoise.normFactor = 0.003f;
-    m_pcDenoise.depthFactor = 0.007f;
-
+    // A-trous wavelet denoise
     int stepwidth = 1;
     for(int a = 0; a < m_num_atrous_iterations; a++) 
     {
@@ -102,9 +93,8 @@ void VkApp::denoise()
                            VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantDenoise),
                            &m_pcDenoise);
 
-        // Dispatch the shader in batches of 128x1 (WHY???)
-        // This MUST match the shaders's line:
-        //    layout(local_size_x=GROUP_SIZE, local_size_y=1, local_size_z=1) in;
+        // One 128x1 workgroup per row segment; GROUP_SIZE must match
+        // local_size_x in denoise.comp.
         vkCmdDispatch(m_commandBuffer,
                       (windowSize.width + GROUP_SIZE-1) / GROUP_SIZE,
                       windowSize.height, 1);
@@ -116,10 +106,7 @@ void VkApp::denoise()
                              VK_DEPENDENCY_DEVICE_GROUP_BIT,
                              0, nullptr, 0, nullptr, 1, &imgMemBarrier);
 
-        // @@ Copy the denoised results (in m_denoiseBuffer) back to
-        // the input buffer (m_scImageBuffer) for the next denoising
-        // loop pass.  See VkApp::raytrace for 4 examples of using
-        // VkApp::CmdCopyImage to copy an image.
+        // Feed this pass's output back in as the next pass's input
         CmdCopyImage(m_denoiseBuffer, m_scImageBuffer);
     }
 }

@@ -85,8 +85,14 @@ public:
     App* app;
     VkApp(App* _app);
 
-    // @@ Variables managed by ImGui
-    int frameCount;
+    // Variables managed by ImGui
+    int frameCount = 0;     // Frames rendered since the history was last reset
+    bool m_resetHistory = false;
+    bool m_denoiseEnabled = true;
+    int m_viewMode = eViewFinal;
+    float m_exposure = 1.0f;
+    float m_gamma = 2.2f;
+    void setDefaultSettings();
     void drawFrame();
 
     void destroyAllVulkanResources();
@@ -216,8 +222,6 @@ public:
     BufferWrap m_scratch1;
     BufferWrap m_scratch2;
     BlasInput objectToVkGeometryKHR(const ObjData& model);
-    void createBottomLevelAS();
-	void createTopLevelAS();
     void createRtAccelerationStructure();
 
     DescriptorWrap m_rtDesc{};

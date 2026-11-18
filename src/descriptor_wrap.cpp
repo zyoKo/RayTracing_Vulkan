@@ -86,7 +86,6 @@ void DescriptorWrap::write(VkDevice& device, uint index, const VkBuffer& buffer)
 
 void DescriptorWrap::write(VkDevice& device, uint index, const VkDescriptorImageInfo& textureDesc)
 {
-    //VkDescriptorBufferInfo desBuf{nvbuffer.buffer, 0, VK_WHOLE_SIZE};
 
     VkWriteDescriptorSet writeSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     writeSet.dstSet          = descSet;
@@ -109,7 +108,6 @@ void DescriptorWrap::write(VkDevice& device, uint index, const VkDescriptorImage
 
 void DescriptorWrap::write(VkDevice& device, uint index, const std::vector<ImageWrap>& textures)
 {
-    //VkDescriptorBufferInfo desBuf{nvbuffer.buffer, 0, VK_WHOLE_SIZE};
     std::vector<VkDescriptorImageInfo> des;
     for(auto& texture : textures)
         des.emplace_back(texture.Descriptor());

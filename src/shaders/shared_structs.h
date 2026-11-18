@@ -31,6 +31,14 @@ eTlas = 0,  // Top-level acceleration structure
 eOutImage = 1,   // Ray tracer output image
 eColorHistoryImage = 2
 END_ENUM();
+
+START_ENUM(ViewModes)
+eViewFinal = 0,    // Tone-mapped result
+eViewAlbedo = 1,   // First-hit diffuse color
+eViewNormal = 2,   // First-hit normal
+eViewDepth = 3,    // First-hit view-space depth
+eViewSamples = 4   // Accumulated sample count per pixel
+END_ENUM();
 // clang-format on
 
 
@@ -89,18 +97,10 @@ struct PushConstantRaster
 //  Use ALIGNAS(4) to align bools.
 //  Use ALIGNAS(4) or not for ints, uints, and floats as they naturally align to 4 byte boundaries.
 //  Use ALIGNAS(16) for vec3 and vec4, and probably mat4 (untested).
-// @@ Do a sanity check by storing a known sentinel value in the last
-// variable alignmentTest in the C++ program and testing for that
-// value in raytrace.gen.  If the test fails fill the screen with an
-// error color.
-//     For example:  if (pcRay.alignmentTest != 1234) {
-//                        imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy), vec4(1,0,0,0));
-//                        return; }
-
-// If your alignment is incorrect, the VULKAN validation layer now produces this message:
-// VUID-VkRayTracingPipelineCreateInfoKHR-layout-03427(ERROR / SPEC): msgNum: 1749323802 - Validation Error: [ VUID-VkRayTracingPipelineCreateInfoKHR-layout-03427 ] Object 0: handle = 0xd600000000d6, type = VK_OBJECT_TYPE_SHADER_MODULE; Object 1: handle = 0xda00000000da, type = VK_OBJECT_TYPE_PIPELINE_LAYOUT; | MessageID = 0x6844901a | Push constant buffer: member:0 member:13 offset:4 in VK_SHADER_STAGE_RAYGEN_BIT_KHR is out of range in VkPipelineLayout 0xda00000000da[]. The Vulkan spec states: layout must be consistent with all shaders specified in pStages (https://www.khronos.org/registry/vulkan/specs/1.3-extensions/html/vkspec.html#VUID-VkRayTracingPipelineCreateInfoKHR-layout-03427)
-
-
+// PushConstantRay ends with a sentinel (alignmentTest) that the C++ side
+// sets to 1234 and raytrace.rgen checks, filling the screen with an error
+// color on mismatch. A misaligned layout also trips validation error
+// VUID-VkRayTracingPipelineCreateInfoKHR-layout-03427.
 
 // Push constant structure for the ray tracer
 struct PushConstantRay
@@ -119,8 +119,9 @@ struct PushConstantRay
     ALIGNAS(4) bool useHistory;
     ALIGNAS(4) bool doExplicit;
     ALIGNAS(4) bool clear;
-    // @@ Set alignmentTest to a known value in C++;  Test for that value in the shader!
-    ALIGNAS(4) int alignmentTest;
+    ALIGNAS(4) float emissionScale;
+    ALIGNAS(4) float maxSamples;  // Limit on the history's sample count; 0 means no limit
+    ALIGNAS(4) int alignmentTest; // Sentinel (1234) for checking host/shader layout agreement
 };
 
 struct Vertex  // Created by readModel; used in shaders
@@ -140,16 +141,21 @@ struct Material  // Created by readModel; used in shaders
 };
 
 
-// Push constant structure for the ray tracer
+// Push constant structure for the denoiser
 struct PushConstantDenoise
 {
     float normFactor;
     float depthFactor;
-    //float lumenFactor;
+    int   stepwidth;
+    float albedoFactor;
+};
 
-    int  stepwidth;
-    //ALIGNAS(4) bool demodulate;
-    //ALIGNAS(4) bool splitscreen;
+// Push constant structure for the post-processing pass
+struct PushConstantPost
+{
+    float exposure;
+    float gamma;
+    uint  viewMode;
 };
 
 struct RayPayload

@@ -19,17 +19,12 @@ void main()
 {
     ivec2 gpos = ivec2(gl_GlobalInvocationID.xy);  // Index of central pixel being denoised
     
-    // Values associated with the central pixel
-    // @@ Calculate/read each of these for the central pixel at gpos
-    // cKd = read kdBuff at gpos, clamp value to vec3(0.1) or above
+    // Central pixel: albedo (clamped so demodulation stays stable), color,
+    // demodulated color, normal and depth
     vec3 cKd = clamp(imageLoad(kdBuff, gpos).xyz, vec3(0.1), vec3(1.0));
-    // cVal = read .xyz of inImage at gpos;  the pixel value to be denoised
     vec3 cVal = imageLoad(inImage, gpos).xyz;
-    // cDem = cVal/cKd;  The pixel value demodulated.
     vec3 cDem = cVal / cKd;
-    // cNrm   = read ndBuff .xyz at gpos
     vec3 cNrm = imageLoad(ndBuff, gpos).xyz;
-    // cDepth = read ndBuff .w at gpos
     float cDepth = imageLoad(ndBuff, gpos).w;
     
     vec3 numerator = vec3(0.0);
@@ -39,42 +34,38 @@ void main()
         for (int j=-2;  j<=2;  j++) 
         {
             ivec2 offset = ivec2(i,j) * pc.stepwidth; // Offset of 5x5 pixels **with holes**
-            // Values associated with the loop's offset pixel
-            // @@ Calculate/read a similar set of values as above,
-            // but from location  gpos+offset
+            // The same values for the offset pixel
             ivec2 total_offset = gpos + offset;
-
-            // and named  pKd, pVal, pDem, pNrm, pDepth.
             vec3 pKd = clamp(imageLoad(kdBuff, total_offset).xyz, vec3(0.1), vec3(1.0));
             vec3 pVal = imageLoad(inImage, total_offset).xyz;
             vec3 pDem = pVal / pKd;
             vec3 pNrm = imageLoad(ndBuff, total_offset).xyz;
             float pDepth = imageLoad(ndBuff, total_offset).w;
 
-            // @@ Calculate the weight factor by comparing this loop's
-            // offset pixel to the central pixel.  The weight is a product of 4 factors:
-            //  1: h_weight = guassian[i+2] for a Gaussian distribution in the horizontal direction
+            // The weight compares the offset pixel to the central one and is a product of:
+            //  1-2: separable Gaussian taps in x and y
             float h_weight = gaussian[i + 2];
-            //  2: v_weight = guassian[j+2] for a Gaussian distribution in the vertical direction
             float v_weight = gaussian[j + 2];
-            //  3: a depth related weight:
-            //      d_weight = exp( -(t*t)/pc.depthFactor ); // or 1.0 if depthFactor is zero
-            //      for t = cDepth-pDepth;
+            //  3: depth similarity, exp(-t^2 / depthFactor) with t = cDepth - pDepth (1 if factor is 0)
             float t = cDepth - pDepth;
-            float d_weight = exp(-pow(t, 2) / pc.depthFactor);
+            float d_weight = exp(-(t * t) / pc.depthFactor);
             if (pc.depthFactor == 0.0f)
                 d_weight = 1.0f;
-            //  4: a normal related weight
-            //      n_weight = exp(-d/(pc.normFactor)); // or 1.0 if normFactor is zero
-            //      for t = cNrm-pNrm
-            //      and d = dot(t,t)/(pc.stepwidth*pc.stepwidth);
+            //  4: normal similarity, exp(-d / normFactor) with d = |cNrm - pNrm|^2 / stepwidth^2 (1 if factor is 0)
             vec3 _t = cNrm - pNrm;
-            float d = dot(_t, _t) / pow(pc.stepwidth, 2);
+            float d = dot(_t, _t) / float(pc.stepwidth * pc.stepwidth);
             float n_weight = exp(-d / pc.normFactor);
             if (pc.normFactor == 0.0f)
                 n_weight = 1.0f;
 
-            float weight = h_weight * v_weight * d_weight * n_weight;
+            //  5: an albedo related weight. Dividing by a dark albedo inflates any specular light
+            //     on that pixel, which would otherwise bleed onto brighter neighbours as a halo.
+            vec3 kdDiff = cKd - pKd;
+            float k_weight = exp(-dot(kdDiff, kdDiff) / pc.albedoFactor);
+            if (pc.albedoFactor == 0.0f)
+                k_weight = 1.0f;
+
+            float weight = h_weight * v_weight * d_weight * n_weight * k_weight;
             numerator += pDem * weight;
             denominator += weight;
         }

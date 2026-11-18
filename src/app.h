@@ -9,6 +9,7 @@ public:
     bool doApiDump;
     
     bool m_show_gui = true;
+    float m_moveSpeed = 0.7f;
     Camera myCamera;
     void updateCamera();
 };

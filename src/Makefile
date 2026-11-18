@@ -1,12 +1,9 @@
 
 
-LIBDIR := /home/gherron/projects/frameworks/libs
+LIBDIR := ../libs
 VPATH = $(LIBDIR)/imgui-master $(LIBDIR)/imgui-master/backends shaders
 
-SDK = /home/gherron/vulkanSDK/1.3.243.0/x86_64/include
-
-pkgName=rtrtFramework
-pkgDir = /home/gherron/packages
+SDK = $(VULKAN_SDK)/include
 
 CXX = g++
 
@@ -28,7 +25,6 @@ shader_src =  shaders/shared_structs.h   shaders/post.frag shaders/post.vert   s
 
 imgui_src = $(LIBDIR)/imgui-master/backends/imgui_impl_glfw.cpp $(LIBDIR)/imgui-master/backends/imgui_impl_vulkan.cpp $(LIBDIR)/imgui-master/imgui.cpp $(LIBDIR)/imgui-master/imgui_demo.cpp $(LIBDIR)/imgui-master/imgui_draw.cpp $(LIBDIR)/imgui-master/imgui_widgets.cpp
 
-extraFiles = Makefile rtrt.vcxproj rtrt.sln rtrt.vcxproj.filters
 
 objects = $(patsubst %.cpp,%.o,$(src)) $(patsubst %.cpp,%.o,$(imgui_src)) 
 
@@ -77,28 +73,6 @@ rund: $(target)  $(objects)
 
 clean:
 	rm -rf *.suo *.sdf *.orig Release Debug ipch *.o *~ raytrace dependencies *13*scn  *13*ppm
-
-zip:
-	rm -rf $(pkgDir)/$(pkgName) $(pkgDir)/$(pkgName).zip
-	mkdir $(pkgDir)/$(pkgName)
-	mkdir $(pkgDir)/$(pkgName)/src
-	mkdir $(pkgDir)/$(pkgName)/src/shaders
-	mkdir $(pkgDir)/$(pkgName)/src/spv
-	mkdir $(pkgDir)/$(pkgName)/libs
-	cp $(src) $(headers) $(pkgDir)/$(pkgName)/src
-	cp $(shader_src) $(pkgDir)/$(pkgName)/src/shaders
-	cp -r models $(pkgDir)/$(pkgName)/src
-	cp -r $(LIBDIR)/* $(pkgDir)/$(pkgName)/libs
-	rm -rf $(LIBDIR)/bvh* 
-	rm -rf $(LIBDIR)/*glbinding*
-	rm -rf  $(LIBDIR)/glfw-old
-	cp -r $(extraFiles) $(pkgDir)/$(pkgName)/src
-	cd $(pkgDir)/$(pkgName)/src;  unifdef -DSTUDENT -m  $(headers) || /bin/true
-	cd $(pkgDir)/$(pkgName)/src;  unifdef -DSTUDENT -m  $(src) || /bin/true
-	cd $(pkgDir)/$(pkgName)/src;  unifdef -DSTUDENT -m  $(shader_src) || /bin/true
-
-	cd $(pkgDir);  zip -r $(pkgName).zip $(pkgName); 
-	cd /home/gherron/projects/dev-rtrt; rm -rf $(pkgName); unzip $(pkgDir)/$(pkgName).zip
 
 dependencies: 
 	g++ -MM $(CXXFLAGS)  $(src) > dependencies

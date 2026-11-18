@@ -37,7 +37,7 @@ layout(buffer_reference, scalar) buffer Indices {ivec3 i[]; }; // Triangle indic
 layout(buffer_reference, scalar) buffer Materials {Material m[]; }; // Array of all materials
 layout(buffer_reference, scalar) buffer MatIndices {int i[]; }; // Material ID for each triangle
 
-// Project 4 functions
+// BRDF functions
 vec3 EvalBrdf(vec3 N, vec3 L, vec3 V, Material mat);
 vec3 SampleLobe(vec3 A, float c, float phi);
 vec3 SampleBrdf(inout uint seed, vec3 N, vec3 V, Material mat);
@@ -45,7 +45,7 @@ float PdfBrdf(vec3 N, vec3 L, vec3 V, Material mat);
 
 void main() 
 {
-    //sanity test
+    // Push-constant layout check (see alignmentTest in shared_structs.h)
     if (pcRay.alignmentTest != 1234) 
     {
       imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy), vec4(1,0,0,0));
@@ -68,15 +68,15 @@ void main()
     vec3 C = vec3(0.0);
     vec3 W = vec3(1.0);
 
-    // Project 5 & 6
-    bool firstHit;
-    vec3 firstPos;
-    float firstDepth;
-    vec3 firstNrm;
-    vec3 firstKd;
+    // First-hit data for temporal accumulation and denoising
+    bool firstHit = false;
+    vec3 firstPos = vec3(0.0f);
+    float firstDepth = 0.0f;
+    vec3 firstNrm = vec3(0.0f);
+    vec3 firstKd = vec3(0.0f);
 
-    // TODO: Loop through ray-by-ray along a path:
-    // LOOP THROUGH pcRay.depth iteration: // Predetermined russian roulette
+    // Loop through ray-by-ray along a path. Paths end by Russian roulette below;
+    // pcRay.depth is only an upper limit on their length.
     for(int i = 0; i < pcRay.depth; ++i)
     {
         // Fire the ray;  hit or miss shaders will be invoked, passing results back in the payload
@@ -124,8 +124,11 @@ void main()
         // If the material has a texture, read diffuse color from it.
         if (mat.textureId >= 0) {
             uint txtId = objResources.txtOffset + mat.textureId;
-            mat.diffuse = texture(textureSamplers[(txtId)], uv).xyz;
+            mat.diffuse = texture(textureSamplers[nonuniformEXT(txtId)], uv).xyz;
         }
+
+        if (!pcRay.fullBRDF)
+            mat.specular = vec3(0.0f);
 
         // Orient the normals towards the incoming ray: instances have culling disabled, so
         // back faces are hit. Shading normal falls back to the geometric one if it faces away.
@@ -142,20 +145,19 @@ void main()
         if (dot(N, Wo) <= 0.0f)
             N = Ng;
 
-        // Project 5 & 6
+        // Record first-hit data for temporal accumulation and denoising
         if (i == 0)
         {
-            firstHit = payload.hit;
+            firstHit = true;
             firstPos = payload.hitPos;
-            firstDepth = payload.hitDist;
-            firstNrm = nrm;
+            firstDepth = (mats.viewProj * vec4(payload.hitPos, 1.0f)).w;  // View-space depth
+            firstNrm = N;
             firstKd = mat.diffuse;  // Checked: Done after the texture lookup
         }
 
-        if (dot(mat.emission, mat.emission) > 0.0f) 
+        if (dot(mat.emission, mat.emission) > 0.0f)
         {
-            // imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy), vec4(mat.emission,1.0)); // Proj3
-            C += mat.emission * W;
+            C += mat.emission * pcRay.emissionScale * W;
             break;
         }
 
@@ -167,7 +169,7 @@ void main()
             break;
 
         vec3  f = EvalBrdf(N, Wi, Wo, mat); // Color (vec3) according to BRDF
-        float p = PdfBrdf(N, Wi, Wo, mat) * pcRay.rr; // Probability (float) of above sample of Wi
+        float p = PdfBrdf(N, Wi, Wo, mat); // Probability (float) of above sample of Wi
 
         const float epsilon = 1e-6;
         if (p < epsilon) { // epsilon = 10^-6; Mathematically impossible, but due to roundoff ...
@@ -176,128 +178,97 @@ void main()
 
         W *= f / p; // Monte-Carlo estimator
 
+        // Russian roulette, decided independently for each path
+        if (rnd(payload.seed) >= pcRay.rr)
+            break;
+        W /= pcRay.rr;
+
         // Step forward for next loop iteration
         rayOrigin = payload.hitPos;
         rayDirection = Wi;
     }
 
-    // Project 4 - Accumulation Settings
-    //if (pcRay.clear)
-    //{
-    //    imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy), vec4(C, 1.0));
-    //}
-    //else
-    //{
-        // Average Accumulation
-        //vec4 old = imageLoad(colCurr, ivec2(gl_LaunchIDEXT.xy));
-        //vec3 Ave = old.xyz;
-        //float N = old.w;
-
-        //Ave += (C - Ave) / (N + 1.0);
-
-        //imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy), vec4(Ave, N + 1.0));
-    //}
-
     //////////////////////////////////////////////////////////////////////////////////
-    //////////////////////// Project 5 - History Tracking ////////////////////////////
+    ////////////////////////////// History Tracking //////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////
-    vec4 screenH = (mats.priorViewProj * vec4(firstPos, 1.0f));
-    vec2 screen = ((screenH.xy / screenH.w) + vec2(1.0f)) / 2.0f;
+    vec4 P = vec4(0.0f);
+    float total_weight = 0.0f;
 
-    vec4 P = vec4(0.0f, 0.0f, 0.0f, 0.0f);
-    float n_threshold = 0.80f;
-    float d_threshold = 0.15f;
-
-    // Do P Calculations here
-    vec2 floc = screen * gl_LaunchSizeEXT.xy - vec2(0.5f);
-    vec2 offset = fract(floc);
-    ivec2 iloc = ivec2(floc);
-
-    vec3 prevNrm;
-    float prevDepth;
-
-    float final_weight = 0.0f, 
-          total_weight = 0.0f, 
-          bilinear_weight = 0.0f, 
-          depth_weight = 0.0f, 
-          normal_weight = 0.0f;
-
-    for (int i = 0; i <= 1; ++i)
+    if (firstHit && pcRay.useHistory && !pcRay.clear)
     {
-        for (int j = 0; j <= 1; ++j)
+        // Reproject into the prior frame. For this projection clip w is view-space depth, so
+        // screenH.w is the depth this point should have recorded in NdPrev last frame.
+        vec4 screenH = mats.priorViewProj * vec4(firstPos, 1.0f);
+
+        if (screenH.w > 0.0f)
         {
-            vec4 P_iloc = imageLoad(colPrev, iloc + ivec2(i, j));
+            vec2 screen = ((screenH.xy / screenH.w) + vec2(1.0f)) / 2.0f;
 
-            // Weight Calculations
-            if (i == 0 && j == 0)
-                bilinear_weight = (1.0f - offset.x) * (1.0f - offset.y);
-            else if (i == 1 && j == 0)
-                bilinear_weight = (offset.x) * (1.0f - offset.y);
-            else if (i == 0 && j == 1)
-                bilinear_weight = (1.0f - offset.x) * (offset.y);
-            else
-                bilinear_weight = (offset.x) * (offset.y);
+            if (all(greaterThanEqual(screen, vec2(0.0f))) && all(lessThanEqual(screen, vec2(1.0f))))
+            {
+                vec2 floc = screen * vec2(gl_LaunchSizeEXT.xy) - vec2(0.5f);
+                vec2 base = floor(floc);
+                vec2 offset = floc - base;
+                ivec2 iloc = ivec2(base);
 
-            prevNrm = imageLoad(NdPrev, iloc + ivec2(i, j)).xyz;
-            prevDepth = imageLoad(NdPrev, iloc + ivec2(i, j)).w;
+                for (int i = 0; i <= 1; ++i)
+                {
+                    for (int j = 0; j <= 1; ++j)
+                    {
+                        ivec2 loc = iloc + ivec2(i, j);
+                        if (any(lessThan(loc, ivec2(0))) || any(greaterThanEqual(loc, ivec2(gl_LaunchSizeEXT.xy))))
+                            continue;
 
-            if (abs(firstDepth - prevDepth) < d_threshold)
-                depth_weight = 1.0f;
-            else
-                depth_weight = 0.0f;
-            
-            if (dot(firstNrm, prevNrm) > n_threshold)
-                normal_weight = 1.0f;
-            else
-                normal_weight = 0.0f;
+                        vec4 prevNd = imageLoad(NdPrev, loc);
 
-            final_weight = bilinear_weight * depth_weight * normal_weight;
+                        // d_threshold is the allowed depth difference, as a fraction of the depth
+                        if (abs(screenH.w - prevNd.w) >= pcRay.d_threshold * screenH.w)
+                            continue;
+                        if (dot(firstNrm, prevNd.xyz) <= pcRay.n_threshold)
+                            continue;
 
-            // denominator
-            total_weight += final_weight;
+                        float bilinear_weight = (i == 0 ? 1.0f - offset.x : offset.x)
+                                              * (j == 0 ? 1.0f - offset.y : offset.y);
 
-            P += P_iloc * final_weight;
+                        total_weight += bilinear_weight;
+                        P += imageLoad(colPrev, loc) * bilinear_weight;
+                    }
+                }
+            }
         }
     }
 
-    // After P calulations
-    float oldN, newN;
-    vec3 oldAve, newAve;
+    // With no usable history this starts from a count of 0, so the first sample replaces it.
+    float oldN = 0.0f;
+    vec3 oldAve = vec3(0.0f);
 
-    if (!firstHit ||    // if no hit yet
-        ((screen.x < 0.0f || screen.x > 1.0f) || (screen.y < 0.0f || screen.y > 1.0f)) ||  // out of screen.x & .y == [0, 1]
-        (total_weight == 0.0f))   // all weight is 0
+    if (total_weight > 1e-6f)
     {
-        oldN = 1.0f;
-        oldAve = vec3(0.3f);
-
-        imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy), vec4(oldAve, oldN));
-    }
-    else
-    {
-        P = P / total_weight;
-
+        P /= total_weight;
         oldN = P.w;
         oldAve = P.xyz;
 
+        // Limiting the count keeps new samples weighted at 1/maxSamples or more
+        if (pcRay.maxSamples > 0.0f)
+            oldN = min(oldN, pcRay.maxSamples - 1.0f);
+    }
+
+    // A non-finite sample must not enter the running average, so it is dropped.
+    float newN = oldN;
+    vec3 newAve = oldAve;
+
+    if (!any(isnan(C)) && !any(isinf(C)))
+    {
         newN = oldN + 1.0f;
         newAve = oldAve + (C - oldAve) / newN;
-
-        if (!any(isnan(newAve)) && !any(isinf(newAve)) && !isnan(newN) && !isinf(newN))
-            imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy), vec4(newAve, newN));
     }
 
-    if (!any(isnan(newAve)) && !any(isinf(newAve)))
-    {
-        if (!any(isnan(firstKd)) && !any(isinf(firstKd)))
-            imageStore(KdCurr,  ivec2(gl_LaunchIDEXT.xy), vec4(firstKd, 0.0f));
-
-        if (!any(isnan(firstNrm)) && !any(isinf(firstNrm)) && !isnan(firstDepth) && !isinf(firstDepth))
-            imageStore(NdCurr,  ivec2(gl_LaunchIDEXT.xy), vec4(firstNrm, firstDepth));
-    }
+    imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy), vec4(newAve, newN));
+    imageStore(KdCurr,  ivec2(gl_LaunchIDEXT.xy), vec4(firstKd, 0.0f));
+    imageStore(NdCurr,  ivec2(gl_LaunchIDEXT.xy), vec4(firstNrm, firstDepth));
 }
 
-// Project 4 functions
+// BRDF functions
 /////// ------------ GGX ----------
 // Smith masking term for one direction (Walter et al. 2007). dotVN must be > 0.
 float G1(float dotVN, float dotVH, float alphaSqr)

@@ -55,8 +55,38 @@ void VkApp::createRtBuffers()
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_GENERAL,
         1);
+}
 
-    // @@ Destroy whatever buffers were created
+// The values of everything adjustable in the settings panel
+void VkApp::setDefaultSettings()
+{
+    m_pcRay.rr            = 0.7f;   // Russian roulette survival chance, tested per bounce in the shader
+    m_pcRay.depth         = 16;     // Upper limit on path length; 0.7^16 of paths would reach it
+    m_pcRay.emissionScale = 1.0f;
+    m_pcRay.fullBRDF      = true;
+    m_pcRay.useHistory    = true;
+    m_pcRay.n_threshold   = 0.80f;
+    m_pcRay.d_threshold   = 0.04f;
+    m_pcRay.maxSamples    = 0.0f;
+
+    m_denoiseEnabled         = true;
+    m_num_atrous_iterations  = 5;
+    m_pcDenoise.normFactor   = 0.003f;
+    m_pcDenoise.depthFactor  = 0.007f;
+    m_pcDenoise.albedoFactor = 0.1f;
+
+    m_viewMode = eViewFinal;
+    m_exposure = 1.0f;
+    m_gamma    = 2.2f;
+
+    ResetRtAccumulation();
+}
+
+// Makes the next frame discard all temporal history
+void VkApp::ResetRtAccumulation()
+{
+    m_resetHistory = true;
+    frameCount = 0;
 }
 
 // Initialize ray tracing
@@ -70,14 +100,14 @@ void VkApp::initRayTracing()
     prop2.pNext = &rtProps;
     vkGetPhysicalDeviceProperties2(m_physicalDevice, &prop2);
 
+    setDefaultSettings();
+
     handleSize      = rtProps.shaderGroupHandleSize;
     handleAlignment = rtProps.shaderGroupHandleAlignment;
     baseAlignment   = rtProps.shaderGroupBaseAlignment;
 
     // This initializes the acceleration structure helper class
     m_rtBuilder.setup(this, m_device, m_graphicsQueueIndex);
-
-    // @@ Call  m_rtBuilder.destroy() after the acceleration building is done.
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -119,7 +149,7 @@ void VkApp::createRtDescriptorSet()
 void VkApp::createRtPipeline()
 {
     ////////////////////////////////////////////////////////////////////////////////////////////
-    // stages: Array of shaders: 1 raygen, 1 miss, 1 hit (later: an additional hit/miss pair.)
+    // stages: Array of shaders: 1 raygen, 1 miss, 1 closest-hit
 
     ////////////////////////////////////////////////////////////////////////////////////////////
     // Group the shaders.  Raygen and miss shaders get their own
@@ -204,10 +234,6 @@ void VkApp::createRtPipeline()
     vkCreateRayTracingPipelinesKHR(m_device, {}, {}, 1, &rayPipelineInfo, nullptr, &m_rtPipeline);
     for (auto& s : stages)
         vkDestroyShaderModule(m_device, s.module, nullptr);
-
-    // @@[DONE] Destroy pipeline and its layout with
-    //   vkDestroyPipelineLayout(m_device, m_rtPipelineLayout, nullptr);
-    //   vkDestroyPipeline(m_device, m_rtPipeline, nullptr);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -313,8 +339,6 @@ void VkApp::createRtShaderBindingTable()
     copyBuffer(staging.buffer, m_shaderBindingTableBW.buffer, sbtSize);
 
     staging.destroy(m_device);
-
-    // @@[DONE] destroy acceleration structure with m_shaderBindingTableBW.destroy(m_device);
 }
 
 void VkApp::CmdCopyImage(ImageWrap& src, ImageWrap& dst)
@@ -347,12 +371,6 @@ void VkApp::CmdCopyImage(ImageWrap& src, ImageWrap& dst)
 
 void VkApp::raytrace()
 {
-    float rr = 0.7;
-    int depth = 1;
-    while (float(rand())/RAND_MAX < rr)
-        depth++;
-    depth = std::min(depth, 4);
-    
     // The push constants for the ray tracing pipeline.
     // These are temporary -- used only for ray casting step.
     m_pcRay.alignmentTest = 1234;
@@ -361,13 +379,8 @@ void VkApp::raytrace()
     m_pcRay.tempAmbient = vec4(0.2f);
 
     m_pcRay.frameSeed = rand() % 32768;
-    m_pcRay.rr = 0.7f;
-    m_pcRay.depth = 1;
-    while (float(rand()) / RAND_MAX < m_pcRay.rr)
-        m_pcRay.depth++;
-
-    m_pcRay.clear = app->myCamera.modified;
-    app->myCamera.modified = false;
+    m_pcRay.clear = m_resetHistory;
+    m_resetHistory = false;
 
     // Bind the ray tracing pipeline
     vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline);
@@ -395,10 +408,15 @@ void VkApp::raytrace()
     
     // Copy the ray tracer output image to the scanline output image
     // -- because we already have the operations needed to display
-    // that image on the screen.
-    CmdCopyImage(m_rtColCurrBuffer, m_scImageBuffer);
+    // that image on the screen.  The debug views show a G-buffer image instead.
+    if (m_viewMode == eViewAlbedo)
+        CmdCopyImage(m_rtKdCurrBuffer, m_scImageBuffer);
+    else if (m_viewMode == eViewNormal || m_viewMode == eViewDepth)
+        CmdCopyImage(m_rtNdCurrBuffer, m_scImageBuffer);
+    else
+        CmdCopyImage(m_rtColCurrBuffer, m_scImageBuffer);
 
-    // Project 5
+    // Save current frame buffers as history for the next frame
     CmdCopyImage(m_rtColCurrBuffer, m_rtColPrevBuffer);
     CmdCopyImage(m_rtKdCurrBuffer, m_rtKdPrevBuffer);
     CmdCopyImage(m_rtNdCurrBuffer, m_rtNdPrevBuffer);
