@@ -70,7 +70,12 @@ VkApp::VkApp(App* _app) : app(_app)
 void VkApp::drawFrame()
 {
 	const double start = glfwGetTime();
-	prepareFrame();
+	if (!prepareFrame()) {
+		#ifdef GUI
+		ImGui::EndFrame();
+		#endif
+		return;
+	}
 
 	VkCommandBufferBeginInfo beginInfo{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -128,7 +133,7 @@ void VkApp::submitTempCmdBuffer(VkCommandBuffer cmdBuffer)
 	vkFreeCommandBuffers(m_device, m_cmdPool, 1, &cmdBuffer);
 }
 
-void VkApp::prepareFrame()
+bool VkApp::prepareFrame()
 {
 	// Use a fence to wait until the command buffer has finished execution before using it again.
 	// This must happen before the acquire, so the previous submit's wait on m_readSemaphore is done.
@@ -138,14 +143,23 @@ void VkApp::prepareFrame()
 	}
 	m_gpuWaitMs = (glfwGetTime() - waitStart) * 1000.0;
 
+	if (app->m_framebufferResized && !recreateSizedResources())
+		return false;
+
 	// Acquire the next image from the swap chain --> m_swapchainIndex
+	// A suboptimal acquire still signals m_readSemaphore, so that frame is drawn and
+	// the swapchain is rebuilt after its present.
 	VkResult result = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX, m_readSemaphore,
 		(VkFence)VK_NULL_HANDLE, &m_swapchainIndex);
-
-	// Check if window has been resized -- or other(??) swapchain specific event
-	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-		recreateSizedResources(windowSize);
+	while (result == VK_ERROR_OUT_OF_DATE_KHR) {
+		if (!recreateSizedResources())
+			return false;
+		result = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX, m_readSemaphore,
+			(VkFence)VK_NULL_HANDLE, &m_swapchainIndex);
 	}
+	if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+		throw std::runtime_error("failed to acquire swap chain image!");
+	return true;
 }
 
 void VkApp::submitFrame()
@@ -176,9 +190,11 @@ void VkApp::submitFrame()
 	_i_.swapchainCount = 1;
 	_i_.pSwapchains = &m_swapchain;
 	_i_.pImageIndices = &m_swapchainIndex;
-	if (vkQueuePresentKHR(m_queue, &_i_) != VK_SUCCESS) {
+	VkResult result = vkQueuePresentKHR(m_queue, &_i_);
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+		app->m_framebufferResized = true;
+	else if (result != VK_SUCCESS)
 		throw std::runtime_error("failed to present swap chain image!");
-	}
 }
 
 

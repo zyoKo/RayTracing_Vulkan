@@ -17,8 +17,7 @@ vec3 gammaEncode(vec3 color)
 
 void main()
 {
-    vec2 uv = gl_FragCoord.xy/vec2(1280, 768);
-    vec4 value = texture(renderedImage, uv);
+    vec4 value = texelFetch(renderedImage, ivec2(gl_FragCoord.xy), 0);
 
     vec3 color;
     if (pc.viewMode == eViewAlbedo)

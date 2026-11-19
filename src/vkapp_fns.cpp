@@ -87,11 +87,69 @@ void VkApp::destroyAllVulkanResources()
     vkDestroyInstance(m_instance, nullptr);
 }
 
-void VkApp::recreateSizedResources(VkExtent2D size)
+bool VkApp::recreateSizedResources()
 {
-    assert(false && "Not ready for onResize events.");
-    // Destroy everything related to the window size
-    // (RE)Create them all at the new size
+    // A minimized window has a zero-sized framebuffer, which can't back a swapchain.
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(app->GLFW_window, &width, &height);
+    while (width == 0 || height == 0) {
+        if (glfwWindowShouldClose(app->GLFW_window))
+            return false;
+        glfwWaitEvents();
+        glfwGetFramebufferSize(app->GLFW_window, &width, &height); }
+
+    vkDeviceWaitIdle(m_device);
+    app->m_framebufferResized = false;
+
+    for (auto& framebuffer : m_framebuffers)
+        vkDestroyFramebuffer(m_device, framebuffer, nullptr);
+    m_framebuffers.clear();
+    vkDestroyFramebuffer(m_device, m_scanlineFramebuffer, nullptr);
+    m_depthImage.destroy(m_device);
+    destroySwapchain();
+
+    m_scImageBuffer.destroy(m_device);
+    m_rtColCurrBuffer.destroy(m_device);
+    m_rtColPrevBuffer.destroy(m_device);
+    m_rtNdCurrBuffer.destroy(m_device);
+    m_rtNdPrevBuffer.destroy(m_device);
+    m_rtKdCurrBuffer.destroy(m_device);
+    m_rtKdPrevBuffer.destroy(m_device);
+    m_denoiseBuffer.destroy(m_device);
+
+    vkDestroyPipeline(m_device, m_postPipeline, nullptr);
+    vkDestroyPipelineLayout(m_device, m_postPipelineLayout, nullptr);
+    vkDestroyPipeline(m_device, m_scanlinePipeline, nullptr);
+    vkDestroyPipelineLayout(m_device, m_scanlinePipelineLayout, nullptr);
+
+    createSwapchain();  // -> windowSize
+    createDepthResource();
+    createPostFrameBuffers();
+    createScBuffer();
+    createScanlineFramebuffer();
+    createRtBuffers();
+    createDenoiseBuffer();
+
+    m_postDesc.write(m_device, 0, m_scImageBuffer.Descriptor());
+
+    m_rtDesc.write(m_device, 1, m_rtColCurrBuffer.Descriptor());
+    m_rtDesc.write(m_device, 2, m_rtColPrevBuffer.Descriptor());
+    m_rtDesc.write(m_device, 3, m_rtNdCurrBuffer.Descriptor());
+    m_rtDesc.write(m_device, 4, m_rtNdPrevBuffer.Descriptor());
+    m_rtDesc.write(m_device, 5, m_rtKdCurrBuffer.Descriptor());
+    m_rtDesc.write(m_device, 6, m_rtKdPrevBuffer.Descriptor());
+
+    m_denoiseDesc.write(m_device, 0, m_scImageBuffer.Descriptor());
+    m_denoiseDesc.write(m_device, 1, m_denoiseBuffer.Descriptor());
+    m_denoiseDesc.write(m_device, 2, m_rtKdCurrBuffer.Descriptor());
+    m_denoiseDesc.write(m_device, 3, m_rtNdCurrBuffer.Descriptor());
+
+    // Both graphics pipelines bake in the viewport size
+    createPostPipeline();
+    createScPipeline();
+
+    ResetRtAccumulation();
+    return true;
 }
  
 void VkApp::createInstance(bool doApiDump)

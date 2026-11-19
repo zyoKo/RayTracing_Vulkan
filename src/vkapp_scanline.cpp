@@ -477,6 +477,11 @@ void VkApp::createScanlineRenderPass()
         throw std::runtime_error("failed to create scanline render pass!");
     }
 
+    createScanlineFramebuffer();
+}
+
+void VkApp::createScanlineFramebuffer()
+{
     std::vector<VkImageView> attachments = {m_scImageBuffer.imageView, m_depthImage.imageView};
 
     VkFramebufferCreateInfo info{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
@@ -487,7 +492,6 @@ void VkApp::createScanlineRenderPass()
     info.height          = windowSize.height;
     info.layers          = 1;
     vkCreateFramebuffer(m_device, &info, nullptr, &m_scanlineFramebuffer);
-
 }
 
 void VkApp::createScDescriptorSet()

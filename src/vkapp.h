@@ -100,7 +100,7 @@ public:
     void destroyAllVulkanResources();
 
     // Some auxiliary functions
-    void recreateSizedResources(VkExtent2D size);
+    bool recreateSizedResources();  // False if the window closed while minimized
     VkCommandBuffer createTempCmdBuffer();
     void submitTempCmdBuffer(VkCommandBuffer cmdBuffer);
     VkShaderModule createShaderModule(std::string code);
@@ -166,6 +166,7 @@ public:
     VkRenderPass m_scanlineRenderPass{VK_NULL_HANDLE};
     VkFramebuffer m_scanlineFramebuffer{VK_NULL_HANDLE};
     void createScanlineRenderPass();
+    void createScanlineFramebuffer();
 
     ImageWrap m_scImageBuffer{};
     void createScBuffer();
@@ -259,7 +260,7 @@ public:
                             VkImageAspectFlags aspectMask=VK_IMAGE_ASPECT_COLOR_BIT);
     // Run loop 
     bool useRaytracer = true;
-    void prepareFrame();
+    bool prepareFrame();
     void ResetRtAccumulation();
     
     glm::mat4 m_priorViewProj{};

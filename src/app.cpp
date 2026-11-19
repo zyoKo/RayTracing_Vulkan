@@ -222,7 +222,7 @@ int main(int argc, char** argv)
 
 void framebuffersize_cb(GLFWwindow* window, int w, int h)
 {
-    assert(false && "Not ready for window resize events.");
+    app->m_framebufferResized = true;
 }
 
 void scroll_cb(GLFWwindow* window, double x, double y)
