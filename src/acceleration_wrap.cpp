@@ -49,7 +49,7 @@ VkAccelerationStructureKHR RaytracingBuilderKHR::getAccelerationStructure() cons
 //
 VkDeviceAddress RaytracingBuilderKHR::getBlasDeviceAddress(uint32_t blasId)
 {
-    assert(size_t(blasId) < m_blas.size());
+    assert(static_cast<size_t>(blasId) < m_blas.size());
     VkAccelerationStructureDeviceAddressInfoKHR addressInfo{
         VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR};
     addressInfo.accelerationStructure = m_blas[blasId].accel;
@@ -267,7 +267,8 @@ void RaytracingBuilderKHR::cmdCompactBlas(
 
     // Get the compacted size result back
     std::vector<VkDeviceSize> compactSizes(static_cast<uint32_t>(indices.size()));
-    vkGetQueryPoolResults(m_device, queryPool, 0, (uint32_t)compactSizes.size(),
+    vkGetQueryPoolResults(m_device, queryPool, 0,
+                          static_cast<uint32_t>(compactSizes.size()),
                           compactSizes.size() * sizeof(VkDeviceSize), compactSizes.data(),
                           sizeof(VkDeviceSize), VK_QUERY_RESULT_WAIT_BIT);
 
@@ -384,13 +385,13 @@ void RaytracingBuilderKHR::updateBlas(uint32_t blasIdx, BlasInput& blas,
                                       VkBuildAccelerationStructureFlagsKHR flags)
 {
     assert(false && "Not used; Not maintained;  Probably leaks a VkDeviceMemory");
-    assert(size_t(blasIdx) < m_blas.size());
+    assert(static_cast<size_t>(blasIdx) < m_blas.size());
 
     // Preparing all build information, acceleration is filled later
     VkAccelerationStructureBuildGeometryInfoKHR buildInfos{
         VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR};
     buildInfos.flags = flags;
-    buildInfos.geometryCount = (uint32_t)blas.asGeometry.size();
+    buildInfos.geometryCount = static_cast<uint32_t>(blas.asGeometry.size());
     buildInfos.pGeometries = blas.asGeometry.data();
     buildInfos.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR;  // UPDATE
     buildInfos.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;

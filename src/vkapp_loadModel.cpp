@@ -184,7 +184,7 @@ void ModelData::readAssimpFile(const std::string& path, const mat4& M)
         bool he = mtl->Get(AI_MATKEY_COLOR_EMISSIVE, emit);
         bool hd = mtl->Get(AI_MATKEY_COLOR_DIFFUSE, diff);
         bool hs = mtl->Get(AI_MATKEY_COLOR_SPECULAR, spec);
-        bool ha = mtl->Get(AI_MATKEY_SHININESS, &alpha, NULL);
+        bool ha = mtl->Get(AI_MATKEY_SHININESS, &alpha, nullptr);
         aiColor3D trans;
         bool ht = mtl->Get(AI_MATKEY_COLOR_TRANSPARENT, trans);
 
@@ -260,7 +260,7 @@ void recurseModelNodes(ModelData* meshdata, const aiScene* aiscene, const aiNode
         // Loop through all vertices and record the
         // vertex/normal/texture/tangent data with the node's model
         // transformation applied.
-        uint faceOffset = meshdata->vertices.size();
+        uint32_t faceOffset = meshdata->vertices.size();
         for (unsigned int t = 0; t < aimesh->mNumVertices; ++t)
         {
             aiVector3D aipnt = childTr * aimesh->mVertices[t];

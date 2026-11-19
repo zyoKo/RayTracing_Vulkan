@@ -158,7 +158,7 @@ bool VkApp::prepareFrame()
     // the swapchain is rebuilt after its present.
     VkResult result =
         vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX, m_readSemaphore,
-                              (VkFence)VK_NULL_HANDLE, &m_swapchainIndex);
+                              VK_NULL_HANDLE, &m_swapchainIndex);
     while (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
         if (!recreateSizedResources())
@@ -166,7 +166,7 @@ bool VkApp::prepareFrame()
             return false;
         }
         result = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX, m_readSemaphore,
-                                       (VkFence)VK_NULL_HANDLE, &m_swapchainIndex);
+                                       VK_NULL_HANDLE, &m_swapchainIndex);
     }
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
@@ -222,7 +222,7 @@ VkShaderModule VkApp::createShaderModule(std::string code)
     VkShaderModuleCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     createInfo.codeSize = code.size();
-    createInfo.pCode = (uint32_t*)code.data();
+    createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
     VkShaderModule shaderModule = VK_NULL_HANDLE;
     if (vkCreateShaderModule(m_device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
@@ -248,7 +248,7 @@ VkPipelineShaderStageCreateInfo VkApp::createShaderStageInfo(const std::string& 
 #ifdef GUI
 void VkApp::initGUI()
 {
-    uint subpassID = 0;
+    uint32_t subpassID = 0;
 
     // UI
     ImGui::CreateContext();

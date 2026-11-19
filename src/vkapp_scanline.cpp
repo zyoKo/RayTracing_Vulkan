@@ -113,7 +113,7 @@ ImageWrap VkApp::createTextureImage(std::string fileName)
 
     stbi_image_free(pixels);
 
-    uint mipLevels = std::floor(std::log2(std::max(texWidth, texHeight))) + 1;
+    uint32_t mipLevels = std::floor(std::log2(std::max(texWidth, texHeight))) + 1;
 
     ImageWrap myImage =
         createImageWrap(texWidth, texHeight, VK_FORMAT_R8G8B8A8_UNORM,
@@ -393,7 +393,7 @@ void VkApp::createScBuffer()
 
 ImageWrap VkApp::createBufferImage(VkExtent2D& size)
 {
-    uint mipLevels = 1;
+    uint32_t mipLevels = 1;
 
     ImageWrap myImage =
         createImageWrap(size.width, size.height, VK_FORMAT_R32G32B32A32_SFLOAT,
@@ -571,8 +571,8 @@ void VkApp::createScPipeline()
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = (float)windowSize.width;
-    viewport.height = (float)windowSize.height;
+    viewport.width = static_cast<float>(windowSize.width);
+    viewport.height = static_cast<float>(windowSize.height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 

@@ -7,13 +7,13 @@
 void DescriptorWrap::setBindings(const VkDevice device,
                                  std::vector<VkDescriptorSetLayoutBinding> _bt)
 {
-    uint maxSets = 1;  // 1 is good enough for us.  In general, may want more;
+    uint32_t maxSets = 1;  // 1 is good enough for us.  In general, may want more;
     bindingTable = _bt;
 
     // Build descSetLayout
     VkDescriptorSetLayoutCreateInfo createInfo{
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-    createInfo.bindingCount = uint32_t(bindingTable.size());
+    createInfo.bindingCount = static_cast<uint32_t>(bindingTable.size());
     createInfo.pBindings = bindingTable.data();
     createInfo.flags = 0;
     createInfo.pNext = nullptr;
@@ -75,7 +75,7 @@ void DescriptorWrap::destroy(VkDevice device)
     vkDestroyDescriptorPool(device, descPool, nullptr);
 }
 
-void DescriptorWrap::write(VkDevice& device, uint index, const VkBuffer& buffer)
+void DescriptorWrap::write(VkDevice& device, uint32_t index, const VkBuffer& buffer)
 {
     VkDescriptorBufferInfo desBuf{buffer, 0, VK_WHOLE_SIZE};
     VkWriteDescriptorSet writeSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
@@ -96,7 +96,7 @@ void DescriptorWrap::write(VkDevice& device, uint index, const VkBuffer& buffer)
     vkUpdateDescriptorSets(device, 1, &writeSet, 0, nullptr);
 }
 
-void DescriptorWrap::write(VkDevice& device, uint index,
+void DescriptorWrap::write(VkDevice& device, uint32_t index,
                            const VkDescriptorImageInfo& textureDesc)
 {
     VkWriteDescriptorSet writeSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
@@ -118,7 +118,7 @@ void DescriptorWrap::write(VkDevice& device, uint index,
     vkUpdateDescriptorSets(device, 1, &writeSet, 0, nullptr);
 }
 
-void DescriptorWrap::write(VkDevice& device, uint index,
+void DescriptorWrap::write(VkDevice& device, uint32_t index,
                            const std::vector<ImageWrap>& textures)
 {
     std::vector<VkDescriptorImageInfo> des;
@@ -146,7 +146,7 @@ void DescriptorWrap::write(VkDevice& device, uint index,
     vkUpdateDescriptorSets(device, 1, &writeSet, 0, nullptr);
 }
 
-void DescriptorWrap::write(VkDevice& device, uint index,
+void DescriptorWrap::write(VkDevice& device, uint32_t index,
                            const VkAccelerationStructureKHR& tlas)
 {
     VkWriteDescriptorSetAccelerationStructureKHR descASInfo{

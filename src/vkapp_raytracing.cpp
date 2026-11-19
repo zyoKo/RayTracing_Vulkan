@@ -305,8 +305,9 @@ void VkApp::createRtShaderBindingTable()
     auto getHandle = [&](int i) { return handles.data() + i * handleSize; };
 
     // Map the SBT buffer and write in the handles.
-    uint8_t* mappedMemAddress;
-    vkMapMemory(m_device, staging.memory, 0, sbtSize, 0, (void**)&mappedMemAddress);
+    void* mappedMemory = nullptr;
+    vkMapMemory(m_device, staging.memory, 0, sbtSize, 0, &mappedMemory);
+    uint8_t* mappedMemAddress = static_cast<uint8_t*>(mappedMemory);
     uint8_t offset = 0;
 
     // Raygen

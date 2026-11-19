@@ -232,7 +232,7 @@ void VkApp::createInstance(bool doApiDump)
 
 void VkApp::createPhysicalDevice()
 {
-    uint physicalDevicesCount;
+    uint32_t physicalDevicesCount;
     vkEnumeratePhysicalDevices(m_instance, &physicalDevicesCount, nullptr);
     std::vector<VkPhysicalDevice> physicalDevices(physicalDevicesCount);
     vkEnumeratePhysicalDevices(m_instance, &physicalDevicesCount, physicalDevices.data());
@@ -249,7 +249,7 @@ void VkApp::createPhysicalDevice()
         vkGetPhysicalDeviceProperties(physicalDevice, &GPUproperties);
 
         // Get the GPU's extension list;  Another two-step list retrieval procedure:
-        uint extCount;
+        uint32_t extCount;
         vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extCount, nullptr);
         std::vector<VkExtensionProperties> extensionProperties(extCount);
         vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extCount,
@@ -312,7 +312,7 @@ void VkApp::createDevice()
     // pNext chain of feature structures:
     //   features2->features11->features12->features13->accelFeature->rtPipelineFeature->NULL
     VkPhysicalDeviceRayTracingPipelineFeaturesKHR rtPipelineFeature{
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR, NULL};
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR, nullptr};
 
     VkPhysicalDeviceAccelerationStructureFeaturesKHR accelFeature{
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
@@ -488,7 +488,8 @@ void VkApp::createSwapchain()
     assert(swapchainExtent.width && swapchainExtent.height);
 
     // Choose the number of swap chain images, within the bounds supported.
-    uint imageCount = capabilities.minImageCount + 1;  // Recommendation: minImageCount+1
+    // Recommendation: minImageCount+1
+    uint32_t imageCount = capabilities.minImageCount + 1;
     if (capabilities.maxImageCount > 0 && imageCount > capabilities.maxImageCount)
     {
         imageCount = capabilities.maxImageCount;
@@ -533,7 +534,7 @@ void VkApp::createSwapchain()
     m_imageViews.resize(m_imageCount);
 
     // Create an VkImageView for each swap chain image.
-    for (uint i = 0; i < m_imageCount; i++)
+    for (uint32_t i = 0; i < m_imageCount; i++)
     {
         VkImageViewCreateInfo createInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
         createInfo.image = m_swapchainImages[i];
@@ -559,7 +560,7 @@ void VkApp::createSwapchain()
     // Create three VkImageMemoryBarrier structures (one for each swap
     // chain image) and specify the desired
     // layout (VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) for each.
-    for (uint i = 0; i < m_imageCount; i++)
+    for (uint32_t i = 0; i < m_imageCount; i++)
     {
         VkImageSubresourceRange range = {0};
         range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -634,7 +635,7 @@ void VkApp::destroySwapchain()
 
 void VkApp::createDepthResource()
 {
-    uint mipLevels = 1;
+    uint32_t mipLevels = 1;
 
     // Note m_depthImage is type ImageWrap; a tiny wrapper around
     // several related Vulkan objects.
@@ -678,7 +679,7 @@ uint32_t VkApp::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags proper
 // needed.
 ImageWrap VkApp::createImageWrap(uint32_t width, uint32_t height, VkFormat format,
                                  VkImageUsageFlags usage,
-                                 VkMemoryPropertyFlags properties, uint mipLevels)
+                                 VkMemoryPropertyFlags properties, uint32_t mipLevels)
 {
     ImageWrap myImage;
 
@@ -870,8 +871,8 @@ void VkApp::createPostPipeline()
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = (float)windowSize.width;
-    viewport.height = (float)windowSize.height;
+    viewport.width = static_cast<float>(windowSize.width);
+    viewport.height = static_cast<float>(windowSize.height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
@@ -1049,7 +1050,7 @@ void VkApp::postProcess()
         // tracer.
         PushConstantPost pcPost{
             m_exposure, m_gamma,
-            static_cast<uint>(useRaytracer ? m_viewMode : eViewFinal)};
+            static_cast<uint32_t>(useRaytracer ? m_viewMode : eViewFinal)};
         vkCmdPushConstants(m_commandBuffer, m_postPipelineLayout,
                            VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstantPost),
                            &pcPost);

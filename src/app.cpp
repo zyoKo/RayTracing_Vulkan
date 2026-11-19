@@ -284,9 +284,9 @@ int main(int argc, char** argv)
         VK.drawFrame();
 
         const double frameEnd = glfwGetTime();
-        stats.push(float((frameEnd - frameStart) * 1000.0),
-                   float((cpuEnd - frameStart) * 1000.0), float(VK.m_recordMs),
-                   float(VK.m_gpuWaitMs));
+        stats.push(static_cast<float>((frameEnd - frameStart) * 1000.0),
+                   static_cast<float>((cpuEnd - frameStart) * 1000.0),
+                   static_cast<float>(VK.m_recordMs), static_cast<float>(VK.m_gpuWaitMs));
         frameStart = frameEnd;
     }
 
