@@ -88,3 +88,16 @@ Command-line options:
 | E / C | Move up / down |
 | F1 | Show or hide the settings panel |
 | Esc | Quit |
+
+## Coding guidelines
+
+The C++ code follows the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html), with these project exceptions:
+
+- Code is indented with 4 spaces instead of 2, and `public:`/`private:` labels line up with the `class` keyword.
+- Every opening brace goes on its own line (Allman style), including functions, classes and control statements.
+- `if`, `else`, `for` and `while` always use braces, even around a single statement, and no block or function body is kept on one line.
+- A statement that fits on one line stays on one line. If its trailing comment would push it past the limit, the comment goes on its own line above it.
+- Lines can be up to 90 columns instead of 80.
+- All names are PascalCase, including local variables, parameters, class members and struct fields. Members don't use an `m_` prefix or a trailing `_`.
+
+Formatting is set in `.clang-format`. Format the code with the clang-format that comes with Visual Studio (`VC/Tools/Llvm/x64/bin/clang-format.exe`), or with clang-format 14 or newer. Third-party code in `libs/` and the generated `extensions_vk.*` files are excluded.

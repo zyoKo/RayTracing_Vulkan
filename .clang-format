@@ -1,0 +1,17 @@
+---
+Language: Cpp
+BasedOnStyle: Google
+Standard: c++17
+DerivePointerAlignment: false
+PointerAlignment: Left
+BreakBeforeBraces: Allman
+ColumnLimit: 90
+IndentWidth: 4
+AccessModifierOffset: -4
+InsertBraces: true
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortFunctionsOnASingleLine: None
+AllowShortEnumsOnASingleLine: false
+...

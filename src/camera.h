@@ -3,12 +3,19 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
 
-struct InputState {bool lmb=false; bool mmb=false; bool rmb=false; 
-    bool shift=false; bool ctrl=false; bool alt=false;};
+struct InputState
+{
+    bool lmb = false;
+    bool mmb = false;
+    bool rmb = false;
+    bool shift = false;
+    bool ctrl = false;
+    bool alt = false;
+};
 
 class Camera
 {
- public:
+public:
     bool modified;
     float ry;
     float front;
@@ -22,18 +29,18 @@ class Camera
     float startTilt;
     glm::vec3 startEye;
     float startTime;
-    float endTime;    
+    float endTime;
 
-    bool lmb=false;
-    bool mmb=false;
-    bool rmb=false; 
-    bool shift=false;
-    bool ctrl=false;
-    bool alt=false;
+    bool lmb = false;
+    bool mmb = false;
+    bool rmb = false;
+    bool shift = false;
+    bool ctrl = false;
+    bool alt = false;
 
     float posx = 0.0;
     float posy = 0.0;
-    
+
     Camera();
     void animateTo(float deltaTime, float spin, float tilt, const glm::vec3& eye);
     glm::mat4 perspective(const float aspect);
@@ -44,5 +51,4 @@ class Camera
     void setMousePosition(const float x, const float y);
     void wheel(const int dir);
     void viewParms();
-
 };

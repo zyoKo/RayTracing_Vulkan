@@ -1,11 +1,11 @@
 
-# pragma once
+#pragma once
 
 struct BufferWrap
 {
     VkBuffer buffer;
     VkDeviceMemory memory;
-    
+
     void destroy(VkDevice& device)
     {
         vkDestroyBuffer(device, buffer, nullptr);

@@ -1,14 +1,14 @@
 
-# pragma once
+#pragma once
 
 struct ImageWrap
 {
-    VkImage          image{};
-    VkDeviceMemory   memory{};
-    VkSampler        sampler{};
-    VkImageView      imageView{};
-    VkImageLayout    imageLayout{};
-    
+    VkImage image{};
+    VkDeviceMemory memory{};
+    VkSampler sampler{};
+    VkImageView imageView{};
+    VkImageLayout imageLayout{};
+
     void destroy(VkDevice device)
     {
         vkDestroyImage(device, image, nullptr);
@@ -16,8 +16,8 @@ struct ImageWrap
         vkDestroyImageView(device, imageView, nullptr);
         vkDestroySampler(device, sampler, nullptr);
     }
-    
-    VkDescriptorImageInfo Descriptor() const 
+
+    VkDescriptorImageInfo Descriptor() const
     {
         return VkDescriptorImageInfo({sampler, imageView, imageLayout});
     }
