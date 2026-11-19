@@ -15,7 +15,7 @@ LIBS =  -lassimp  -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi `pkg-con
 
 target = rtrt.exe
 
-headers = app.h vkapp.h camera.h buffer_wrap.h descriptor_wrap.h image_wrap.h extensions_vk.hpp acceleration_wrap.h
+headers = app.h vkapp.h camera.h buffer_wrap.h descriptor_wrap.h image_wrap.h extensions_vk.hpp acceleration_wrap.h vk_check.h
 
 src = app.cpp vkapp.cpp camera.cpp vkapp_fns.cpp extensions_vk.cpp descriptor_wrap.cpp vkapp_loadModel.cpp vkapp_scanline.cpp vkapp_raytracing.cpp acceleration_wrap.cpp vkapp_denoise.cpp
 

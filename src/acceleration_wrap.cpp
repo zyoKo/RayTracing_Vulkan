@@ -6,6 +6,7 @@
 #include <numeric>
 #include <vector>
 
+#include "vk_check.h"
 #include "vkapp.h"
 
 namespace rtrt
@@ -130,7 +131,7 @@ void RaytracingBuilderKHR::buildBlas(const std::vector<BlasInput>& input,
         VkQueryPoolCreateInfo qpci{VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO};
         qpci.queryCount = nbBlas;
         qpci.queryType = VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR;
-        vkCreateQueryPool(m_device, &qpci, nullptr, &queryPool);
+        RTRT_CHECK_VK(vkCreateQueryPool(m_device, &qpci, nullptr, &queryPool));
     }
 
     // Batching creation/compaction of BLAS to allow staying in restricted amount of
@@ -199,7 +200,8 @@ WrapAccelerationStructure createAcceleration(VkApp* VK,
 
     // Create the acceleration structure
     accel_.buffer = result.bw.buffer;
-    vkCreateAccelerationStructureKHR(VK->m_device, &accel_, nullptr, &result.accel);
+    RTRT_CHECK_VK(
+        vkCreateAccelerationStructureKHR(VK->m_device, &accel_, nullptr, &result.accel));
 
     return result;
 }
@@ -275,10 +277,10 @@ void RaytracingBuilderKHR::cmdCompactBlas(
 
     // Get the compacted size result back
     std::vector<VkDeviceSize> compactSizes(static_cast<uint32_t>(indices.size()));
-    vkGetQueryPoolResults(m_device, queryPool, 0,
-                          static_cast<uint32_t>(compactSizes.size()),
-                          compactSizes.size() * sizeof(VkDeviceSize), compactSizes.data(),
-                          sizeof(VkDeviceSize), VK_QUERY_RESULT_WAIT_BIT);
+    RTRT_CHECK_VK(vkGetQueryPoolResults(
+        m_device, queryPool, 0, static_cast<uint32_t>(compactSizes.size()),
+        compactSizes.size() * sizeof(VkDeviceSize), compactSizes.data(),
+        sizeof(VkDeviceSize), VK_QUERY_RESULT_WAIT_BIT));
 
     for (auto idx : indices)
     {

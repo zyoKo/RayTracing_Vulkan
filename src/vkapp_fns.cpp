@@ -7,8 +7,6 @@
 #include <cstdio>
 #include <cstring>
 #include <fstream>
-#include <iostream>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -19,13 +17,14 @@
 
 #include "app.h"
 #include "extensions_vk.hpp"
+#include "vk_check.h"
 
 namespace rtrt
 {
 
 void VkApp::destroyAllVulkanResources()
 {
-    vkDeviceWaitIdle(m_device);
+    RTRT_CHECK_VK(vkDeviceWaitIdle(m_device));
 
     // All objects created on m_device must be destroyed before m_device.
 #ifdef GUI
@@ -113,7 +112,7 @@ bool VkApp::recreateSizedResources()
         glfwGetFramebufferSize(app->GLFW_window, &width, &height);
     }
 
-    vkDeviceWaitIdle(m_device);
+    RTRT_CHECK_VK(vkDeviceWaitIdle(m_device));
     app->m_framebufferResized = false;
 
     for (auto& framebuffer : m_framebuffers)
@@ -189,9 +188,9 @@ void VkApp::createInstance(bool doApiDump)
 
     uint32_t count;
     // The two step procedure for getting a variable length list
-    vkEnumerateInstanceLayerProperties(&count, nullptr);
+    RTRT_CHECK_VK(vkEnumerateInstanceLayerProperties(&count, nullptr));
     std::vector<VkLayerProperties> availableLayers(count);
-    vkEnumerateInstanceLayerProperties(&count, availableLayers.data());
+    RTRT_CHECK_VK(vkEnumerateInstanceLayerProperties(&count, availableLayers.data()));
 
     printf("InstanceLayer count: %d\n", count);
     for (auto& layer : availableLayers)
@@ -200,9 +199,10 @@ void VkApp::createInstance(bool doApiDump)
     }
 
     // Another two step dance
-    vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
+    RTRT_CHECK_VK(vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr));
     std::vector<VkExtensionProperties> availableExtensions(count);
-    vkEnumerateInstanceExtensionProperties(nullptr, &count, availableExtensions.data());
+    RTRT_CHECK_VK(vkEnumerateInstanceExtensionProperties(nullptr, &count,
+                                                         availableExtensions.data()));
 
     printf("InstanceExtensions count: %d\n", count);
     for (auto& extensions : availableExtensions)
@@ -226,19 +226,16 @@ void VkApp::createInstance(bool doApiDump)
     instanceCreateInfo.enabledLayerCount = reqInstanceLayers.size();
     instanceCreateInfo.ppEnabledLayerNames = reqInstanceLayers.data();
 
-    const VkResult success = vkCreateInstance(&instanceCreateInfo, nullptr, &m_instance);
-    if (success != VK_SUCCESS)
-    {
-        printf("Failed to create Instance!\n\n");
-    }
+    RTRT_CHECK_VK(vkCreateInstance(&instanceCreateInfo, nullptr, &m_instance));
 }
 
 void VkApp::createPhysicalDevice()
 {
     uint32_t physicalDevicesCount;
-    vkEnumeratePhysicalDevices(m_instance, &physicalDevicesCount, nullptr);
+    RTRT_CHECK_VK(vkEnumeratePhysicalDevices(m_instance, &physicalDevicesCount, nullptr));
     std::vector<VkPhysicalDevice> physicalDevices(physicalDevicesCount);
-    vkEnumeratePhysicalDevices(m_instance, &physicalDevicesCount, physicalDevices.data());
+    RTRT_CHECK_VK(vkEnumeratePhysicalDevices(m_instance, &physicalDevicesCount,
+                                             physicalDevices.data()));
 
     std::vector<uint32_t> compatibleDevices;
 
@@ -253,10 +250,11 @@ void VkApp::createPhysicalDevice()
 
         // Get the GPU's extension list;  Another two-step list retrieval procedure:
         uint32_t extCount;
-        vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extCount, nullptr);
+        RTRT_CHECK_VK(vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr,
+                                                           &extCount, nullptr));
         std::vector<VkExtensionProperties> extensionProperties(extCount);
-        vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extCount,
-                                             extensionProperties.data());
+        RTRT_CHECK_VK(vkEnumerateDeviceExtensionProperties(
+            physicalDevice, nullptr, &extCount, extensionProperties.data()));
 
         // Pick the first GPU that supports every extension in reqDeviceExtensions.
         printf("\nGPU: %s", GPUproperties.deviceName);
@@ -355,12 +353,8 @@ void VkApp::createDevice()
         static_cast<uint32_t>(reqDeviceExtensions.size());
     deviceCreateInfo.ppEnabledExtensionNames = reqDeviceExtensions.data();
 
-    const VkResult success =
-        vkCreateDevice(m_physicalDevice, &deviceCreateInfo, nullptr, &m_device);
-    if (success != VK_SUCCESS)
-    {
-        printf("Failed to create Device!\n");
-    }
+    RTRT_CHECK_VK(
+        vkCreateDevice(m_physicalDevice, &deviceCreateInfo, nullptr, &m_device));
 }
 
 void VkApp::getCommandQueue()
@@ -381,20 +375,12 @@ void VkApp::loadExtensions()
 void VkApp::getSurface()
 {
     VkBool32 isSupported;  // Supports drawing(presenting) on a screen
-    VkResult success;
 
-    success = glfwCreateWindowSurface(m_instance, app->GLFW_window, nullptr, &m_surface);
-    if (success != VK_SUCCESS)
-    {
-        printf("\nFailed to Create GLFW Window Surface!\n");
-    }
+    RTRT_CHECK_VK(
+        glfwCreateWindowSurface(m_instance, app->GLFW_window, nullptr, &m_surface));
 
-    success = vkGetPhysicalDeviceSurfaceSupportKHR(m_physicalDevice, m_graphicsQueueIndex,
-                                                   m_surface, &isSupported);
-    if (success != VK_SUCCESS)
-    {
-        printf("\nFailed to Get Physical Device Surface Support KHR!\n");
-    }
+    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceSupportKHR(
+        m_physicalDevice, m_graphicsQueueIndex, m_surface, &isSupported));
 
     if (isSupported != VK_TRUE)
     {
@@ -412,11 +398,7 @@ void VkApp::createCommandPool()
     VkCommandPoolCreateInfo poolCreateInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     poolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     poolCreateInfo.queueFamilyIndex = m_graphicsQueueIndex;
-    VkResult result = vkCreateCommandPool(m_device, &poolCreateInfo, nullptr, &m_cmdPool);
-    if (result != VK_SUCCESS)
-    {
-        printf("Failed to create command pool!\n");
-    }
+    RTRT_CHECK_VK(vkCreateCommandPool(m_device, &poolCreateInfo, nullptr, &m_cmdPool));
 
     // Create a command buffer
     VkCommandBufferAllocateInfo allocateInfo{
@@ -424,42 +406,38 @@ void VkApp::createCommandPool()
     allocateInfo.commandPool = m_cmdPool;
     allocateInfo.commandBufferCount = 1;
     allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    result = vkAllocateCommandBuffers(m_device, &allocateInfo, &m_commandBuffer);
-    if (result != VK_SUCCESS)
-    {
-        printf("Failed to allocated command buffers");
-    }
+    RTRT_CHECK_VK(vkAllocateCommandBuffers(m_device, &allocateInfo, &m_commandBuffer));
     // Nothing to destroy -- the pool owns the command buffer.
 }
 
 void VkApp::createSwapchain()
 {
-    VkResult err;
     VkSwapchainKHR oldSwapchain = m_swapchain;
 
-    vkDeviceWaitIdle(m_device);  // Probably unnecessary
+    RTRT_CHECK_VK(vkDeviceWaitIdle(m_device));  // Probably unnecessary
 
     // Get the surface's capabilities
     VkSurfaceCapabilitiesKHR capabilities;
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_surface, &capabilities);
+    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_surface,
+                                                            &capabilities));
 
     uint32_t presentModeCount;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(m_physicalDevice, m_surface,
-                                              &presentModeCount, nullptr);
+    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfacePresentModesKHR(m_physicalDevice, m_surface,
+                                                            &presentModeCount, nullptr));
     std::vector<VkPresentModeKHR> presentModes(presentModeCount);
-    vkGetPhysicalDeviceSurfacePresentModesKHR(m_physicalDevice, m_surface,
-                                              &presentModeCount, presentModes.data());
+    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfacePresentModesKHR(
+        m_physicalDevice, m_surface, &presentModeCount, presentModes.data()));
 
     // FIFO is the one present mode every implementation must support.
     VkPresentModeKHR swapchainPresentMode = VK_PRESENT_MODE_FIFO_KHR;
 
     // Get the list of supported surface formats
     uint32_t surfaceFormatCount;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(m_physicalDevice, m_surface, &surfaceFormatCount,
-                                         nullptr);
+    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(m_physicalDevice, m_surface,
+                                                       &surfaceFormatCount, nullptr));
     std::vector<VkSurfaceFormatKHR> formats(surfaceFormatCount);
-    vkGetPhysicalDeviceSurfaceFormatsKHR(m_physicalDevice, m_surface, &surfaceFormatCount,
-                                         formats.data());
+    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(
+        m_physicalDevice, m_surface, &surfaceFormatCount, formats.data()));
 
     VkFormat surfaceFormat = formats[0].format;
     VkColorSpaceKHR surfaceColor = formats[0].colorSpace;
@@ -522,16 +500,12 @@ void VkApp::createSwapchain()
     _i.oldSwapchain = oldSwapchain;
     _i.clipped = true;
 
-    err = vkCreateSwapchainKHR(m_device, &_i, nullptr, &m_swapchain);
-    if (err != VK_SUCCESS)
-    {
-        printf("Failed to create Swapchain!\n");
-    }
+    RTRT_CHECK_VK(vkCreateSwapchainKHR(m_device, &_i, nullptr, &m_swapchain));
 
-    vkGetSwapchainImagesKHR(m_device, m_swapchain, &m_imageCount, nullptr);
+    RTRT_CHECK_VK(vkGetSwapchainImagesKHR(m_device, m_swapchain, &m_imageCount, nullptr));
     m_swapchainImages.resize(m_imageCount);
-    vkGetSwapchainImagesKHR(m_device, m_swapchain, &m_imageCount,
-                            m_swapchainImages.data());
+    RTRT_CHECK_VK(vkGetSwapchainImagesKHR(m_device, m_swapchain, &m_imageCount,
+                                          m_swapchainImages.data()));
 
     m_barriers.resize(m_imageCount);
     m_imageViews.resize(m_imageCount);
@@ -553,11 +527,8 @@ void VkApp::createSwapchain()
         createInfo.subresourceRange.baseArrayLayer = 0;
         createInfo.subresourceRange.layerCount = 1;
 
-        err = vkCreateImageView(m_device, &createInfo, nullptr, &m_imageViews[i]);
-        if (err != VK_SUCCESS)
-        {
-            printf("Failed to create ImageView!\n");
-        }
+        RTRT_CHECK_VK(
+            vkCreateImageView(m_device, &createInfo, nullptr, &m_imageViews[i]));
     }
 
     // Create three VkImageMemoryBarrier structures (one for each swap
@@ -596,16 +567,16 @@ void VkApp::createSwapchain()
     // here.
     VkFenceCreateInfo fenceCreateInfo{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
     fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-    vkCreateFence(m_device, &fenceCreateInfo, nullptr, &m_waitFence);
+    RTRT_CHECK_VK(vkCreateFence(m_device, &fenceCreateInfo, nullptr, &m_waitFence));
 
     VkSemaphoreCreateInfo semCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-    vkCreateSemaphore(m_device, &semCreateInfo, nullptr, &m_readSemaphore);
+    RTRT_CHECK_VK(vkCreateSemaphore(m_device, &semCreateInfo, nullptr, &m_readSemaphore));
     // A present may still be waiting on an image's semaphore, so each
     // swapchain image gets its own.
     m_writtenSemaphores.resize(m_imageCount);
     for (VkSemaphore& sem : m_writtenSemaphores)
     {
-        vkCreateSemaphore(m_device, &semCreateInfo, nullptr, &sem);
+        RTRT_CHECK_VK(vkCreateSemaphore(m_device, &semCreateInfo, nullptr, &sem));
     }
 
     windowSize = swapchainExtent;
@@ -613,7 +584,7 @@ void VkApp::createSwapchain()
 
 void VkApp::destroySwapchain()
 {
-    vkDeviceWaitIdle(m_device);
+    RTRT_CHECK_VK(vkDeviceWaitIdle(m_device));
 
     for (int i = 0; i < 3; ++i)
     {
@@ -673,7 +644,8 @@ uint32_t VkApp::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags proper
         }
     }
 
-    throw std::runtime_error("failed to find suitable memory type!");
+    RTRT_FATAL("No memory type matches filter 0x%x with properties 0x%x", typeFilter,
+               properties);
 }
 
 // A factory function for an ImageWrap, this creates a VkImage and
@@ -700,7 +672,7 @@ ImageWrap VkApp::createImageWrap(uint32_t width, uint32_t height, VkFormat forma
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    vkCreateImage(m_device, &imageInfo, nullptr, &myImage.image);
+    RTRT_CHECK_VK(vkCreateImage(m_device, &imageInfo, nullptr, &myImage.image));
 
     VkMemoryRequirements memRequirements;
     vkGetImageMemoryRequirements(m_device, myImage.image, &memRequirements);
@@ -710,9 +682,9 @@ ImageWrap VkApp::createImageWrap(uint32_t width, uint32_t height, VkFormat forma
     allocInfo.memoryTypeIndex =
         findMemoryType(memRequirements.memoryTypeBits, properties);
 
-    vkAllocateMemory(m_device, &allocInfo, nullptr, &myImage.memory);
+    RTRT_CHECK_VK(vkAllocateMemory(m_device, &allocInfo, nullptr, &myImage.memory));
 
-    vkBindImageMemory(m_device, myImage.image, myImage.memory, 0);
+    RTRT_CHECK_VK(vkBindImageMemory(m_device, myImage.image, myImage.memory, 0));
 
     myImage.imageView = VK_NULL_HANDLE;
     myImage.sampler = VK_NULL_HANDLE;
@@ -734,7 +706,7 @@ VkImageView VkApp::createImageView(VkImage image, VkFormat format,
     viewInfo.subresourceRange.layerCount = 1;
 
     VkImageView imageView;
-    vkCreateImageView(m_device, &viewInfo, nullptr, &imageView);
+    RTRT_CHECK_VK(vkCreateImageView(m_device, &viewInfo, nullptr, &imageView));
     return imageView;
 }
 
@@ -785,12 +757,8 @@ void VkApp::createPostRenderPass()
     renderPassInfo.dependencyCount = static_cast<uint32_t>(subpassDependencies.size());
     renderPassInfo.pDependencies = subpassDependencies.data();
 
-    VkResult result =
-        vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &m_postRenderPass);
-    if (result != VK_SUCCESS)
-    {
-        printf("Failed to create render pass!\n");
-    }
+    RTRT_CHECK_VK(
+        vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &m_postRenderPass));
 }
 
 // A VkFrameBuffer wraps several images into a render target --
@@ -815,7 +783,7 @@ void VkApp::createPostFrameBuffers()
     {
         fbattachments[0] = m_imageViews[i];  // A color attachment from the swap chain
         fbattachments[1] = m_depthImage.imageView;  // A depth attachment
-        vkCreateFramebuffer(m_device, &_ci, nullptr, &m_framebuffers[i]);
+        RTRT_CHECK_VK(vkCreateFramebuffer(m_device, &_ci, nullptr, &m_framebuffers[i]));
     }
 }
 
@@ -831,7 +799,8 @@ void VkApp::createPostPipeline()
     createInfo.pushConstantRangeCount = 1;
     createInfo.pPushConstantRanges = &pushConstant;
 
-    vkCreatePipelineLayout(m_device, &createInfo, nullptr, &m_postPipelineLayout);
+    RTRT_CHECK_VK(
+        vkCreatePipelineLayout(m_device, &createInfo, nullptr, &m_postPipelineLayout));
 
     ////////////////////////////////////////////
     // Create the shaders
@@ -946,12 +915,8 @@ void VkApp::createPostPipeline()
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-    VkResult result = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1,
-                                                &pipelineInfo, nullptr, &m_postPipeline);
-    if (result != VK_SUCCESS)
-    {
-        printf("Failed to Create Graphics Pipelines!\n");
-    }
+    RTRT_CHECK_VK(vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo,
+                                            nullptr, &m_postPipeline));
 
     // The pipeline has fully compiled copies of the shaders, so these
     // intermediate (SPV) versions can be destroyed.
@@ -981,7 +946,8 @@ void VkApp::setShaderLanguage(bool useSlang)
     }
     m_useSlang = useSlang;
 
-    vkDeviceWaitIdle(m_device);  // The last frame may still be using the old pipelines
+    // The last frame may still be using the old pipelines
+    RTRT_CHECK_VK(vkDeviceWaitIdle(m_device));
 
     vkDestroyPipeline(m_device, m_postPipeline, nullptr);
     vkDestroyPipelineLayout(m_device, m_postPipelineLayout, nullptr);

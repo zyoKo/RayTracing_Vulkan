@@ -1,6 +1,7 @@
 #include "vkapp.h"
 
 #include "shaders/shared_structs.h"
+#include "vk_check.h"
 
 namespace rtrt
 {
@@ -42,8 +43,8 @@ void VkApp::createDenoiseCompPipeline()
     plCreateInfo.pSetLayouts = &m_denoiseDesc.descSetLayout;
     plCreateInfo.pushConstantRangeCount = 1;
     plCreateInfo.pPushConstantRanges = &pc_info;
-    vkCreatePipelineLayout(m_device, &plCreateInfo, nullptr,
-                           &m_denoiseCompPipelineLayout);
+    RTRT_CHECK_VK(vkCreatePipelineLayout(m_device, &plCreateInfo, nullptr,
+                                         &m_denoiseCompPipelineLayout));
 
     VkComputePipelineCreateInfo cpCreateInfo{
         VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
@@ -52,7 +53,8 @@ void VkApp::createDenoiseCompPipeline()
     cpCreateInfo.stage = createShaderStageInfo(
         loadShader("spv/denoise.comp.spv", "spv/denoise.comp.slang.spv"),
         VK_SHADER_STAGE_COMPUTE_BIT);
-    vkCreateComputePipelines(m_device, {}, 1, &cpCreateInfo, nullptr, &m_denoisePipeline);
+    RTRT_CHECK_VK(vkCreateComputePipelines(m_device, {}, 1, &cpCreateInfo, nullptr,
+                                           &m_denoisePipeline));
     vkDestroyShaderModule(m_device, cpCreateInfo.stage.module, nullptr);
 }
 

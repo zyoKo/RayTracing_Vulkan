@@ -7,10 +7,8 @@
 
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <string>
 #include <vector>
 
@@ -21,6 +19,7 @@
 #include <glm/glm.hpp>
 
 #include "shaders/shared_structs.h"
+#include "vk_check.h"
 
 namespace fs = std::filesystem;
 
@@ -157,8 +156,7 @@ void ModelData::readAssimpFile(const std::string& path, const mat4& M)
     std::ifstream find_it(path.c_str());
     if (find_it.fail())
     {
-        std::cerr << "File not found: " << path << std::endl;
-        exit(-1);
+        RTRT_FATAL("Model file not found: %s", path.c_str());
     }
 
     // Invoke assimp to read the file.
@@ -170,14 +168,13 @@ void ModelData::readAssimpFile(const std::string& path, const mat4& M)
 
     if (!aiscene)
     {
-        printf("... Failed to read.\n");
-        exit(-1);
+        RTRT_FATAL("Assimp failed to read %s: %s", path.c_str(),
+                   importer.GetErrorString());
     }
 
     if (!aiscene->mRootNode)
     {
-        printf("Scene has no rootnode.\n");
-        exit(-1);
+        RTRT_FATAL("Model %s has no root node", path.c_str());
     }
 
     printf("Assimp mNumMeshes: %d\n", aiscene->mNumMeshes);

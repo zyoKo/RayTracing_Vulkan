@@ -4,6 +4,8 @@
 
 #include <vector>
 
+#include "vk_check.h"
+
 namespace rtrt
 {
 
@@ -22,7 +24,8 @@ void DescriptorWrap::setBindings(const VkDevice device,
     createInfo.pNext = nullptr;
 
     VkDescriptorSetLayout descriptorSetLayout;
-    vkCreateDescriptorSetLayout(device, &createInfo, nullptr, &descSetLayout);
+    RTRT_CHECK_VK(
+        vkCreateDescriptorSetLayout(device, &createInfo, nullptr, &descSetLayout));
 
     // Collect the size required for each descriptorType into a vector of poolSizes
     std::vector<VkDescriptorPoolSize> poolSizes;
@@ -57,7 +60,7 @@ void DescriptorWrap::setBindings(const VkDevice device,
     descrPoolInfo.pPoolSizes = poolSizes.data();
     descrPoolInfo.flags = 0;
 
-    vkCreateDescriptorPool(device, &descrPoolInfo, nullptr, &descPool);
+    RTRT_CHECK_VK(vkCreateDescriptorPool(device, &descrPoolInfo, nullptr, &descPool));
 
     // Allocate DescriptorSet
     VkDescriptorSetAllocateInfo allocInfo = {
@@ -69,7 +72,7 @@ void DescriptorWrap::setBindings(const VkDevice device,
     // Warning: The next line creates a single descriptor set from the
     // above pool since that's all our program needs.  This is too
     // restrictive in general, but fine for this program.
-    vkAllocateDescriptorSets(device, &allocInfo, &descSet);
+    RTRT_CHECK_VK(vkAllocateDescriptorSets(device, &allocInfo, &descSet));
 }
 
 void DescriptorWrap::destroy(VkDevice device)

@@ -181,6 +181,7 @@ $(SlangC) %(Identity) -entry closestHitMain -o spv\raytrace.rchit.slang.spv</Com
     <ClInclude Include="descriptor_wrap.h" />
     <ClInclude Include="extensions_vk.hpp" />
     <ClInclude Include="image_wrap.h" />
+    <ClInclude Include="vk_check.h" />
     <ClInclude Include="vkapp.h" />
     <ClInclude Include="acceleration_wrap.h" />
   </ItemGroup>

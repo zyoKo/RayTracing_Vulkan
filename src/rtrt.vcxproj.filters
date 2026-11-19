@@ -79,6 +79,9 @@
     <ClInclude Include="image_wrap.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="vk_check.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="vkapp.h">
       <Filter>Header Files</Filter>
     </ClInclude>

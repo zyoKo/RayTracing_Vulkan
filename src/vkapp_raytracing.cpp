@@ -9,6 +9,7 @@
 #include <glm/glm.hpp>
 
 #include "shaders/shared_structs.h"
+#include "vk_check.h"
 
 namespace rtrt
 {
@@ -200,8 +201,8 @@ void VkApp::createRtPipeline()
         static_cast<uint32_t>(rtDescSetLayouts.size());
     pipelineLayoutCreateInfo.pSetLayouts = rtDescSetLayouts.data();
 
-    vkCreatePipelineLayout(m_device, &pipelineLayoutCreateInfo, nullptr,
-                           &m_rtPipelineLayout);
+    RTRT_CHECK_VK(vkCreatePipelineLayout(m_device, &pipelineLayoutCreateInfo, nullptr,
+                                         &m_rtPipelineLayout));
 
     //////////////////////////////////////////////////////////////////////////////////////
     // Create the ray tracing pipeline.
@@ -218,8 +219,8 @@ void VkApp::createRtPipeline()
     rayPipelineInfo.maxPipelineRayRecursionDepth = 10;  // Ray depth
     rayPipelineInfo.layout = m_rtPipelineLayout;
 
-    vkCreateRayTracingPipelinesKHR(m_device, {}, {}, 1, &rayPipelineInfo, nullptr,
-                                   &m_rtPipeline);
+    RTRT_CHECK_VK(vkCreateRayTracingPipelinesKHR(m_device, {}, {}, 1, &rayPipelineInfo,
+                                                 nullptr, &m_rtPipeline));
     for (auto& s : stages)
     {
         vkDestroyShaderModule(m_device, s.module, nullptr);
@@ -283,9 +284,8 @@ void VkApp::createRtShaderBindingTable()
     // from the pipeline.
     uint32_t dataSize = handleCount * handleSize;
     std::vector<uint8_t> handles(dataSize);
-    auto result = vkGetRayTracingShaderGroupHandlesKHR(
-        m_device, m_rtPipeline, 0, handleCount, dataSize, handles.data());
-    assert(result == VK_SUCCESS);
+    RTRT_CHECK_VK(vkGetRayTracingShaderGroupHandlesKHR(
+        m_device, m_rtPipeline, 0, handleCount, dataSize, handles.data()));
 
     // Allocate a buffer for storing the SBT, and a staging buffer for transferring data
     // to it.
@@ -315,7 +315,7 @@ void VkApp::createRtShaderBindingTable()
 
     // Map the SBT buffer and write in the handles.
     void* mappedMemory = nullptr;
-    vkMapMemory(m_device, staging.memory, 0, sbtSize, 0, &mappedMemory);
+    RTRT_CHECK_VK(vkMapMemory(m_device, staging.memory, 0, sbtSize, 0, &mappedMemory));
     uint8_t* mappedMemAddress = static_cast<uint8_t*>(mappedMemory);
     uint8_t offset = 0;
 

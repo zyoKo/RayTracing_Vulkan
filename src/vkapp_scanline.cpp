@@ -4,7 +4,6 @@
 #include <array>
 #include <cmath>
 #include <cstring>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -16,6 +15,7 @@
 
 #include "app.h"
 #include "shaders/shared_structs.h"
+#include "vk_check.h"
 
 namespace rtrt
 {
@@ -107,7 +107,8 @@ ImageWrap VkApp::createTextureImage(std::string fileName)
 
     if (!pixels)
     {
-        throw std::runtime_error("failed to load texture image!");
+        RTRT_FATAL("Failed to load texture %s: %s", fileName.c_str(),
+                   stbi_failure_reason());
     }
 
     BufferWrap staging = createBufferWrap(
@@ -115,7 +116,7 @@ ImageWrap VkApp::createTextureImage(std::string fileName)
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     void* data;
-    vkMapMemory(m_device, staging.memory, 0, imageSize, 0, &data);
+    RTRT_CHECK_VK(vkMapMemory(m_device, staging.memory, 0, imageSize, 0, &data));
     memcpy(data, pixels, static_cast<size_t>(imageSize));
     vkUnmapMemory(m_device, staging.memory);
 
@@ -157,8 +158,7 @@ void VkApp::generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidt
     if (!(formatProperties.optimalTilingFeatures &
           VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT))
     {
-        throw std::runtime_error(
-            "texture image format does not support linear blitting!");
+        RTRT_FATAL("Texture image format does not support linear blitting");
     }
 
     VkCommandBuffer commandBuffer = createTempCmdBuffer();
@@ -246,7 +246,7 @@ BufferWrap VkApp::createStagedBufferWrap(const VkCommandBuffer& cmdBuf,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     void* dest;
-    vkMapMemory(m_device, staging.memory, 0, size, 0, &dest);
+    RTRT_CHECK_VK(vkMapMemory(m_device, staging.memory, 0, size, 0, &dest));
     memcpy(dest, data, size);
     vkUnmapMemory(m_device, staging.memory);
 
@@ -269,7 +269,7 @@ BufferWrap VkApp::createBufferWrap(VkDeviceSize size, VkBufferUsageFlags usage,
     bufferInfo.usage = usage;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    vkCreateBuffer(m_device, &bufferInfo, nullptr, &result.buffer);
+    RTRT_CHECK_VK(vkCreateBuffer(m_device, &bufferInfo, nullptr, &result.buffer));
 
     VkMemoryRequirements memRequirements;
     vkGetBufferMemoryRequirements(m_device, result.buffer, &memRequirements);
@@ -284,12 +284,9 @@ BufferWrap VkApp::createBufferWrap(VkDeviceSize size, VkBufferUsageFlags usage,
     allocInfo.memoryTypeIndex =
         findMemoryType(memRequirements.memoryTypeBits, properties);
 
-    if (vkAllocateMemory(m_device, &allocInfo, nullptr, &result.memory) != VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to allocate buffer memory!");
-    }
+    RTRT_CHECK_VK(vkAllocateMemory(m_device, &allocInfo, nullptr, &result.memory));
 
-    vkBindBufferMemory(m_device, result.buffer, result.memory, 0);
+    RTRT_CHECK_VK(vkBindBufferMemory(m_device, result.buffer, result.memory, 0));
 
     return result;
 }
@@ -375,10 +372,7 @@ VkSampler VkApp::createTextureSampler()
     samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 
     VkSampler textureSampler;
-    if (vkCreateSampler(m_device, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to create texture sampler!");
-    }
+    RTRT_CHECK_VK(vkCreateSampler(m_device, &samplerInfo, nullptr, &textureSampler));
     return textureSampler;
 }
 
@@ -476,11 +470,8 @@ void VkApp::createScanlineRenderPass()
     renderPassInfo.dependencyCount = 1;
     renderPassInfo.pDependencies = &dependency;
 
-    if (vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &m_scanlineRenderPass) !=
-        VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to create scanline render pass!");
-    }
+    RTRT_CHECK_VK(
+        vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &m_scanlineRenderPass));
 
     createScanlineFramebuffer();
 }
@@ -497,7 +488,7 @@ void VkApp::createScanlineFramebuffer()
     info.width = windowSize.width;
     info.height = windowSize.height;
     info.layers = 1;
-    vkCreateFramebuffer(m_device, &info, nullptr, &m_scanlineFramebuffer);
+    RTRT_CHECK_VK(vkCreateFramebuffer(m_device, &info, nullptr, &m_scanlineFramebuffer));
 }
 
 void VkApp::createScDescriptorSet()
@@ -531,7 +522,8 @@ void VkApp::createScPipeline()
     createInfo.pSetLayouts = &m_scDesc.descSetLayout;
     createInfo.pushConstantRangeCount = 1;
     createInfo.pPushConstantRanges = &pushConstantRanges;
-    vkCreatePipelineLayout(m_device, &createInfo, nullptr, &m_scanlinePipelineLayout);
+    RTRT_CHECK_VK(vkCreatePipelineLayout(m_device, &createInfo, nullptr,
+                                         &m_scanlinePipelineLayout));
 
     VkShaderModule vertShaderModule = createShaderModule(
         loadShader("spv/scanline.vert.spv", "spv/scanline.vert.slang.spv"));
@@ -651,11 +643,8 @@ void VkApp::createScPipeline()
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-    if (vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr,
-                                  &m_scanlinePipeline) != VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to create scanline pipeline!");
-    }
+    RTRT_CHECK_VK(vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo,
+                                            nullptr, &m_scanlinePipeline));
 
     // Done with the temporary spv shader modules.
     vkDestroyShaderModule(m_device, fragShaderModule, nullptr);

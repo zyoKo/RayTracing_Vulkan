@@ -2,9 +2,6 @@
 
 #include <assert.h>
 
-#include <fstream>
-#include <iostream>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -18,6 +15,7 @@
 #include <stb_image.h>
 
 #include "app.h"
+#include "vk_check.h"
 
 namespace rtrt
 {
@@ -84,7 +82,7 @@ void VkApp::drawFrame()
 
     VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    vkBeginCommandBuffer(m_commandBuffer, &beginInfo);
+    RTRT_CHECK_VK(vkBeginCommandBuffer(m_commandBuffer, &beginInfo));
     {  // Extra indent for code clarity
         updateCameraBuffer();
 
@@ -106,7 +104,7 @@ void VkApp::drawFrame()
 
     }  // Done recording;  Execute!
 
-    vkEndCommandBuffer(m_commandBuffer);
+    RTRT_CHECK_VK(vkEndCommandBuffer(m_commandBuffer));
 
     submitFrame();  // Submit for display
     m_recordMs = (glfwGetTime() - start) * 1000.0 - m_gpuWaitMs;
@@ -120,23 +118,23 @@ VkCommandBuffer VkApp::createTempCmdBuffer()
     allocateInfo.commandPool = m_cmdPool;
     allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     VkCommandBuffer cmdBuffer;
-    vkAllocateCommandBuffers(m_device, &allocateInfo, &cmdBuffer);
+    RTRT_CHECK_VK(vkAllocateCommandBuffers(m_device, &allocateInfo, &cmdBuffer));
 
     VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    vkBeginCommandBuffer(cmdBuffer, &beginInfo);
+    RTRT_CHECK_VK(vkBeginCommandBuffer(cmdBuffer, &beginInfo));
     return cmdBuffer;
 }
 
 void VkApp::submitTempCmdBuffer(VkCommandBuffer cmdBuffer)
 {
-    vkEndCommandBuffer(cmdBuffer);
+    RTRT_CHECK_VK(vkEndCommandBuffer(cmdBuffer));
 
     VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &cmdBuffer;
-    vkQueueSubmit(m_queue, 1, &submitInfo, {});
-    vkQueueWaitIdle(m_queue);
+    RTRT_CHECK_VK(vkQueueSubmit(m_queue, 1, &submitInfo, {}));
+    RTRT_CHECK_VK(vkQueueWaitIdle(m_queue));
     vkFreeCommandBuffers(m_device, m_cmdPool, 1, &cmdBuffer);
 }
 
@@ -146,9 +144,12 @@ bool VkApp::prepareFrame()
     // again. This must happen before the acquire, so the previous submit's wait on
     // m_readSemaphore is done.
     const double waitStart = glfwGetTime();
-    while (VK_TIMEOUT == vkWaitForFences(m_device, 1, &m_waitFence, VK_TRUE, 1'000'000))
+    VkResult waitResult = VK_TIMEOUT;
+    while (waitResult == VK_TIMEOUT)
     {
+        waitResult = vkWaitForFences(m_device, 1, &m_waitFence, VK_TRUE, 1'000'000);
     }
+    CheckVkResult(waitResult, "vkWaitForFences", __FILE__, __LINE__);
     m_gpuWaitMs = (glfwGetTime() - waitStart) * 1000.0;
 
     if (app->m_framebufferResized && !recreateSizedResources())
@@ -171,16 +172,13 @@ bool VkApp::prepareFrame()
         result = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX, m_readSemaphore,
                                        VK_NULL_HANDLE, &m_swapchainIndex);
     }
-    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
-    {
-        throw std::runtime_error("failed to acquire swap chain image!");
-    }
+    CheckVkResult(result, "vkAcquireNextImageKHR", __FILE__, __LINE__);
     return true;
 }
 
 void VkApp::submitFrame()
 {
-    vkResetFences(m_device, 1, &m_waitFence);
+    RTRT_CHECK_VK(vkResetFences(m_device, 1, &m_waitFence));
 
     // Pipeline stage at which the queue submission will wait (via pWaitSemaphores)
     const VkPipelineStageFlags waitStageMask =
@@ -197,10 +195,7 @@ void VkApp::submitFrame()
     _si_.pSignalSemaphores = &m_writtenSemaphores[m_swapchainIndex];
     _si_.commandBufferCount = 1;
     _si_.pCommandBuffers = &m_commandBuffer;
-    if (vkQueueSubmit(m_queue, 1, &_si_, m_waitFence) != VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to submit draw command buffer!");
-    }
+    RTRT_CHECK_VK(vkQueueSubmit(m_queue, 1, &_si_, m_waitFence));
 
     // Present frame
     VkPresentInfoKHR _i_{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
@@ -214,9 +209,9 @@ void VkApp::submitFrame()
     {
         app->m_framebufferResized = true;
     }
-    else if (result != VK_SUCCESS)
+    else
     {
-        throw std::runtime_error("failed to present swap chain image!");
+        CheckVkResult(result, "vkQueuePresentKHR", __FILE__, __LINE__);
     }
 }
 
@@ -228,10 +223,7 @@ VkShaderModule VkApp::createShaderModule(std::string code)
     createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
     VkShaderModule shaderModule = VK_NULL_HANDLE;
-    if (vkCreateShaderModule(m_device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
-    {
-        assert(0 && "failed to create shader module!");
-    }
+    RTRT_CHECK_VK(vkCreateShaderModule(m_device, &createInfo, nullptr, &shaderModule));
 
     return shaderModule;
 }
@@ -265,7 +257,7 @@ void VkApp::initGUI()
     poolInfo.maxSets = 2;
     poolInfo.poolSizeCount = 2;
     poolInfo.pPoolSizes = poolSize.data();
-    vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_imguiDescPool);
+    RTRT_CHECK_VK(vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_imguiDescPool));
 
     // Setup Platform/Renderer back ends
     ImGui_ImplVulkan_InitInfo init_info = {};
