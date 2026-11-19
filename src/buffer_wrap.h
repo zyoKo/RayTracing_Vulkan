@@ -3,6 +3,9 @@
 
 #include <vulkan/vulkan_core.h>
 
+namespace rtrt
+{
+
 struct BufferWrap
 {
     VkBuffer buffer;
@@ -14,5 +17,7 @@ struct BufferWrap
         vkFreeMemory(device, memory, nullptr);
     }
 };
+
+}  // namespace rtrt
 
 #endif  // RTRT_SRC_BUFFER_WRAP_H_

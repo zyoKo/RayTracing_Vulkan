@@ -8,6 +8,9 @@
 
 #include "vkapp.h"
 
+namespace rtrt
+{
+
 //----------------------------------------------------------------------------------------
 // Initializing the allocator and querying the raytracing properties
 //
@@ -180,6 +183,9 @@ void RaytracingBuilderKHR::buildBlas(const std::vector<BlasInput>& input,
     vkDestroyQueryPool(m_device, queryPool, nullptr);
 }
 
+namespace
+{
+
 WrapAccelerationStructure createAcceleration(VkApp* VK,
                                              VkAccelerationStructureCreateInfoKHR& accel_)
 {
@@ -197,6 +203,8 @@ WrapAccelerationStructure createAcceleration(VkApp* VK,
 
     return result;
 }
+
+}  // namespace
 
 // Creating the bottom level acceleration structure for all indices of `buildAs` vector.
 // The array of BuildAccelerationStructure was created in buildBlas and the vector of
@@ -565,3 +573,5 @@ void VkApp::createRtAccelerationStructure()
     m_scratch1.destroy(m_device);
     m_scratch2.destroy(m_device);
 }
+
+}  // namespace rtrt

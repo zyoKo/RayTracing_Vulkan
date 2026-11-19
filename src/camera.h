@@ -3,6 +3,9 @@
 
 #include <glm/glm.hpp>
 
+namespace rtrt
+{
+
 struct InputState
 {
     bool lmb = false;
@@ -52,5 +55,7 @@ public:
     void wheel(const int dir);
     void viewParms();
 };
+
+}  // namespace rtrt
 
 #endif  // RTRT_SRC_CAMERA_H_

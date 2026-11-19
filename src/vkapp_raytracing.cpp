@@ -10,6 +10,9 @@
 
 #include "shaders/shared_structs.h"
 
+namespace rtrt
+{
+
 void VkApp::createRtBuffers()
 {
     // Note: This will grow to create more than the single buffer m_rtColCurrBuffer.
@@ -227,11 +230,17 @@ void VkApp::createRtPipeline()
 // The Shader Binding Table (SBT)
 // - getting all shader handles and write them in a SBT buffer
 //
+namespace
+{
+
 template <class integral>
 constexpr integral align_up(integral x, size_t a) noexcept
 {
-    return integral((x + (integral(a) - 1)) & ~integral(a - 1));
+    return static_cast<integral>((x + (static_cast<integral>(a) - 1)) &
+                                 ~static_cast<integral>(a - 1));
 }
+
+}  // namespace
 
 void VkApp::createRtShaderBindingTable()
 {
@@ -419,3 +428,5 @@ void VkApp::raytrace()
     CmdCopyImage(m_rtKdCurrBuffer, m_rtKdPrevBuffer);
     CmdCopyImage(m_rtNdCurrBuffer, m_rtNdPrevBuffer);
 }
+
+}  // namespace rtrt

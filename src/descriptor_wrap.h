@@ -8,6 +8,9 @@
 
 #include "image_wrap.h"
 
+namespace rtrt
+{
+
 class DescriptorWrap
 {
 public:
@@ -29,5 +32,7 @@ public:
     void write(VkDevice& device, uint32_t index, const std::vector<ImageWrap>& textures);
     void write(VkDevice& device, uint32_t index, const VkAccelerationStructureKHR& tlas);
 };
+
+}  // namespace rtrt
 
 #endif  // RTRT_SRC_DESCRIPTOR_WRAP_H_

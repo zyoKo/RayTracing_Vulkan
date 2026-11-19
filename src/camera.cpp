@@ -3,6 +3,9 @@
 #include <GLFW/glfw3.h>
 #include <glm/gtx/transform.hpp>
 
+namespace rtrt
+{
+
 Camera::Camera()
     : spin(-20.0),
       tilt(10.66),
@@ -98,3 +101,5 @@ void Camera::wheel(const int dir)
 void Camera::viewParms()
 {
 }
+
+}  // namespace rtrt

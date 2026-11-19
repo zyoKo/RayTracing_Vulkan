@@ -17,6 +17,12 @@
 #include "app.h"
 #include "shaders/shared_structs.h"
 
+namespace rtrt
+{
+
+namespace
+{
+
 VkAccessFlags accessFlagsForImageLayout(VkImageLayout layout)
 {
     switch (layout)
@@ -59,6 +65,8 @@ VkPipelineStageFlags pipelineStageForLayout(VkImageLayout layout)
             return VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
     }
 }
+
+}  // namespace
 
 void VkApp::imageLayoutBarrier(VkCommandBuffer cmdbuffer, VkImage image,
                                VkImageLayout oldImageLayout, VkImageLayout newImageLayout,
@@ -772,3 +780,5 @@ void VkApp::updateCameraBuffer()
                          VK_DEPENDENCY_DEVICE_GROUP_BIT, 0, nullptr, 1, &afterBarrier, 0,
                          nullptr);
 }
+
+}  // namespace rtrt

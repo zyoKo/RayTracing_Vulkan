@@ -3,6 +3,9 @@
 
 #include <vulkan/vulkan_core.h>
 
+namespace rtrt
+{
+
 struct ImageWrap
 {
     VkImage image{};
@@ -24,5 +27,7 @@ struct ImageWrap
         return VkDescriptorImageInfo({sampler, imageView, imageLayout});
     }
 };
+
+}  // namespace rtrt
 
 #endif  // RTRT_SRC_IMAGE_WRAP_H_

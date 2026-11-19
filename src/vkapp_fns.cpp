@@ -20,6 +20,9 @@
 #include "app.h"
 #include "extensions_vk.hpp"
 
+namespace rtrt
+{
+
 void VkApp::destroyAllVulkanResources()
 {
     vkDeviceWaitIdle(m_device);
@@ -1065,3 +1068,5 @@ void VkApp::postProcess()
     }
     vkCmdEndRenderPass(m_commandBuffer);
 }
+
+}  // namespace rtrt

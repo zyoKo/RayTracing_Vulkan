@@ -4,6 +4,9 @@
 
 #include <vector>
 
+namespace rtrt
+{
+
 void DescriptorWrap::setBindings(const VkDevice device,
                                  std::vector<VkDescriptorSetLayoutBinding> _bt)
 {
@@ -168,3 +171,5 @@ void DescriptorWrap::write(VkDevice& device, uint32_t index,
 
     vkUpdateDescriptorSets(device, 1, &writeSet, 0, nullptr);
 }
+
+}  // namespace rtrt

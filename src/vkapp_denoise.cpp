@@ -2,6 +2,9 @@
 
 #include "shaders/shared_structs.h"
 
+namespace rtrt
+{
+
 #define SHADOW
 
 #define GROUP_SIZE 128
@@ -104,3 +107,5 @@ void VkApp::denoise()
         CmdCopyImage(m_denoiseBuffer, m_scImageBuffer);
     }
 }
+
+}  // namespace rtrt

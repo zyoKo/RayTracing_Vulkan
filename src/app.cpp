@@ -16,54 +16,19 @@
 #include "camera.h"
 #include "vkapp.h"
 
+namespace rtrt
+{
+
+namespace
+{
+
 // GLFW Callback functions
-static void onErrorCallback(int error, const char* description)
+void onErrorCallback(int error, const char* description)
 {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
 
-struct FrameStats
-{
-    static constexpr int N = 240;
-    float frameMs[N] = {};
-    float cpuMs[N] = {};
-    float drawMs[N] = {};
-    float gpuWaitMs[N] = {};
-    int next = 0;
-    int count = 0;
-
-    void push(float frame, float cpu, float draw, float gpuWait)
-    {
-        frameMs[next] = frame;
-        cpuMs[next] = cpu;
-        drawMs[next] = draw;
-        gpuWaitMs[next] = gpuWait;
-        next = (next + 1) % N;
-        count = std::min(count + 1, N);
-    }
-
-    void range(const float* v, float& avg, float& lo, float& hi) const
-    {
-        avg = 0.0f;
-        lo = FLT_MAX;
-        hi = 0.0f;
-        for (int i = 0; i < count; i++)
-        {
-            avg += v[i];
-            lo = std::min(lo, v[i]);
-            hi = std::max(hi, v[i]);
-        }
-        avg = count ? avg / count : 0.0f;
-        if (!count)
-        {
-            lo = 0.0f;
-        }
-    }
-};
-
-static FrameStats stats;
-
-static void statRow(const char* label, const float* v)
+void statRow(const FrameStats& stats, const char* label, const float* v)
 {
     float avg, lo, hi;
     stats.range(v, avg, lo, hi);
@@ -79,8 +44,9 @@ static void statRow(const char* label, const float* v)
     ImGui::NextColumn();
 }
 
-static void drawPerfGUI(App& A)
+void drawPerfGUI(App& A)
 {
+    const FrameStats& stats = A.m_frameStats;
     ImGui::SetNextWindowPos(ImVec2(360, 10), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(420, 330), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Performance", &A.m_show_perf))
@@ -108,10 +74,10 @@ static void drawPerfGUI(App& A)
         ImGui::NextColumn();
     }
     ImGui::Separator();
-    statRow("Frame", stats.frameMs);
-    statRow("CPU thread", stats.cpuMs);
-    statRow("Draw thread", stats.drawMs);
-    statRow("GPU wait", stats.gpuWaitMs);
+    statRow(stats, "Frame", stats.frameMs);
+    statRow(stats, "CPU thread", stats.cpuMs);
+    statRow(stats, "Draw thread", stats.drawMs);
+    statRow(stats, "GPU wait", stats.gpuWaitMs);
     ImGui::Columns(1);
 
     ImGui::Separator();
@@ -246,65 +212,19 @@ void drawGUI(VkApp& VK)
 }
 
 //////////////////////////////////////////////////////////////////////////
-static int const WIDTH = 10 * 128;
-static int const HEIGHT = 6 * 128;
-static std::string PROJECT = "rtrt";
-
-App* app;  // The app, declared here so static callback functions can find it.
-
-//----------------------------------------------------------------------------------------
-int main(int argc, char** argv)
-{
-    app = new App(argc, argv);  // Constructs the glfw window and sets UI callbacks
-
-    VkApp VK(app);  // Creates and manages all things Vulkan.
-
-    // The draw loop
-    printf("looping =======================================\n");
-    double frameStart = glfwGetTime();
-    while (!glfwWindowShouldClose(app->GLFW_window))
-    {
-        glfwPollEvents();
-        app->updateCamera();
-
-#ifdef GUI
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-        if (app->m_show_gui)
-        {
-            drawGUI(VK);
-        }
-        if (app->m_show_perf)
-        {
-            drawPerfGUI(*app);
-        }
-#endif
-
-        const double cpuEnd = glfwGetTime();
-        VK.drawFrame();
-
-        const double frameEnd = glfwGetTime();
-        stats.push(static_cast<float>((frameEnd - frameStart) * 1000.0),
-                   static_cast<float>((cpuEnd - frameStart) * 1000.0),
-                   static_cast<float>(VK.m_recordMs), static_cast<float>(VK.m_gpuWaitMs));
-        frameStart = frameEnd;
-    }
-
-    // Cleanup
-
-    VK.destroyAllVulkanResources();
-
-    glfwDestroyWindow(app->GLFW_window);
-    glfwTerminate();
-}
+constexpr int WIDTH = 10 * 128;
+constexpr int HEIGHT = 6 * 128;
+constexpr char PROJECT[] = "rtrt";
 
 void framebuffersize_cb(GLFWwindow* window, int w, int h)
 {
+    App* app = static_cast<App*>(glfwGetWindowUserPointer(window));
     app->m_framebufferResized = true;
 }
 
 void scroll_cb(GLFWwindow* window, double x, double y)
 {
+    App* app = static_cast<App*>(glfwGetWindowUserPointer(window));
 #ifdef GUI
     if (ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse)
     {
@@ -321,6 +241,7 @@ void scroll_cb(GLFWwindow* window, double x, double y)
 
 void mousebutton_cb(GLFWwindow* window, int button, int action, int mods)
 {
+    App* app = static_cast<App*>(glfwGetWindowUserPointer(window));
 #ifdef GUI
     if (ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse)
     {
@@ -335,6 +256,7 @@ void mousebutton_cb(GLFWwindow* window, int button, int action, int mods)
 
 void cursorpos_cb(GLFWwindow* window, double x, double y)
 {
+    App* app = static_cast<App*>(glfwGetWindowUserPointer(window));
 #ifdef GUI
     if (ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse)
     {
@@ -360,6 +282,7 @@ void char_cb(GLFWwindow* window, unsigned int key)
 
 void key_cb(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
+    App* app = static_cast<App*>(glfwGetWindowUserPointer(window));
     const bool pressed = action != GLFW_RELEASE;
 
 // Keys typed into a settings field (Ctrl+click on a slider) belong to that field.
@@ -381,13 +304,13 @@ void key_cb(GLFWwindow* window, int key, int scancode, int action, int mods)
     }
 }
 
-static float lastTime = 0;
+}  // namespace
 
 void App::updateCamera()
 {
     float now = glfwGetTime();
-    float dt = now - lastTime;
-    lastTime = now;
+    float dt = now - m_lastTime;
+    m_lastTime = now;
 
     float dist = m_moveSpeed * dt;
 
@@ -472,7 +395,7 @@ App::App(int argc, char** argv)
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    GLFW_window = glfwCreateWindow(WIDTH, HEIGHT, PROJECT.c_str(), nullptr, nullptr);
+    GLFW_window = glfwCreateWindow(WIDTH, HEIGHT, PROJECT, nullptr, nullptr);
 
     if (!glfwVulkanSupported())
     {
@@ -487,4 +410,54 @@ App::App(int argc, char** argv)
     glfwSetMouseButtonCallback(GLFW_window, &mousebutton_cb);
     glfwSetScrollCallback(GLFW_window, &scroll_cb);
     glfwSetFramebufferSizeCallback(GLFW_window, &framebuffersize_cb);
+}
+
+}  // namespace rtrt
+
+//----------------------------------------------------------------------------------------
+int main(int argc, char** argv)
+{
+    // Constructs the glfw window and sets UI callbacks
+    rtrt::App* app = new rtrt::App(argc, argv);
+
+    rtrt::VkApp VK(app);  // Creates and manages all things Vulkan.
+
+    // The draw loop
+    printf("looping =======================================\n");
+    double frameStart = glfwGetTime();
+    while (!glfwWindowShouldClose(app->GLFW_window))
+    {
+        glfwPollEvents();
+        app->updateCamera();
+
+#ifdef GUI
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        if (app->m_show_gui)
+        {
+            rtrt::drawGUI(VK);
+        }
+        if (app->m_show_perf)
+        {
+            rtrt::drawPerfGUI(*app);
+        }
+#endif
+
+        const double cpuEnd = glfwGetTime();
+        VK.drawFrame();
+
+        const double frameEnd = glfwGetTime();
+        app->m_frameStats.push(static_cast<float>((frameEnd - frameStart) * 1000.0),
+                               static_cast<float>((cpuEnd - frameStart) * 1000.0),
+                               static_cast<float>(VK.m_recordMs),
+                               static_cast<float>(VK.m_gpuWaitMs));
+        frameStart = frameEnd;
+    }
+
+    // Cleanup
+
+    VK.destroyAllVulkanResources();
+
+    glfwDestroyWindow(app->GLFW_window);
+    glfwTerminate();
 }

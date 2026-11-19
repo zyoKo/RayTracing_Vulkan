@@ -12,6 +12,9 @@
 
 #if VK_KHR_acceleration_structure
 
+namespace rtrt
+{
+
 class VkApp;
 
 // Convert a Mat4x4 to the matrix required by acceleration structures
@@ -122,6 +125,8 @@ protected:
         return (item & flag) == flag;
     }
 };
+
+}  // namespace rtrt
 
 #else
 #error This include requires VK_KHR_acceleration_structure support in the Vulkan SDK.

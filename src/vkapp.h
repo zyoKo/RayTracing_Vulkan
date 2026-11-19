@@ -13,6 +13,9 @@
 #include "image_wrap.h"
 #include "shaders/shared_structs.h"
 
+namespace rtrt
+{
+
 // Imgui
 #define GUI
 
@@ -299,5 +302,7 @@ public:
     void generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth,
                          int32_t texHeight, uint32_t mipLevels);
 };
+
+}  // namespace rtrt
 
 #endif  // RTRT_SRC_VKAPP_H_

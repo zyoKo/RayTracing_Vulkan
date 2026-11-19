@@ -24,6 +24,12 @@
 
 namespace fs = std::filesystem;
 
+namespace rtrt
+{
+
+namespace
+{
+
 // Local objects and procedures defined and used here:
 struct ModelData
 {
@@ -46,6 +52,8 @@ VkDeviceAddress getBufferDeviceAddress(VkDevice device, VkBuffer buffer)
     info.buffer = buffer;
     return vkGetBufferDeviceAddress(device, &info);
 }
+
+}  // namespace
 
 void VkApp::myloadModel(const std::string& filename, glm::mat4 transform)
 {
@@ -133,6 +141,9 @@ void VkApp::myloadModel(const std::string& filename, glm::mat4 transform)
     m_objData.emplace_back(object);
     m_objDesc.emplace_back(desc);
 }
+
+namespace
+{
 
 void ModelData::readAssimpFile(const std::string& path, const mat4& M)
 {
@@ -297,3 +308,7 @@ void recurseModelNodes(ModelData* meshdata, const aiScene* aiscene, const aiNode
         recurseModelNodes(meshdata, aiscene, node->mChildren[i], childTr, level + 1);
     }
 }
+
+}  // namespace
+
+}  // namespace rtrt

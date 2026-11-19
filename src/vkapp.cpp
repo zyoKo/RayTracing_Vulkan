@@ -19,6 +19,9 @@
 
 #include "app.h"
 
+namespace rtrt
+{
+
 VkApp::VkApp(App* _app) : app(_app)
 {
     m_useSlang = app->useSlang;      // -slang picks the starting shader language
@@ -291,3 +294,5 @@ void VkApp::initGUI()
     ImGui_ImplGlfw_InitForVulkan(app->GLFW_window, true);
 }
 #endif
+
+}  // namespace rtrt
