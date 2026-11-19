@@ -11,10 +11,24 @@ using mat4 = glm::mat4;
 using uint = unsigned int;
 #endif
 
+#ifdef __SLANG__
+// Compiled with -matrix-layout-column-major so glm matrices load correctly;
+// GLSL's M * v is written mul(M, v) in Slang.
+typealias vec2 = float2;
+typealias vec3 = float3;
+typealias vec4 = float4;
+typealias ivec2 = int2;
+typealias ivec3 = int3;
+typealias mat4 = float4x4;
+#endif
+
 // clang-format off
-#ifdef __cplusplus // Descriptor binding helper for C++ and GLSL
+#ifdef __cplusplus // Descriptor binding helper for C++, GLSL and Slang
 #define START_ENUM(a) enum a {
 #define END_ENUM() }
+#elif defined(__SLANG__)
+#define START_ENUM(a)  static const uint
+#define END_ENUM()
 #else
 #define START_ENUM(a)  const uint
 #define END_ENUM() 

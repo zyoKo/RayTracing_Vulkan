@@ -7,6 +7,7 @@ public:
     GLFWwindow* GLFW_window;
     App(int argc, char** argv);
     bool doApiDump;
+    bool useSlang;  // -slang: start with the Slang shaders
     
     bool m_show_gui = true;
     bool m_show_perf = false;

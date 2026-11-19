@@ -93,6 +93,11 @@ public:
     float m_exposure = 1.0f;
     float m_gamma = 2.2f;
     void setDefaultSettings();
+
+    bool m_useSlang = false;
+    std::string loadShader(const char* glslSpv, const char* slangSpv);
+    void setShaderLanguage(bool useSlang);  // Rebuilds every pipeline
+
     double m_gpuWaitMs = 0.0;  // Blocked on the previous frame's fence
     double m_recordMs = 0.0;   // Acquire, record, submit and present
     void drawFrame();

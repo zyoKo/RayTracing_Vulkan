@@ -170,7 +170,7 @@ void VkApp::createRtPipeline()
     group.intersectionShader = VK_SHADER_UNUSED_KHR;
 
     // Raygen shader stage and group appended to stages and groups lists
-    stage.module = createShaderModule(loadFile("spv/raytrace.rgen.spv"));
+    stage.module = createShaderModule(loadShader("spv/raytrace.rgen.spv", "spv/raytrace.rgen.slang.spv"));
     stage.stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
     stages.push_back(stage);
     
@@ -180,7 +180,7 @@ void VkApp::createRtPipeline()
     group.generalShader    = VK_SHADER_UNUSED_KHR;
     
     // Miss shader stage and group appended to stages and groups lists
-    stage.module = createShaderModule(loadFile("spv/raytrace.rmiss.spv"));
+    stage.module = createShaderModule(loadShader("spv/raytrace.rmiss.spv", "spv/raytrace.rmiss.slang.spv"));
     stage.stage = VK_SHADER_STAGE_MISS_BIT_KHR;
     stages.push_back(stage);
     
@@ -189,7 +189,7 @@ void VkApp::createRtPipeline()
     groups.push_back(group);
     group.generalShader    = VK_SHADER_UNUSED_KHR;
     // Closest hit shader stage and group appended to stages and groups lists
-    stage.module = createShaderModule(loadFile("spv/raytrace.rchit.spv"));
+    stage.module = createShaderModule(loadShader("spv/raytrace.rchit.spv", "spv/raytrace.rchit.slang.spv"));
     stage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     stages.push_back(stage);
 

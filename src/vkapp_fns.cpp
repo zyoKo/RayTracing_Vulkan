@@ -758,8 +758,8 @@ void VkApp::createPostPipeline()
     ////////////////////////////////////////////
     // Create the shaders
     ////////////////////////////////////////////
-    VkShaderModule vertShaderModule = createShaderModule(loadFile("spv/post.vert.spv"));
-    VkShaderModule fragShaderModule = createShaderModule(loadFile("spv/post.frag.spv"));
+    VkShaderModule vertShaderModule = createShaderModule(loadShader("spv/post.vert.spv", "spv/post.vert.slang.spv"));
+    VkShaderModule fragShaderModule = createShaderModule(loadShader("spv/post.frag.spv", "spv/post.frag.slang.spv"));
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -872,6 +872,44 @@ void VkApp::createPostPipeline()
     // intermediate (SPV) versions can be destroyed.
     vkDestroyShaderModule(m_device, fragShaderModule, nullptr);
     vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
+}
+
+std::string VkApp::loadShader(const char* glslSpv, const char* slangSpv)
+{
+    if (m_useSlang) {
+        std::string code = loadFile(slangSpv);
+        if (!code.empty())
+            return code;
+        printf("Slang shader %s not found; using %s\n", slangSpv, glslSpv); }
+    return loadFile(glslSpv);
+}
+
+void VkApp::setShaderLanguage(bool useSlang)
+{
+    if (useSlang == m_useSlang)
+        return;
+    m_useSlang = useSlang;
+
+    vkDeviceWaitIdle(m_device);  // The last frame may still be using the old pipelines
+
+    vkDestroyPipeline(m_device, m_postPipeline, nullptr);
+    vkDestroyPipelineLayout(m_device, m_postPipelineLayout, nullptr);
+    createPostPipeline();
+
+    vkDestroyPipeline(m_device, m_scanlinePipeline, nullptr);
+    vkDestroyPipelineLayout(m_device, m_scanlinePipelineLayout, nullptr);
+    createScPipeline();
+
+    // The SBT holds group handles of the old pipeline, so it is rebuilt with it
+    m_shaderBindingTableBW.destroy(m_device);
+    vkDestroyPipeline(m_device, m_rtPipeline, nullptr);
+    vkDestroyPipelineLayout(m_device, m_rtPipelineLayout, nullptr);
+    createRtPipeline();
+    createRtShaderBindingTable();
+
+    vkDestroyPipeline(m_device, m_denoisePipeline, nullptr);
+    vkDestroyPipelineLayout(m_device, m_denoiseCompPipelineLayout, nullptr);
+    createDenoiseCompPipeline();
 }
 
 std::string VkApp::loadFile(const std::string& filename)

@@ -117,5 +117,10 @@
   <ItemGroup>
     <None Include="shaders\rng.glsl" />
     <None Include="shaders\denoise.comp" />
+    <None Include="shaders\denoise.slang" />
+    <None Include="shaders\post.slang" />
+    <None Include="shaders\scanline.slang" />
+    <None Include="shaders\raytrace.slang" />
+    <None Include="shaders\rng.slang" />
   </ItemGroup>
 </Project>

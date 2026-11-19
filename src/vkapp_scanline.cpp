@@ -528,8 +528,8 @@ void VkApp::createScPipeline()
     vkCreatePipelineLayout(m_device, &createInfo, nullptr, &m_scanlinePipelineLayout);
 
 
-    VkShaderModule vertShaderModule = createShaderModule(loadFile("spv/scanline.vert.spv"));
-    VkShaderModule fragShaderModule = createShaderModule(loadFile("spv/scanline.frag.spv"));
+    VkShaderModule vertShaderModule = createShaderModule(loadShader("spv/scanline.vert.spv", "spv/scanline.vert.slang.spv"));
+    VkShaderModule fragShaderModule = createShaderModule(loadShader("spv/scanline.frag.spv", "spv/scanline.frag.slang.spv"));
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;

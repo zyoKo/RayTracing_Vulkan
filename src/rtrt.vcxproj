@@ -82,6 +82,52 @@
       <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
       <BuildInParallel>true</BuildInParallel>
     </CustomBuild>
+    <CustomBuild Include="shaders\denoise.slang">
+      <FileType>Document</FileType>
+      <LinkObjects>false</LinkObjects>
+      <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
+      <Command>$(SlangC) %(Identity) -entry main -o spv\denoise.comp.slang.spv</Command>
+      <Message>Compiling Slang shader %(Identity)</Message>
+      <Outputs>spv\denoise.comp.slang.spv</Outputs>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+    <CustomBuild Include="shaders\post.slang">
+      <FileType>Document</FileType>
+      <LinkObjects>false</LinkObjects>
+      <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
+      <Command>$(SlangC) %(Identity) -entry vertexMain -o spv\post.vert.slang.spv
+if errorlevel 1 exit /b 1
+$(SlangC) %(Identity) -entry fragmentMain -o spv\post.frag.slang.spv</Command>
+      <Message>Compiling Slang shader %(Identity)</Message>
+      <Outputs>spv\post.vert.slang.spv;spv\post.frag.slang.spv</Outputs>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+    <CustomBuild Include="shaders\scanline.slang">
+      <FileType>Document</FileType>
+      <LinkObjects>false</LinkObjects>
+      <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
+      <Command>$(SlangC) %(Identity) -entry vertexMain -o spv\scanline.vert.slang.spv
+if errorlevel 1 exit /b 1
+$(SlangC) %(Identity) -entry fragmentMain -o spv\scanline.frag.slang.spv</Command>
+      <Message>Compiling Slang shader %(Identity)</Message>
+      <Outputs>spv\scanline.vert.slang.spv;spv\scanline.frag.slang.spv</Outputs>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+    <CustomBuild Include="shaders\raytrace.slang">
+      <FileType>Document</FileType>
+      <LinkObjects>false</LinkObjects>
+      <AdditionalInputs>shaders\shared_structs.h;shaders\rng.slang</AdditionalInputs>
+      <Command>$(SlangC) %(Identity) -entry rayGenMain -o spv\raytrace.rgen.slang.spv
+if errorlevel 1 exit /b 1
+$(SlangC) %(Identity) -entry missMain -o spv\raytrace.rmiss.slang.spv
+if errorlevel 1 exit /b 1
+$(SlangC) %(Identity) -entry shadowMissMain -o spv\raytraceShadow.rmiss.slang.spv
+if errorlevel 1 exit /b 1
+$(SlangC) %(Identity) -entry closestHitMain -o spv\raytrace.rchit.slang.spv</Command>
+      <Message>Compiling Slang shader %(Identity)</Message>
+      <Outputs>spv\raytrace.rgen.slang.spv;spv\raytrace.rmiss.slang.spv;spv\raytraceShadow.rmiss.slang.spv;spv\raytrace.rchit.slang.spv</Outputs>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
     <CustomBuild Include="shaders\raytrace.rchit">
       <FileType>Document</FileType>
       <LinkObjects>false</LinkObjects>
@@ -138,6 +184,9 @@
     <ClInclude Include="vkapp.h" />
     <ClInclude Include="acceleration_wrap.h" />
   </ItemGroup>
+  <PropertyGroup>
+    <SlangC>"$(VULKAN_SDK)\Bin\slangc.exe" -target spirv -profile spirv_1_5 -matrix-layout-column-major -I shaders -g</SlangC>
+  </PropertyGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>

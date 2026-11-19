@@ -160,6 +160,13 @@ void drawGUI(VkApp& VK)
             A.myCamera.tilt = start.tilt;
             A.myCamera.eye  = start.eye; } }
 
+    if (ImGui::CollapsingHeader("Shaders", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::RadioButton("GLSL", !VK.m_useSlang))
+            VK.setShaderLanguage(false);
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Slang", VK.m_useSlang))
+            VK.setShaderLanguage(true); }
+
     ImGui::Separator();
     ImGui::Checkbox("Show performance window", &A.m_show_perf);
     if (ImGui::Button("Restore default settings"))
@@ -327,12 +334,15 @@ void App::updateCamera()
 App::App(int argc, char** argv)
 {
     doApiDump = false;
+    useSlang = false;
 
     int argi = 1;
     while (argi<argc) {
         std::string arg = argv[argi++];
         if (arg == "-d")
             doApiDump = true;
+        else if (arg == "-slang")
+            useSlang = true;
         else {
             printf("Unknown argument: %s\n", arg.c_str());
             exit(-1); } }

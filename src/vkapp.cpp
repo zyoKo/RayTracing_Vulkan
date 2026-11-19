@@ -21,6 +21,7 @@
 
 VkApp::VkApp(App* _app) : app(_app)
 {
+	m_useSlang = app->useSlang;	// -slang picks the starting shader language
 	createInstance(app->doApiDump);	// -> m_instance
 	assert(m_instance);
 	createPhysicalDevice();		// -> m_physicalDevice i.e. the GPU

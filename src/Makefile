@@ -19,7 +19,11 @@ headers = app.h vkapp.h camera.h buffer_wrap.h descriptor_wrap.h image_wrap.h ex
 
 src = app.cpp vkapp.cpp camera.cpp vkapp_fns.cpp extensions_vk.cpp descriptor_wrap.cpp vkapp_loadModel.cpp vkapp_scanline.cpp vkapp_raytracing.cpp acceleration_wrap.cpp vkapp_denoise.cpp
 
-shader_spvs = spv/post.frag.spv  spv/post.vert.spv spv/scanline.vert.spv spv/scanline.frag.spv spv/post.frag.spv spv/post.vert.spv spv/raytrace.rgen.spv spv/raytrace.rmiss.spv spv/raytrace.rchit.spv spv/raytraceShadow.rmiss.spv spv/denoise.comp.spv
+shader_spvs = spv/post.frag.spv  spv/post.vert.spv spv/scanline.vert.spv spv/scanline.frag.spv spv/post.frag.spv spv/post.vert.spv spv/raytrace.rgen.spv spv/raytrace.rmiss.spv spv/raytrace.rchit.spv spv/raytraceShadow.rmiss.spv spv/denoise.comp.spv $(slang_spvs)
+
+slang_spvs = spv/denoise.comp.slang.spv spv/post.vert.slang.spv spv/post.frag.slang.spv spv/scanline.vert.slang.spv spv/scanline.frag.slang.spv spv/raytrace.rgen.slang.spv spv/raytrace.rmiss.slang.spv spv/raytraceShadow.rmiss.slang.spv spv/raytrace.rchit.slang.spv
+
+SLANGC = slangc -target spirv -profile spirv_1_5 -matrix-layout-column-major -I shaders -g
 
 shader_src =  shaders/shared_structs.h   shaders/post.frag shaders/post.vert   shaders/scanline.vert shaders/scanline.frag shaders/raytrace.rgen shaders/raytrace.rmiss shaders/raytrace.rchit shaders/denoise.comp shaders/raytraceShadow.rmiss
 
@@ -34,6 +38,33 @@ $(target): $(objects) $(shader_spvs)
 spv/denoise.comp.spv: shaders/denoise.comp shaders/shared_structs.h
 	mkdir -p spv
 	glslangValidator -g --target-env vulkan1.2 -o $@  $<
+spv/denoise.comp.slang.spv: shaders/denoise.slang shaders/shared_structs.h
+	mkdir -p spv
+	$(SLANGC) $< -entry main -o $@
+spv/post.vert.slang.spv: shaders/post.slang shaders/shared_structs.h
+	mkdir -p spv
+	$(SLANGC) $< -entry vertexMain -o $@
+spv/post.frag.slang.spv: shaders/post.slang shaders/shared_structs.h
+	mkdir -p spv
+	$(SLANGC) $< -entry fragmentMain -o $@
+spv/scanline.vert.slang.spv: shaders/scanline.slang shaders/shared_structs.h
+	mkdir -p spv
+	$(SLANGC) $< -entry vertexMain -o $@
+spv/scanline.frag.slang.spv: shaders/scanline.slang shaders/shared_structs.h
+	mkdir -p spv
+	$(SLANGC) $< -entry fragmentMain -o $@
+spv/raytrace.rgen.slang.spv: shaders/raytrace.slang shaders/shared_structs.h shaders/rng.slang
+	mkdir -p spv
+	$(SLANGC) $< -entry rayGenMain -o $@
+spv/raytrace.rmiss.slang.spv: shaders/raytrace.slang shaders/shared_structs.h shaders/rng.slang
+	mkdir -p spv
+	$(SLANGC) $< -entry missMain -o $@
+spv/raytraceShadow.rmiss.slang.spv: shaders/raytrace.slang shaders/shared_structs.h shaders/rng.slang
+	mkdir -p spv
+	$(SLANGC) $< -entry shadowMissMain -o $@
+spv/raytrace.rchit.slang.spv: shaders/raytrace.slang shaders/shared_structs.h shaders/rng.slang
+	mkdir -p spv
+	$(SLANGC) $< -entry closestHitMain -o $@
 spv/post.frag.spv: shaders/post.frag shaders/shared_structs.h
 	mkdir -p spv
 	glslangValidator -g --target-env vulkan1.2 -o $@  $<
