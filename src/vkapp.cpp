@@ -69,6 +69,7 @@ VkApp::VkApp(App* _app) : app(_app)
 
 void VkApp::drawFrame()
 {
+	const double start = glfwGetTime();
 	prepareFrame();
 
 	VkCommandBufferBeginInfo beginInfo{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
@@ -96,6 +97,7 @@ void VkApp::drawFrame()
 	vkEndCommandBuffer(m_commandBuffer);
 
 	submitFrame();  // Submit for display
+	m_recordMs = (glfwGetTime() - start) * 1000.0 - m_gpuWaitMs;
 }
 
 
@@ -130,9 +132,11 @@ void VkApp::prepareFrame()
 {
 	// Use a fence to wait until the command buffer has finished execution before using it again.
 	// This must happen before the acquire, so the previous submit's wait on m_readSemaphore is done.
+	const double waitStart = glfwGetTime();
 	while (VK_TIMEOUT == vkWaitForFences(m_device, 1, &m_waitFence, VK_TRUE, 1'000'000))
 	{
 	}
+	m_gpuWaitMs = (glfwGetTime() - waitStart) * 1000.0;
 
 	// Acquire the next image from the swap chain --> m_swapchainIndex
 	VkResult result = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX, m_readSemaphore,

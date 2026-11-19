@@ -1,5 +1,7 @@
 #include <iostream>
 #include <array>
+#include <cfloat>
+#include <thread>
 
 #include "vkapp.h"
 #include "app.h"
@@ -11,6 +13,90 @@ static void onErrorCallback(int error, const char* description)
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
 
+
+struct FrameStats
+{
+    static constexpr int N = 240;
+    float frameMs[N] = {};
+    float cpuMs[N] = {};
+    float drawMs[N] = {};
+    float gpuWaitMs[N] = {};
+    int next = 0;
+    int count = 0;
+
+    void push(float frame, float cpu, float draw, float gpuWait)
+    {
+        frameMs[next] = frame;
+        cpuMs[next] = cpu;
+        drawMs[next] = draw;
+        gpuWaitMs[next] = gpuWait;
+        next = (next + 1) % N;
+        count = std::min(count + 1, N);
+    }
+
+    void range(const float* v, float& avg, float& lo, float& hi) const
+    {
+        avg = 0.0f; lo = FLT_MAX; hi = 0.0f;
+        for (int i = 0; i < count; i++) {
+            avg += v[i];
+            lo = std::min(lo, v[i]);
+            hi = std::max(hi, v[i]); }
+        avg = count ? avg / count : 0.0f;
+        if (!count) lo = 0.0f;
+    }
+};
+
+static FrameStats stats;
+
+static void statRow(const char* label, const float* v)
+{
+    float avg, lo, hi;
+    stats.range(v, avg, lo, hi);
+    ImGui::TextUnformatted(label); ImGui::NextColumn();
+    ImGui::Text("%.2f", v[(stats.next + FrameStats::N - 1) % FrameStats::N]); ImGui::NextColumn();
+    ImGui::Text("%.2f", avg); ImGui::NextColumn();
+    ImGui::Text("%.2f", lo); ImGui::NextColumn();
+    ImGui::Text("%.2f", hi); ImGui::NextColumn();
+}
+
+static void drawPerfGUI(App& A)
+{
+    ImGui::SetNextWindowPos(ImVec2(360, 10), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(420, 330), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin("Performance", &A.m_show_perf)) {
+        ImGui::End();
+        return; }
+
+    float avgFrame, lo, hi;
+    stats.range(stats.frameMs, avgFrame, lo, hi);
+    ImGui::Text("FPS: %.1f   Frame latency: %.2f ms", avgFrame > 0.0f ? 1000.0f / avgFrame : 0.0f, avgFrame);
+
+    char overlay[32];
+    snprintf(overlay, sizeof(overlay), "%.2f ms", avgFrame);
+    ImGui::PlotLines("##frame", stats.frameMs, FrameStats::N, stats.next, overlay,
+                     0.0f, std::max(hi * 1.2f, 1.0f), ImVec2(ImGui::GetContentRegionAvail().x, 70));
+
+    ImGui::Columns(5, "timings");
+    ImGui::SetColumnWidth(0, 110);
+    for (const char* h : {"ms", "Now", "Avg", "Min", "Max"}) {
+        ImGui::TextUnformatted(h);
+        ImGui::NextColumn(); }
+    ImGui::Separator();
+    statRow("Frame", stats.frameMs);
+    statRow("CPU thread", stats.cpuMs);
+    statRow("Draw thread", stats.drawMs);
+    statRow("GPU wait", stats.gpuWaitMs);
+    ImGui::Columns(1);
+
+    ImGui::Separator();
+    ImGui::TextWrapped("CPU thread: input, camera and UI. Draw thread: acquire, record, "
+                       "submit and present. Both run on the main thread; GPU wait is "
+                       "time blocked on the previous frame's fence.");
+    ImGui::Text("Hardware threads: %u", std::thread::hardware_concurrency());
+    ImGui::Text("Averages over the last %d frames", stats.count);
+
+    ImGui::End();
+}
 
 void drawGUI(VkApp& VK)
 {
@@ -75,6 +161,7 @@ void drawGUI(VkApp& VK)
             A.myCamera.eye  = start.eye; } }
 
     ImGui::Separator();
+    ImGui::Checkbox("Show performance window", &A.m_show_perf);
     if (ImGui::Button("Restore default settings"))
         VK.setDefaultSettings();
 
@@ -102,18 +189,27 @@ int main(int argc, char** argv)
 
     // The draw loop
     printf("looping =======================================\n");
+    double frameStart = glfwGetTime();
     while(!glfwWindowShouldClose(app->GLFW_window)) {
         glfwPollEvents();
         app->updateCamera();
-        
+
         #ifdef GUI
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
         if(app->m_show_gui)
             drawGUI(VK);
+        if(app->m_show_perf)
+            drawPerfGUI(*app);
         #endif
 
+        const double cpuEnd = glfwGetTime();
         VK.drawFrame();
+
+        const double frameEnd = glfwGetTime();
+        stats.push(float((frameEnd - frameStart) * 1000.0), float((cpuEnd - frameStart) * 1000.0),
+                   float(VK.m_recordMs), float(VK.m_gpuWaitMs));
+        frameStart = frameEnd;
     }
 
     // Cleanup

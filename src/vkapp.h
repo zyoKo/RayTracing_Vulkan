@@ -93,6 +93,8 @@ public:
     float m_exposure = 1.0f;
     float m_gamma = 2.2f;
     void setDefaultSettings();
+    double m_gpuWaitMs = 0.0;  // Blocked on the previous frame's fence
+    double m_recordMs = 0.0;   // Acquire, record, submit and present
     void drawFrame();
 
     void destroyAllVulkanResources();
