@@ -1,7 +1,7 @@
-
-#include "vkapp.h"
-#include <iostream>
 #include "camera.h"
+
+#include <GLFW/glfw3.h>
+#include <glm/gtx/transform.hpp>
 
 Camera::Camera()
     : spin(-20.0),

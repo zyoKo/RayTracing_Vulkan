@@ -1,21 +1,24 @@
-
-
-#include <array>
-#include <iostream>  // std::cout
-#include <fstream>   // std::ifstream
-
-#include <unordered_set>
-#include <unordered_map>
-
 #include "vkapp.h"
+
+#include <assert.h>
+
+#include <algorithm>
+#include <array>
+#include <cstdio>
+#include <cstring>
+#include <fstream>
+#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+#include <GLFW/glfw3.h>
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_vulkan.h>
+#include <imgui.h>
+
 #include "app.h"
 #include "extensions_vk.hpp"
-
-#ifdef GUI
-#include "backends/imgui_impl_glfw.h"
-#include "imgui.h"
-#include "backends/imgui_impl_vulkan.h"
-#endif
 
 void VkApp::destroyAllVulkanResources()
 {

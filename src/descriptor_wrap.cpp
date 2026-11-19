@@ -1,6 +1,8 @@
-#include "vkapp.h"
 #include "descriptor_wrap.h"
+
 #include <assert.h>
+
+#include <vector>
 
 void DescriptorWrap::setBindings(const VkDevice device,
                                  std::vector<VkDescriptorSetLayoutBinding> _bt)

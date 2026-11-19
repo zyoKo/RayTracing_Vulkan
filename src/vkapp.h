@@ -1,35 +1,20 @@
+#ifndef RTRT_SRC_VKAPP_H_
+#define RTRT_SRC_VKAPP_H_
 
-#pragma once
+#include <string>
+#include <vector>
 
-#include <algorithm>
-#include "vulkan/vulkan_core.h"
-// #include <vulkan/vulkan.hpp>  // A modern C++ API for Vulkan. Beware 14K lines of code
+#include <glm/glm.hpp>
+#include <vulkan/vulkan_core.h>
+
+#include "acceleration_wrap.h"
+#include "buffer_wrap.h"
+#include "descriptor_wrap.h"
+#include "image_wrap.h"
+#include "shaders/shared_structs.h"
 
 // Imgui
 #define GUI
-
-#ifdef GUI
-#include "backends/imgui_impl_glfw.h"
-#include "imgui.h"
-#include "backends/imgui_impl_vulkan.h"
-#endif
-
-#ifdef _WIN32
-#define GLFW_EXPOSE_NATIVE_WIN32
-#endif
-#include "GLFW/glfw3.h"
-#include "GLFW/glfw3native.h"
-
-#include "shaders/shared_structs.h"
-#include "buffer_wrap.h"
-#include "image_wrap.h"
-#include "descriptor_wrap.h"
-#include "acceleration_wrap.h"
-
-// #include "raytracing_wrap.h"
-#define GLM_FORCE_RADIANS
-#define GLM_SWIZZLE
-#include <glm/glm.hpp>
 
 // The OBJ model: Vulkan buffers of object data
 struct ObjData
@@ -314,3 +299,5 @@ public:
     void generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth,
                          int32_t texHeight, uint32_t mipLevels);
 };
+
+#endif  // RTRT_SRC_VKAPP_H_

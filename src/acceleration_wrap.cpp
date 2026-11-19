@@ -1,8 +1,12 @@
-
 #include "acceleration_wrap.h"
-#include "vkapp.h"
-#include <numeric>
+
+#include <assert.h>
+
 #include <algorithm>
+#include <numeric>
+#include <vector>
+
+#include "vkapp.h"
 
 //----------------------------------------------------------------------------------------
 // Initializing the allocator and querying the raytracing properties

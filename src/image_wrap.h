@@ -1,5 +1,7 @@
+#ifndef RTRT_SRC_IMAGE_WRAP_H_
+#define RTRT_SRC_IMAGE_WRAP_H_
 
-#pragma once
+#include <vulkan/vulkan_core.h>
 
 struct ImageWrap
 {
@@ -22,3 +24,5 @@ struct ImageWrap
         return VkDescriptorImageInfo({sampler, imageView, imageLayout});
     }
 };
+
+#endif  // RTRT_SRC_IMAGE_WRAP_H_

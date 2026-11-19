@@ -1,10 +1,12 @@
+#ifndef RTRT_SRC_DESCRIPTOR_WRAP_H_
+#define RTRT_SRC_DESCRIPTOR_WRAP_H_
 
-#pragma once
-
-#include <stdio.h>
-#include <string>
 #include <vector>
+
 #include <vulkan/vulkan_core.h>
+
+#include "image_wrap.h"
+#include "shaders/shared_structs.h"
 
 class DescriptorWrap
 {
@@ -26,3 +28,5 @@ public:
     void write(VkDevice& device, uint index, const std::vector<ImageWrap>& textures);
     void write(VkDevice& device, uint index, const VkAccelerationStructureKHR& tlas);
 };
+
+#endif  // RTRT_SRC_DESCRIPTOR_WRAP_H_

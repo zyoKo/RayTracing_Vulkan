@@ -1,19 +1,8 @@
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <vector>
-#include <array>
-#include <math.h>
-
 #include "vkapp.h"
-#define SHADOW
-#define GLM_FORCE_RADIANS
-#define GLM_SWIZZLE
-#include <glm/glm.hpp>
-using namespace glm;
 
-#include "app.h"
 #include "shaders/shared_structs.h"
+
+#define SHADOW
 
 #define GROUP_SIZE 128
 

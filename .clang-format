@@ -14,4 +14,20 @@ AllowShortLoopsOnASingleLine: false
 AllowShortBlocksOnASingleLine: Never
 AllowShortFunctionsOnASingleLine: None
 AllowShortEnumsOnASingleLine: false
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
+IncludeIsMainRegex: '(_[A-Za-z]+)?$'
+IncludeCategories:
+  # C system headers
+  - Regex: '^<(assert|ctype|errno|float|limits|math|stdint|stdio|stdlib|string|time|unistd)\.h>$'
+    Priority: 1
+  # C++ standard library
+  - Regex: '^<[a-z_]+>$'
+    Priority: 2
+  # Other libraries
+  - Regex: '^<.*>$'
+    Priority: 3
+  # This project
+  - Regex: '^".*"$'
+    Priority: 4
 ...

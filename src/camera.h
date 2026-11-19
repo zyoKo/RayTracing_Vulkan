@@ -1,7 +1,7 @@
-#define GLM_FORCE_RADIANS
-#define GLM_SWIZZLE
+#ifndef RTRT_SRC_CAMERA_H_
+#define RTRT_SRC_CAMERA_H_
+
 #include <glm/glm.hpp>
-#include <glm/gtx/transform.hpp>
 
 struct InputState
 {
@@ -52,3 +52,5 @@ public:
     void wheel(const int dir);
     void viewParms();
 };
+
+#endif  // RTRT_SRC_CAMERA_H_

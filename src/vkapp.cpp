@@ -1,22 +1,23 @@
-#include <array>
-#include <iostream>  // std::cout
-#include <fstream>   // std::ifstream
-
-#ifdef WIN64
-#else
-#include <unistd.h>
-#endif
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
 #include "vkapp.h"
 
-#include "app.h"
+#include <assert.h>
 
-#define GLM_FORCE_RADIANS
-#define GLM_SWIZZLE
+#include <fstream>
+#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+#include <GLFW/glfw3.h>
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_vulkan.h>
 #include <glm/glm.hpp>
+#include <imgui.h>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
+#include "app.h"
 
 VkApp::VkApp(App* _app) : app(_app)
 {

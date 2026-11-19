@@ -1,19 +1,13 @@
-
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <vector>
-#include <array>
-#include <math.h>
-
 #include "vkapp.h"
 
-#define GLM_FORCE_RADIANS
-#define GLM_SWIZZLE
-#include <glm/glm.hpp>
-using namespace glm;
+#include <assert.h>
 
-#include "app.h"
+#include <cstdio>
+#include <cstring>
+#include <vector>
+
+#include <glm/glm.hpp>
+
 #include "shaders/shared_structs.h"
 
 void VkApp::createRtBuffers()

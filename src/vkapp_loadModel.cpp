@@ -3,33 +3,26 @@
 // into a structure suitable for the raytracer.
 ////////////////////////////////////////////////////////////////////////
 
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <vector>
-#include <array>
-#include <math.h>
-
-#include <filesystem>
-namespace fs = std::filesystem;
-
 #include "vkapp.h"
 
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <vector>
+
 #include <assimp/Importer.hpp>
-#include <assimp/version.h>
-#include <assimp/scene.h>
 #include <assimp/postprocess.h>
-
-#define GLM_FORCE_RADIANS
-#define GLM_SWIZZLE
+#include <assimp/scene.h>
+#include <assimp/version.h>
 #include <glm/glm.hpp>
-using namespace glm;
 
-#define STBI_FAILURE_USERMSG
-#include "stb_image.h"
-
-#include "app.h"
 #include "shaders/shared_structs.h"
+
+namespace fs = std::filesystem;
 
 // Local objects and procedures defined and used here:
 struct ModelData

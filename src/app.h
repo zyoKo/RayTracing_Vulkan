@@ -1,3 +1,7 @@
+#ifndef RTRT_SRC_APP_H_
+#define RTRT_SRC_APP_H_
+
+#include <GLFW/glfw3.h>
 
 #include "camera.h"
 
@@ -16,3 +20,5 @@ public:
     Camera myCamera;
     void updateCamera();
 };
+
+#endif  // RTRT_SRC_APP_H_

@@ -1,21 +1,18 @@
-
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <cstring>  // for memcpy
-#include <vector>
-#include <array>
-#include <math.h>
-
 #include "vkapp.h"
 
-#define GLM_FORCE_RADIANS
-#define GLM_SWIZZLE
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstring>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
-using namespace glm;
 
 #define STBI_FAILURE_USERMSG
-#include "stb_image.h"
+#include <stb_image.h>
 
 #include "app.h"
 #include "shaders/shared_structs.h"

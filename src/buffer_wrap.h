@@ -1,5 +1,7 @@
+#ifndef RTRT_SRC_BUFFER_WRAP_H_
+#define RTRT_SRC_BUFFER_WRAP_H_
 
-#pragma once
+#include <vulkan/vulkan_core.h>
 
 struct BufferWrap
 {
@@ -12,3 +14,5 @@ struct BufferWrap
         vkFreeMemory(device, memory, nullptr);
     }
 };
+
+#endif  // RTRT_SRC_BUFFER_WRAP_H_

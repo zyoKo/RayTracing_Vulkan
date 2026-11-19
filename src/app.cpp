@@ -1,11 +1,20 @@
-#include <iostream>
-#include <array>
+#include "app.h"
+
+#include <algorithm>
 #include <cfloat>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <string>
 #include <thread>
 
+#include <GLFW/glfw3.h>
+#include <backends/imgui_impl_glfw.h>
+#include <glm/glm.hpp>
+#include <imgui.h>
+
+#include "camera.h"
 #include "vkapp.h"
-#include "app.h"
-#include "extensions_vk.hpp"
 
 // GLFW Callback functions
 static void onErrorCallback(int error, const char* description)

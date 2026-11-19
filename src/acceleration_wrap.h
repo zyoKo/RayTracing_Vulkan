@@ -1,22 +1,16 @@
+#ifndef RTRT_SRC_ACCELERATION_WRAP_H_
+#define RTRT_SRC_ACCELERATION_WRAP_H_
 
-#pragma once
-
-#include <mutex>
-#include <vector>
-#include <vulkan/vulkan_core.h>
-
-#if VK_KHR_acceleration_structure
-
-#include <type_traits>
 #include <string.h>
 
-#define GLM_FORCE_RADIANS
-#define GLM_SWIZZLE
+#include <vector>
+
 #include <glm/glm.hpp>
-#include <glm/gtx/transform.hpp>
+#include <vulkan/vulkan_core.h>
 
 #include "buffer_wrap.h"
-// #include "image_wrap.h"
+
+#if VK_KHR_acceleration_structure
 
 class VkApp;
 
@@ -132,3 +126,5 @@ protected:
 #else
 #error This include requires VK_KHR_acceleration_structure support in the Vulkan SDK.
 #endif
+
+#endif  // RTRT_SRC_ACCELERATION_WRAP_H_
