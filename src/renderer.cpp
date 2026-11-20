@@ -26,8 +26,8 @@ Renderer::Renderer(App* _app) : app(_app)
 
 bool Renderer::Init()
 {
-    m_useSlang = app->useSlang;      // -slang picks the starting shader language
-    createInstance(app->doApiDump);  // -> m_instance
+    m_useSlang = app->UseSlang;      // -slang picks the starting shader language
+    createInstance(app->DoApiDump);  // -> m_instance
     assert(m_instance);
     if (!createPhysicalDevice())
     {
@@ -157,7 +157,7 @@ bool Renderer::prepareFrame()
     CheckVkResult(waitResult, "vkWaitForFences", __FILE__, __LINE__);
     m_gpuWaitMs = (glfwGetTime() - waitStart) * 1000.0;
 
-    if (app->m_framebufferResized && !recreateSizedResources())
+    if (app->FramebufferResized && !recreateSizedResources())
     {
         return false;
     }
@@ -212,7 +212,7 @@ void Renderer::submitFrame()
     VkResult result = vkQueuePresentKHR(m_queue, &_i_);
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
     {
-        app->m_framebufferResized = true;
+        app->FramebufferResized = true;
     }
     else
     {
@@ -286,7 +286,7 @@ void Renderer::initGUI()
     submitTempCmdBuffer(cmdbuf);
     ImGui_ImplVulkan_DestroyFontUploadObjects();  // Staging buffer is no longer needed
 
-    ImGui_ImplGlfw_InitForVulkan(app->GLFW_window, true);
+    ImGui_ImplGlfw_InitForVulkan(app->Window, true);
 }
 
 }  // namespace rtrt

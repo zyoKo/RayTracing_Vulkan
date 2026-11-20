@@ -99,19 +99,19 @@ bool Renderer::recreateSizedResources()
 {
     // A minimized window has a zero-sized framebuffer, which can't back a swapchain.
     int width = 0, height = 0;
-    glfwGetFramebufferSize(app->GLFW_window, &width, &height);
+    glfwGetFramebufferSize(app->Window, &width, &height);
     while (width == 0 || height == 0)
     {
-        if (glfwWindowShouldClose(app->GLFW_window))
+        if (glfwWindowShouldClose(app->Window))
         {
             return false;
         }
         glfwWaitEvents();
-        glfwGetFramebufferSize(app->GLFW_window, &width, &height);
+        glfwGetFramebufferSize(app->Window, &width, &height);
     }
 
     RTRT_CHECK_VK(vkDeviceWaitIdle(m_device));
-    app->m_framebufferResized = false;
+    app->FramebufferResized = false;
 
     for (auto& framebuffer : m_framebuffers)
     {
@@ -375,8 +375,7 @@ void Renderer::getSurface()
 {
     VkBool32 isSupported;  // Supports drawing(presenting) on a screen
 
-    RTRT_CHECK_VK(
-        glfwCreateWindowSurface(m_instance, app->GLFW_window, nullptr, &m_surface));
+    RTRT_CHECK_VK(glfwCreateWindowSurface(m_instance, app->Window, nullptr, &m_surface));
 
     RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceSupportKHR(
         m_physicalDevice, m_graphicsQueueIndex, m_surface, &isSupported));
@@ -451,7 +450,7 @@ void Renderer::createSwapchain()
     {
         // Does this case ever happen?
         int width, height;
-        glfwGetFramebufferSize(app->GLFW_window, &width, &height);
+        glfwGetFramebufferSize(app->Window, &width, &height);
 
         swapchainExtent =
             VkExtent2D{static_cast<uint32_t>(width), static_cast<uint32_t>(height)};

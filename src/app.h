@@ -14,38 +14,38 @@ namespace rtrt
 struct FrameStats
 {
     static constexpr int N = 240;
-    float frameMs[N] = {};
-    float cpuMs[N] = {};
-    float drawMs[N] = {};
-    float gpuWaitMs[N] = {};
-    int next = 0;
-    int count = 0;
+    float FrameMs[N] = {};
+    float CpuMs[N] = {};
+    float DrawMs[N] = {};
+    float GpuWaitMs[N] = {};
+    int Next = 0;
+    int Count = 0;
 
-    void push(float frame, float cpu, float draw, float gpuWait)
+    void Push(float Frame, float Cpu, float Draw, float GpuWait)
     {
-        frameMs[next] = frame;
-        cpuMs[next] = cpu;
-        drawMs[next] = draw;
-        gpuWaitMs[next] = gpuWait;
-        next = (next + 1) % N;
-        count = std::min(count + 1, N);
+        FrameMs[Next] = Frame;
+        CpuMs[Next] = Cpu;
+        DrawMs[Next] = Draw;
+        GpuWaitMs[Next] = GpuWait;
+        Next = (Next + 1) % N;
+        Count = std::min(Count + 1, N);
     }
 
-    void range(const float* v, float& avg, float& lo, float& hi) const
+    void Range(const float* Values, float& Avg, float& Lo, float& Hi) const
     {
-        avg = 0.0f;
-        lo = FLT_MAX;
-        hi = 0.0f;
-        for (int i = 0; i < count; i++)
+        Avg = 0.0f;
+        Lo = FLT_MAX;
+        Hi = 0.0f;
+        for (int I = 0; I < Count; I++)
         {
-            avg += v[i];
-            lo = std::min(lo, v[i]);
-            hi = std::max(hi, v[i]);
+            Avg += Values[I];
+            Lo = std::min(Lo, Values[I]);
+            Hi = std::max(Hi, Values[I]);
         }
-        avg = count ? avg / count : 0.0f;
-        if (!count)
+        Avg = Count ? Avg / Count : 0.0f;
+        if (!Count)
         {
-            lo = 0.0f;
+            Lo = 0.0f;
         }
     }
 };
@@ -56,20 +56,20 @@ public:
     App() = default;
     App(const App&) = delete;
     App& operator=(const App&) = delete;
-    bool Init(int argc, char** argv);
+    bool Init(int Argc, char** Argv);
 
-    GLFWwindow* GLFW_window = nullptr;
-    bool doApiDump = false;
-    bool useSlang = false;  // -slang: start with the Slang shaders
+    GLFWwindow* Window = nullptr;
+    bool DoApiDump = false;
+    bool UseSlang = false;  // -slang: start with the Slang shaders
 
-    bool m_show_gui = true;
-    bool m_show_perf = false;
-    bool m_framebufferResized = false;
-    float m_moveSpeed = 0.7f;
-    Camera myCamera;
-    FrameStats m_frameStats;
-    float m_lastTime = 0;
-    void updateCamera();
+    bool ShowGui = true;
+    bool ShowPerf = false;
+    bool FramebufferResized = false;
+    float MoveSpeed = 0.7f;
+    Camera MainCamera;
+    FrameStats Stats;
+    float LastTime = 0;
+    void UpdateCamera();
 };
 
 }  // namespace rtrt
