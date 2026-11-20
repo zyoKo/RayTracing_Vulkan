@@ -6,6 +6,8 @@
 namespace rtrt
 {
 
+// A VkImage with its memory, view, sampler and current layout. Plain data;
+// Destroy() frees everything it holds.
 struct ImageWrap
 {
     VkImage Image{};
@@ -22,6 +24,7 @@ struct ImageWrap
         vkDestroySampler(Device, Sampler, nullptr);
     }
 
+    // The sampler, view and layout as a descriptor for DescriptorWrap::Write.
     VkDescriptorImageInfo Descriptor() const
     {
         return VkDescriptorImageInfo({Sampler, ImageView, ImageLayout});

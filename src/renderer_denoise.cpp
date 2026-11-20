@@ -42,7 +42,7 @@ void Renderer::CreateDenoiseCompPipeline()
     VkPipelineLayoutCreateInfo PlCreateInfo{
         VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     PlCreateInfo.setLayoutCount = 1;
-    PlCreateInfo.pSetLayouts = &DenoiseDesc.DescSetLayout;
+    PlCreateInfo.pSetLayouts = &DenoiseDesc.GetLayout();
     PlCreateInfo.pushConstantRangeCount = 1;
     PlCreateInfo.pPushConstantRanges = &PcInfo;
     RTRT_CHECK_VK(vkCreatePipelineLayout(Device, &PlCreateInfo, nullptr,
@@ -79,7 +79,7 @@ void Renderer::Denoise()
 
     // A-trous wavelet denoise
     int Stepwidth = 1;
-    for (int A = 0; A < NumAtrousIterations; A++)
+    for (int A = 0; A < Settings.NumAtrousIterations; A++)
     {
         // Tell the A-Trous algorithm its "hole" size
         PcDenoise.StepWidth = Stepwidth;
@@ -88,7 +88,7 @@ void Renderer::Denoise()
         // Select the compute shader, and its descriptor set and push constant
         vkCmdBindPipeline(CommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, DenoisePipeline);
         vkCmdBindDescriptorSets(CommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-                                DenoiseCompPipelineLayout, 0, 1, &DenoiseDesc.DescSet, 0,
+                                DenoiseCompPipelineLayout, 0, 1, &DenoiseDesc.GetSet(), 0,
                                 nullptr);
         vkCmdPushConstants(CommandBuffer, DenoiseCompPipelineLayout,
                            VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantDenoise),

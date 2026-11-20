@@ -149,6 +149,54 @@ ImageWrap Renderer::CreateTextureImage(const std::string& FileName)
     return MyImage;
 }
 
+namespace
+{
+
+// Blits mip level Level - 1 (MipWidth x MipHeight) down into level Level, then moves
+// level Level - 1 to the shader-read layout.
+void BlitMipLevel(VkCommandBuffer CmdBuffer, VkImage Image, VkImageMemoryBarrier& Barrier,
+                  uint32_t Level, int32_t MipWidth, int32_t MipHeight)
+{
+    Barrier.subresourceRange.baseMipLevel = Level - 1;
+    Barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    Barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    Barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    Barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+    vkCmdPipelineBarrier(CmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1,
+                         &Barrier);
+
+    VkImageBlit Blit{};
+    Blit.srcOffsets[0] = {0, 0, 0};
+    Blit.srcOffsets[1] = {MipWidth, MipHeight, 1};
+    Blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    Blit.srcSubresource.mipLevel = Level - 1;
+    Blit.srcSubresource.baseArrayLayer = 0;
+    Blit.srcSubresource.layerCount = 1;
+    Blit.dstOffsets[0] = {0, 0, 0};
+    Blit.dstOffsets[1] = {MipWidth > 1 ? MipWidth / 2 : 1,
+                          MipHeight > 1 ? MipHeight / 2 : 1, 1};
+    Blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    Blit.dstSubresource.mipLevel = Level;
+    Blit.dstSubresource.baseArrayLayer = 0;
+    Blit.dstSubresource.layerCount = 1;
+
+    vkCmdBlitImage(CmdBuffer, Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Image,
+                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &Blit, VK_FILTER_LINEAR);
+
+    Barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    Barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    Barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    vkCmdPipelineBarrier(CmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr,
+                         1, &Barrier);
+}
+
+}  // namespace
+
 void Renderer::GenerateMipmaps(VkImage Image, VkFormat ImageFormat, int32_t TexWidth,
                                int32_t TexHeight, uint32_t MipLevels)
 {
@@ -178,42 +226,7 @@ void Renderer::GenerateMipmaps(VkImage Image, VkFormat ImageFormat, int32_t TexW
 
     for (uint32_t I = 1; I < MipLevels; I++)
     {
-        Barrier.subresourceRange.baseMipLevel = I - 1;
-        Barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-        Barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-        Barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        Barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-
-        vkCmdPipelineBarrier(TempCmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                             VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1,
-                             &Barrier);
-
-        VkImageBlit Blit{};
-        Blit.srcOffsets[0] = {0, 0, 0};
-        Blit.srcOffsets[1] = {MipWidth, MipHeight, 1};
-        Blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        Blit.srcSubresource.mipLevel = I - 1;
-        Blit.srcSubresource.baseArrayLayer = 0;
-        Blit.srcSubresource.layerCount = 1;
-        Blit.dstOffsets[0] = {0, 0, 0};
-        Blit.dstOffsets[1] = {MipWidth > 1 ? MipWidth / 2 : 1,
-                              MipHeight > 1 ? MipHeight / 2 : 1, 1};
-        Blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        Blit.dstSubresource.mipLevel = I;
-        Blit.dstSubresource.baseArrayLayer = 0;
-        Blit.dstSubresource.layerCount = 1;
-
-        vkCmdBlitImage(TempCmdBuffer, Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Image,
-                       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &Blit, VK_FILTER_LINEAR);
-
-        Barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-        Barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        Barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-        Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-        vkCmdPipelineBarrier(TempCmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0,
-                             nullptr, 1, &Barrier);
+        BlitMipLevel(TempCmdBuffer, Image, Barrier, I, MipWidth, MipHeight);
 
         if (MipWidth > 1)
         {
@@ -225,6 +238,7 @@ void Renderer::GenerateMipmaps(VkImage Image, VkFormat ImageFormat, int32_t TexW
         }
     }
 
+    // The last level was only written to, never blitted from.
     Barrier.subresourceRange.baseMipLevel = MipLevels - 1;
     Barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     Barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -519,34 +533,11 @@ void Renderer::CreateScPipeline()
     // Creating the Pipeline Layout
     VkPipelineLayoutCreateInfo CreateInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     CreateInfo.setLayoutCount = 1;
-    CreateInfo.pSetLayouts = &ScDesc.DescSetLayout;
+    CreateInfo.pSetLayouts = &ScDesc.GetLayout();
     CreateInfo.pushConstantRangeCount = 1;
     CreateInfo.pPushConstantRanges = &PushConstantRanges;
     RTRT_CHECK_VK(
         vkCreatePipelineLayout(Device, &CreateInfo, nullptr, &ScanlinePipelineLayout));
-
-    VkShaderModule VertShaderModule = CreateShaderModule(
-        LoadShader("spv/scanline.vert.spv", "spv/scanline.vert.slang.spv"));
-    VkShaderModule FragShaderModule = CreateShaderModule(
-        LoadShader("spv/scanline.frag.spv", "spv/scanline.frag.slang.spv"));
-
-    VkPipelineShaderStageCreateInfo VertShaderStageInfo{};
-    VertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    VertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    VertShaderStageInfo.module = VertShaderModule;
-    VertShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo FragShaderStageInfo{};
-    FragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    FragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    FragShaderStageInfo.module = FragShaderModule;
-    FragShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo ShaderStages[] = {VertShaderStageInfo,
-                                                      FragShaderStageInfo};
-
-    VkPipelineVertexInputStateCreateInfo VertexInputInfo{};
-    VertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
     VkVertexInputBindingDescription BindingDescription{0, sizeof(Vertex),
                                                        VK_VERTEX_INPUT_RATE_VERTEX};
@@ -557,98 +548,17 @@ void Renderer::CreateScPipeline()
         {2, 0, VK_FORMAT_R32G32_SFLOAT,
          static_cast<uint32_t>(offsetof(Vertex, TexCoord))}};
 
+    VkPipelineVertexInputStateCreateInfo VertexInputInfo{};
+    VertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     VertexInputInfo.vertexBindingDescriptionCount = 1;
     VertexInputInfo.pVertexBindingDescriptions = &BindingDescription;
-
     VertexInputInfo.vertexAttributeDescriptionCount = AttributeDescriptions.size();
     VertexInputInfo.pVertexAttributeDescriptions = AttributeDescriptions.data();
 
-    VkPipelineInputAssemblyStateCreateInfo InputAssembly{};
-    InputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    InputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    InputAssembly.primitiveRestartEnable = VK_FALSE;
-
-    VkViewport Viewport{};
-    Viewport.x = 0.0f;
-    Viewport.y = 0.0f;
-    Viewport.width = static_cast<float>(WindowSize.width);
-    Viewport.height = static_cast<float>(WindowSize.height);
-    Viewport.minDepth = 0.0f;
-    Viewport.maxDepth = 1.0f;
-
-    VkRect2D Scissor{};
-    Scissor.offset = {0, 0};
-    Scissor.extent = VkExtent2D{WindowSize.width, WindowSize.height};
-
-    VkPipelineViewportStateCreateInfo ViewportState{};
-    ViewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    ViewportState.viewportCount = 1;
-    ViewportState.pViewports = &Viewport;
-    ViewportState.scissorCount = 1;
-    ViewportState.pScissors = &Scissor;
-
-    VkPipelineRasterizationStateCreateInfo Rasterizer{};
-    Rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    Rasterizer.depthClampEnable = VK_FALSE;
-    Rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    Rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-    Rasterizer.lineWidth = 1.0f;
-    Rasterizer.cullMode = VK_CULL_MODE_NONE;
-    Rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    Rasterizer.depthBiasEnable = VK_FALSE;
-
-    VkPipelineMultisampleStateCreateInfo Multisampling{};
-    Multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    Multisampling.sampleShadingEnable = VK_FALSE;
-    Multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
-    VkPipelineDepthStencilStateCreateInfo DepthStencil{};
-    DepthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    DepthStencil.depthTestEnable = VK_TRUE;
-    DepthStencil.depthWriteEnable = VK_TRUE;
-    DepthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;  // BEWARE!!  NECESSARY!!
-    DepthStencil.depthBoundsTestEnable = VK_FALSE;
-    DepthStencil.stencilTestEnable = VK_FALSE;
-
-    VkPipelineColorBlendAttachmentState ColorBlendAttachment{};
-    ColorBlendAttachment.colorWriteMask =
-        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
-        VK_COLOR_COMPONENT_A_BIT;
-    ColorBlendAttachment.blendEnable = VK_FALSE;
-
-    VkPipelineColorBlendStateCreateInfo ColorBlending{};
-    ColorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    ColorBlending.logicOpEnable = VK_FALSE;
-    ColorBlending.logicOp = VK_LOGIC_OP_COPY;
-    ColorBlending.attachmentCount = 1;
-    ColorBlending.pAttachments = &ColorBlendAttachment;
-    ColorBlending.blendConstants[0] = 0.0f;
-    ColorBlending.blendConstants[1] = 0.0f;
-    ColorBlending.blendConstants[2] = 0.0f;
-    ColorBlending.blendConstants[3] = 0.0f;
-
-    VkGraphicsPipelineCreateInfo PipelineInfo{};
-    PipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    PipelineInfo.stageCount = 2;
-    PipelineInfo.pStages = ShaderStages;
-    PipelineInfo.pVertexInputState = &VertexInputInfo;
-    PipelineInfo.pInputAssemblyState = &InputAssembly;
-    PipelineInfo.pViewportState = &ViewportState;
-    PipelineInfo.pRasterizationState = &Rasterizer;
-    PipelineInfo.pMultisampleState = &Multisampling;
-    PipelineInfo.pDepthStencilState = &DepthStencil;
-    PipelineInfo.pColorBlendState = &ColorBlending;
-    PipelineInfo.layout = ScanlinePipelineLayout;
-    PipelineInfo.renderPass = ScanlineRenderPass;
-    PipelineInfo.subpass = 0;
-    PipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
-
-    RTRT_CHECK_VK(vkCreateGraphicsPipelines(Device, VK_NULL_HANDLE, 1, &PipelineInfo,
-                                            nullptr, &ScanlinePipeline));
-
-    // Done with the temporary spv shader modules.
-    vkDestroyShaderModule(Device, FragShaderModule, nullptr);
-    vkDestroyShaderModule(Device, VertShaderModule, nullptr);
+    const GraphicsShaders Shaders{"spv/scanline.vert.spv", "spv/scanline.vert.slang.spv",
+                                  "spv/scanline.frag.spv", "spv/scanline.frag.slang.spv"};
+    ScanlinePipeline = CreateGraphicsPipeline(Shaders, VertexInputInfo,
+                                              ScanlinePipelineLayout, ScanlineRenderPass);
 }
 
 // Create a Vulkan buffer to hold the camera matrices, products and inverses.
@@ -690,7 +600,7 @@ void Renderer::Rasterize()
 
     vkCmdBindPipeline(CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, ScanlinePipeline);
     vkCmdBindDescriptorSets(CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            ScanlinePipelineLayout, 0, 1, &ScDesc.DescSet, 0, nullptr);
+                            ScanlinePipelineLayout, 0, 1, &ScDesc.GetSet(), 0, nullptr);
 
     for (const ObjInst& Inst : ObjInstList)
     {
@@ -725,8 +635,8 @@ void Renderer::UpdateCameraBuffer()
     const float AspectRatio = WindowSize.width / static_cast<float>(WindowSize.height);
     MatrixUniforms HostUBO = {};
 
-    glm::mat4 View = Application->MainCamera.View();
-    glm::mat4 Proj = Application->MainCamera.Perspective(AspectRatio);
+    glm::mat4 View = Application->GetCamera().View();
+    glm::mat4 Proj = Application->GetCamera().Perspective(AspectRatio);
 
     HostUBO.PriorViewProj = PriorViewProj;
     HostUBO.ViewProj = Proj * View;

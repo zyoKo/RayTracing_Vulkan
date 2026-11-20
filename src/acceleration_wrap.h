@@ -29,6 +29,7 @@ inline VkTransformMatrixKHR ToTransformMatrixKhr(const glm::mat4& Matrix)
     return OutMatrix;
 }
 
+// An acceleration structure and the buffer that backs it.
 struct AccelerationStructureWrap
 {
     VkAccelerationStructureKHR Accel;
@@ -55,12 +56,14 @@ public:
     RaytracingBuilder(const RaytracingBuilder&) = delete;
     RaytracingBuilder& operator=(const RaytracingBuilder&) = delete;
 
-    Renderer* VK;
-    // Initializing the allocator and querying the raytracing properties
+    // Stores the renderer, device and queue the builds use.
     void Setup(Renderer* Owner, VkDevice DeviceHandle, uint32_t GraphicsQueueIndex);
 
-    // Destroying all allocations
+    // Destroys every BLAS and the TLAS.
     void Destroy();
+
+    // Frees the scratch memory once the builds have finished.
+    void DestroyScratchBuffers();
 
     // Returning the constructed top-level acceleration structure
     VkAccelerationStructureKHR GetAccelerationStructure() const;
@@ -98,6 +101,12 @@ public:
     );
 
 protected:
+    Renderer* VK = nullptr;
+
+    // Scratch memory for the BLAS and TLAS builds.
+    BufferWrap BlasScratch;
+    BufferWrap TlasScratch;
+
     // Bottom-level acceleration structure
     std::vector<AccelerationStructureWrap> BlasList;
     AccelerationStructureWrap Tlas;  // Top-level acceleration structure
@@ -117,6 +126,18 @@ protected:
         VkAccelerationStructureKHR CleanupAs;
     };
 
+    // Fills the geometry info of each BLAS and asks the device for its sizes. Returns
+    // the largest scratch size and counts the BLAS that ask for compaction.
+    VkDeviceSize QueryBlasSizes(const std::vector<BlasInput>& Input,
+                                VkBuildAccelerationStructureFlagsKHR Flags,
+                                std::vector<BuildAccelerationStructure>& BuildAs,
+                                uint32_t& NbCompactions);
+    // Allocates Scratch for builds and returns its device address.
+    VkDeviceAddress CreateScratch(BufferWrap& Scratch, VkDeviceSize Size,
+                                  const char* Name);
+    // Builds (and compacts, if QueryPool is set) the BLAS in batches of about 256 MB.
+    void BuildBlasBatches(std::vector<BuildAccelerationStructure>& BuildAs,
+                          VkDeviceAddress ScratchAddress, VkQueryPool QueryPool);
     void CmdCreateBlas(VkCommandBuffer CmdBuf, const std::vector<uint32_t>& Indices,
                        std::vector<BuildAccelerationStructure>& BuildAs,
                        VkDeviceAddress ScratchAddress, VkQueryPool QueryPool);

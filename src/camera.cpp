@@ -5,7 +5,7 @@
 namespace rtrt
 {
 
-glm::mat4 Camera::Perspective(float Aspect)
+glm::mat4 Camera::Perspective(float Aspect) const
 {
     glm::mat4 P = glm::mat4();
 
@@ -21,7 +21,7 @@ glm::mat4 Camera::Perspective(float Aspect)
     return P;
 }
 
-glm::mat4 Camera::View()
+glm::mat4 Camera::View() const
 {
     glm::mat4 SpinMatrix = glm::rotate(glm::radians(Spin), glm::vec3(0.0, 1.0, 0.0));
     glm::mat4 TiltMatrix = glm::rotate(glm::radians(Tilt), glm::vec3(1.0, 0.0, 0.0));
@@ -42,6 +42,14 @@ void Camera::MouseMove(float X, float Y)
     Tilt += Dy / 3;
     PosX = X;
     PosY = Y;
+}
+
+void Camera::Reset()
+{
+    const Camera Defaults;
+    Spin = Defaults.Spin;
+    Tilt = Defaults.Tilt;
+    Eye = Defaults.Eye;
 }
 
 void Camera::SetMousePosition(float X, float Y)

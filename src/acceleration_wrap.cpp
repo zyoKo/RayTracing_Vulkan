@@ -3,7 +3,6 @@
 #include <assert.h>
 
 #include <algorithm>
-#include <numeric>
 #include <vector>
 
 #include "renderer.h"
@@ -31,14 +30,20 @@ void RaytracingBuilder::Destroy()
 {
     for (auto& Blas : BlasList)
     {
-        Blas.Bw.Destroy(VK->Device);
-        vkDestroyAccelerationStructureKHR(VK->Device, Blas.Accel, nullptr);
+        Blas.Bw.Destroy(VK->GetDevice());
+        vkDestroyAccelerationStructureKHR(VK->GetDevice(), Blas.Accel, nullptr);
     }
 
-    Tlas.Bw.Destroy(VK->Device);
-    vkDestroyAccelerationStructureKHR(VK->Device, Tlas.Accel, nullptr);
+    Tlas.Bw.Destroy(VK->GetDevice());
+    vkDestroyAccelerationStructureKHR(VK->GetDevice(), Tlas.Accel, nullptr);
 
     BlasList.clear();
+}
+
+void RaytracingBuilder::DestroyScratchBuffers()
+{
+    BlasScratch.Destroy(Device);
+    TlasScratch.Destroy(Device);
 }
 
 //----------------------------------------------------------------------------------------
@@ -73,16 +78,47 @@ void RaytracingBuilder::BuildBlas(const std::vector<BlasInput>& Input,
                                   VkBuildAccelerationStructureFlagsKHR Flags)
 {
     auto NbBlas = static_cast<uint32_t>(Input.size());
-    VkDeviceSize AsTotalSize{0};     // Memory size of all allocated BLAS
-    uint32_t NbCompactions{0};       // Nb of BLAS requesting compaction
+    uint32_t NbCompactions{0};  // Nb of BLAS requesting compaction
+
+    std::vector<BuildAccelerationStructure> BuildAs(NbBlas);
+    const VkDeviceSize MaxScratchSize =
+        QueryBlasSizes(Input, Flags, BuildAs, NbCompactions);
+    const VkDeviceAddress ScratchAddress =
+        CreateScratch(BlasScratch, MaxScratchSize, "buildBlas scratch buffer");
+
+    // Allocate a query pool for storing the needed size for every BLAS compaction.
+    VkQueryPool QueryPool{VK_NULL_HANDLE};
+    if (NbCompactions > 0)  // Is compaction requested?
+    {
+        assert(NbCompactions == NbBlas);  // Don't allow mix of on/off compaction
+        VkQueryPoolCreateInfo Qpci{VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO};
+        Qpci.queryCount = NbBlas;
+        Qpci.queryType = VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR;
+        RTRT_CHECK_VK(vkCreateQueryPool(Device, &Qpci, nullptr, &QueryPool));
+    }
+
+    BuildBlasBatches(BuildAs, ScratchAddress, QueryPool);
+
+    // Keeping all the created acceleration structures
+    for (auto& Build : BuildAs)
+    {
+        BlasList.emplace_back(Build.As);
+    }
+
+    // Clean up
+    vkDestroyQueryPool(Device, QueryPool, nullptr);
+}
+
+VkDeviceSize RaytracingBuilder::QueryBlasSizes(
+    const std::vector<BlasInput>& Input, VkBuildAccelerationStructureFlagsKHR Flags,
+    std::vector<BuildAccelerationStructure>& BuildAs, uint32_t& NbCompactions)
+{
     VkDeviceSize MaxScratchSize{0};  // Largest scratch size
 
-    // Preparing the information for the acceleration build commands.
-    std::vector<BuildAccelerationStructure> BuildAs(NbBlas);
-    for (uint32_t Idx = 0; Idx < NbBlas; Idx++)
+    for (uint32_t Idx = 0; Idx < BuildAs.size(); Idx++)
     {
         // Filling partially the VkAccelerationStructureBuildGeometryInfoKHR for querying
-        // the build sizes. The rest is filled in by cmdCreateBlas
+        // the build sizes. The rest is filled in by CmdCreateBlas
         BuildAs[Idx].BuildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
         BuildAs[Idx].BuildInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
         BuildAs[Idx].BuildInfo.flags = Input[Idx].Flags | Flags;
@@ -104,40 +140,36 @@ void RaytracingBuilder::BuildBlas(const std::vector<BlasInput>& Input,
             Device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
             &BuildAs[Idx].BuildInfo, MaxPrimCount.data(), &BuildAs[Idx].SizeInfo);
 
-        // Extra info
-        AsTotalSize += BuildAs[Idx].SizeInfo.accelerationStructureSize;
         MaxScratchSize = std::max(MaxScratchSize, BuildAs[Idx].SizeInfo.buildScratchSize);
         NbCompactions +=
             HasFlag(BuildAs[Idx].BuildInfo.flags,
                     VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR);
     }
+    return MaxScratchSize;
+}
 
-    // Allocate the scratch buffers holding the temporary data of the acceleration
-    // structure builder
-    VK->Scratch1 = VK->CreateBufferWrap(
-        MaxScratchSize,
+VkDeviceAddress RaytracingBuilder::CreateScratch(BufferWrap& Scratch, VkDeviceSize Size,
+                                                 const char* Name)
+{
+    // Holds the temporary data of the acceleration structure builder
+    Scratch = VK->CreateBufferWrap(
+        Size,
         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    SetDebugName(Device, VK->Scratch1.Buffer, VK_OBJECT_TYPE_BUFFER,
-                 "buildBlas scratch buffer");
+    SetDebugName(Device, Scratch.Buffer, VK_OBJECT_TYPE_BUFFER, Name);
 
     VkBufferDeviceAddressInfo BufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-                                         nullptr, VK->Scratch1.Buffer};
-    VkDeviceAddress ScratchAddress = vkGetBufferDeviceAddress(Device, &BufferInfo);
+                                         nullptr, Scratch.Buffer};
+    return vkGetBufferDeviceAddress(Device, &BufferInfo);
+}
 
-    // Allocate a query pool for storing the needed size for every BLAS compaction.
-    VkQueryPool QueryPool{VK_NULL_HANDLE};
-    if (NbCompactions > 0)  // Is compaction requested?
-    {
-        assert(NbCompactions == NbBlas);  // Don't allow mix of on/off compaction
-        VkQueryPoolCreateInfo Qpci{VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO};
-        Qpci.queryCount = NbBlas;
-        Qpci.queryType = VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR;
-        RTRT_CHECK_VK(vkCreateQueryPool(Device, &Qpci, nullptr, &QueryPool));
-    }
-
+void RaytracingBuilder::BuildBlasBatches(std::vector<BuildAccelerationStructure>& BuildAs,
+                                         VkDeviceAddress ScratchAddress,
+                                         VkQueryPool QueryPool)
+{
     // Batching creation/compaction of BLAS to allow staying in restricted amount of
     // memory
+    const auto NbBlas = static_cast<uint32_t>(BuildAs.size());
     std::vector<uint32_t> Indices;  // Indices of the BLAS to create
     VkDeviceSize BatchSize{0};
     VkDeviceSize BatchLimit{256'000'000};  // 256 MB
@@ -161,29 +193,11 @@ void RaytracingBuilder::BuildBlas(const std::vector<BlasInput>& Input,
                 // Destroy the non-compacted version
                 DestroyNonCompacted(Indices, BuildAs);
             }
-            // Reset
 
             BatchSize = 0;
             Indices.clear();
         }
     }
-
-    // Logging reduction
-    if (QueryPool)
-    {
-        VkDeviceSize CompactSize = std::accumulate(
-            BuildAs.begin(), BuildAs.end(), 0ULL, [](const auto& Sum, const auto& Build)
-            { return Sum + Build.SizeInfo.accelerationStructureSize; });
-    }
-
-    // Keeping all the created acceleration structures
-    for (auto& Build : BuildAs)
-    {
-        BlasList.emplace_back(Build.As);
-    }
-
-    // Clean up
-    vkDestroyQueryPool(Device, QueryPool, nullptr);
 }
 
 namespace
@@ -202,8 +216,8 @@ AccelerationStructureWrap CreateAcceleration(
 
     // Create the acceleration structure
     AccelInfo.buffer = Result.Bw.Buffer;
-    RTRT_CHECK_VK(
-        vkCreateAccelerationStructureKHR(VK->Device, &AccelInfo, nullptr, &Result.Accel));
+    RTRT_CHECK_VK(vkCreateAccelerationStructureKHR(VK->GetDevice(), &AccelInfo, nullptr,
+                                                   &Result.Accel));
 
     return Result;
 }
@@ -317,7 +331,7 @@ void RaytracingBuilder::DestroyNonCompacted(
 {
     for (auto& I : Indices)
     {
-        vkDestroyAccelerationStructureKHR(VK->Device, BuildAs[I].CleanupAs, nullptr);
+        vkDestroyAccelerationStructureKHR(VK->GetDevice(), BuildAs[I].CleanupAs, nullptr);
     }
 }
 
@@ -368,17 +382,8 @@ void RaytracingBuilder::CmdCreateTlas(VkCommandBuffer CmdBuf, uint32_t CountInst
         Tlas = CreateAcceleration(VK, CreateInfo);
     }
 
-    // Allocate the scratch memory
-    VK->Scratch2 = VK->CreateBufferWrap(
-        SizeInfo.buildScratchSize,
-        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    SetDebugName(Device, VK->Scratch2.Buffer, VK_OBJECT_TYPE_BUFFER,
-                 "cmdCreateTlas scratch buffer");
-
-    VkBufferDeviceAddressInfo BufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-                                         nullptr, VK->Scratch2.Buffer};
-    VkDeviceAddress ScratchAddress = vkGetBufferDeviceAddress(Device, &BufferInfo);
+    VkDeviceAddress ScratchAddress = CreateScratch(TlasScratch, SizeInfo.buildScratchSize,
+                                                   "cmdCreateTlas scratch buffer");
 
     // Update build information
     BuildInfo.srcAccelerationStructure = Update ? Tlas.Accel : VK_NULL_HANDLE;
@@ -487,7 +492,7 @@ void RaytracingBuilder::BuildTlas(
     // Finalizing and destroying temporary data
     VK->SubmitTempCmdBuffer(CmdBuf);
 
-    InstancesBuffer.Destroy(VK->Device);
+    InstancesBuffer.Destroy(VK->GetDevice());
 }
 
 //----------------------------------------------------------------------------------------
@@ -577,8 +582,7 @@ void Renderer::CreateRtAccelerationStructure()
     RtBuilder.BuildTlas(Tlas, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR,
                         false, false);
 
-    Scratch1.Destroy(Device);
-    Scratch2.Destroy(Device);
+    RtBuilder.DestroyScratchBuffers();
 }
 
 }  // namespace rtrt

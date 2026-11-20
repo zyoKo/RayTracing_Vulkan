@@ -49,10 +49,109 @@ struct ObjInst
 
 class App;
 
+// Settings the UI changes between frames.
+struct RenderSettings
+{
+    bool UseRaytracer = true;
+    int ViewMode = kViewFinal;
+    bool DenoiseEnabled = true;
+    int NumAtrousIterations = 5;
+    float Exposure = 1.0f;
+    float Gamma = 2.2f;
+};
+
+// Owns the Vulkan device and every resource used to draw the scene with the
+// rasterizer or the path tracer, the denoiser and the final post pass.
 class Renderer
 {
 public:
-    std::vector<const char*> ReqInstanceExtensions = {  // GLFW will add to this
+    explicit Renderer(App* Owner);
+    Renderer(const Renderer&) = delete;
+    Renderer& operator=(const Renderer&) = delete;
+
+    // Creates the device, loads the scene and builds every pipeline. False if no GPU
+    // supports the required extensions.
+    bool Init();
+
+    // Records, submits and presents one frame.
+    void DrawFrame();
+
+    void DestroyAllVulkanResources();
+
+    // Puts every UI setting back to its starting value.
+    void SetDefaultSettings();
+
+    // Switches between the GLSL and Slang SPIR-V and rebuilds every pipeline.
+    void SetShaderLanguage(bool UseSlangShaders);
+
+    // Throws away the accumulated path-tracing history.
+    void ResetRtAccumulation();
+
+    RenderSettings& GetSettings()
+    {
+        return Settings;
+    }
+
+    PushConstantRay& GetRayConstants()
+    {
+        return PcRay;
+    }
+
+    PushConstantDenoise& GetDenoiseConstants()
+    {
+        return PcDenoise;
+    }
+
+    // Frames rendered since the history was last reset.
+    int GetFrameCount() const
+    {
+        return FrameCount;
+    }
+
+    bool GetUseSlang() const
+    {
+        return UseSlang;
+    }
+
+    // Time blocked on the previous frame's fence.
+    double GetGpuWaitMs() const
+    {
+        return GpuWaitMs;
+    }
+
+    // Time to acquire, record, submit and present.
+    double GetRecordMs() const
+    {
+        return RecordMs;
+    }
+
+    // Helpers the acceleration-structure builder uses.
+    VkDevice GetDevice() const
+    {
+        return Device;
+    }
+
+    // A one-time command buffer; SubmitTempCmdBuffer runs it, waits and frees it.
+    VkCommandBuffer CreateTempCmdBuffer();
+    void SubmitTempCmdBuffer(VkCommandBuffer CmdBuffer);
+
+    BufferWrap CreateBufferWrap(VkDeviceSize Size, VkBufferUsageFlags Usage,
+                                VkMemoryPropertyFlags Properties);
+
+    // A device-local buffer filled through a staging buffer, using CmdBuf for the copy.
+    BufferWrap CreateStagedBufferWrap(VkCommandBuffer CmdBuf, VkDeviceSize Size,
+                                      const void* Data, VkBufferUsageFlags Usage);
+    template <typename T>
+    BufferWrap CreateStagedBufferWrap(VkCommandBuffer CmdBuf, const std::vector<T>& Data,
+                                      VkBufferUsageFlags Usage)
+    {
+        return CreateStagedBufferWrap(CmdBuf, sizeof(T) * Data.size(), Data.data(),
+                                      Usage);
+    }
+
+private:
+    std::vector<const char*> ReqInstanceExtensions = {
+        // GLFW will add to this
         "VK_EXT_debug_utils",  // Can help debug validation errors
         "VK_KHR_win32_surface", "VK_KHR_surface"};
 
@@ -68,34 +167,25 @@ public:
         VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
 
     App* Application;
-    explicit Renderer(App* Owner);
-    Renderer(const Renderer&) = delete;
-    Renderer& operator=(const Renderer&) = delete;
-    bool Init();  // False if no GPU supports the required extensions
 
-    // Variables managed by ImGui
-    int FrameCount = 0;  // Frames rendered since the history was last reset
+    RenderSettings Settings;
+    // Frames rendered since the history was last reset
+    int FrameCount = 0;
     bool ResetHistory = false;
-    bool DenoiseEnabled = true;
-    int ViewMode = kViewFinal;
-    float Exposure = 1.0f;
-    float Gamma = 2.2f;
-    void SetDefaultSettings();
 
     bool UseSlang = false;
     std::string LoadShader(const char* GlslSpv, const char* SlangSpv);
-    void SetShaderLanguage(bool UseSlangShaders);  // Rebuilds every pipeline
 
-    double GpuWaitMs = 0.0;  // Blocked on the previous frame's fence
-    double RecordMs = 0.0;   // Acquire, record, submit and present
-    void DrawFrame();
+    double GpuWaitMs = 0.0;
+    double RecordMs = 0.0;
 
-    void DestroyAllVulkanResources();
-
-    // Some auxiliary functions
-    bool RecreateSizedResources();  // False if the window closed while minimized
-    VkCommandBuffer CreateTempCmdBuffer();
-    void SubmitTempCmdBuffer(VkCommandBuffer CmdBuffer);
+    // False if the window closed while minimized
+    bool RecreateSizedResources();
+    // Blocks while the framebuffer has zero size. False if the window was closed.
+    bool WaitWhileMinimized();
+    // Everything that depends on the window size.
+    void DestroySizedResources();
+    void WriteSizedDescriptors();
     VkShaderModule CreateShaderModule(const std::string& Code);
     VkPipelineShaderStageCreateInfo CreateShaderStageInfo(
         const std::string& Code, VkShaderStageFlagBits Stage,
@@ -107,6 +197,7 @@ public:
 
     VkPhysicalDevice PhysicalDevice{};
     bool CreatePhysicalDevice();
+    bool SupportsRequiredExtensions(VkPhysicalDevice Candidate);
 
     uint32_t GraphicsQueueIndex{VK_QUEUE_FAMILY_IGNORED};
     void ChooseQueueIndex();
@@ -137,6 +228,13 @@ public:
     std::vector<VkSemaphore> WrittenSemaphores{};  // One per swapchain image
     VkExtent2D WindowSize{0, 0};                   // Size of the window
     void CreateSwapchain();
+    VkSurfaceFormatKHR ChooseSurfaceFormat();
+    uint32_t ChooseSwapchainImageCount(const VkSurfaceCapabilitiesKHR& Capabilities);
+    VkExtent2D ChooseSwapchainExtent(const VkSurfaceCapabilitiesKHR& Capabilities);
+    void CreateSwapchainImageViews(VkFormat SurfaceFormat);
+    // Moves every swapchain image to the present layout.
+    void TransitionSwapchainImages();
+    void CreateFrameSyncObjects();
     void DestroySwapchain();
 
     ImageWrap DepthImage;
@@ -152,6 +250,36 @@ public:
     VkPipeline PostPipeline{VK_NULL_HANDLE};
     void CreatePostPipeline();
 
+    // GLSL and Slang SPIR-V files for a vertex and a fragment shader.
+    struct GraphicsShaders
+    {
+        const char* VertGlsl;
+        const char* VertSlang;
+        const char* FragGlsl;
+        const char* FragSlang;
+    };
+
+    // The fixed-function state the scanline and post pipelines share.
+    struct FixedFunctionState
+    {
+        VkPipelineInputAssemblyStateCreateInfo InputAssembly{};
+        VkViewport Viewport{};
+        VkRect2D Scissor{};
+        VkPipelineViewportStateCreateInfo ViewportState{};
+        VkPipelineRasterizationStateCreateInfo Rasterizer{};
+        VkPipelineMultisampleStateCreateInfo Multisampling{};
+        VkPipelineDepthStencilStateCreateInfo DepthStencil{};
+        VkPipelineColorBlendAttachmentState ColorBlendAttachment{};
+        VkPipelineColorBlendStateCreateInfo ColorBlending{};
+    };
+
+    // A full-window triangle-list pipeline with depth test and no blending.
+    VkPipeline CreateGraphicsPipeline(
+        const GraphicsShaders& Shaders,
+        const VkPipelineVertexInputStateCreateInfo& VertexInput, VkPipelineLayout Layout,
+        VkRenderPass RenderPass);
+    FixedFunctionState MakeFixedFunctionState() const;
+
     VkDescriptorPool ImguiDescPool{VK_NULL_HANDLE};
     void InitGui();
 
@@ -163,6 +291,10 @@ public:
     ImageWrap ScImageBuffer{};
     void CreateScBuffer();
 
+    // Each destroys one part of the renderer during shutdown.
+    void DestroyPostResources();
+    void DestroySceneResources();
+    void DestroyScanlineResources();
     void DestroyRaytracingResources();
     void DestroyDenoiseResources();
 
@@ -205,17 +337,12 @@ public:
     float MaxAnis = 0;
     std::vector<Emitter> LightList;
     PushConstantRay PcRay{};  // Push constant for ray tracer
-    int NumAtrousIterations = 5;
     PushConstantDenoise PcDenoise{};
     uint32_t HandleSize{};
     uint32_t HandleAlignment{};
     uint32_t BaseAlignment{};
     void InitRayTracing();
 
-    // // Accelleration structure objects and functions
-
-    BufferWrap Scratch1;
-    BufferWrap Scratch2;
     BlasInput ObjectToVkGeometryKhr(const ObjData& Model);
     void CreateRtAccelerationStructure();
 
@@ -225,6 +352,10 @@ public:
     VkPipelineLayout RtPipelineLayout{};
     VkPipeline RtPipeline{};
     void CreateRtPipeline();
+    // One raygen, one miss and one closest-hit shader, each in its own group.
+    void CollectRtShaders(std::vector<VkPipelineShaderStageCreateInfo>& Stages,
+                          std::vector<VkRayTracingShaderGroupCreateInfoKHR>& Groups);
+    void CreateRtPipelineLayout();
 
     BufferWrap ShaderBindingTableBw;
     VkStridedDeviceAddressRegionKHR RgenRegion{};
@@ -232,6 +363,12 @@ public:
     VkStridedDeviceAddressRegionKHR HitRegion{};
     VkStridedDeviceAddressRegionKHR CallRegion{};
     void CreateRtShaderBindingTable();
+    // Fills the stride and size of each region from the device's handle alignment.
+    void ComputeSbtRegions(uint32_t MissCount, uint32_t HitCount);
+    // Copies the raygen, miss and hit handles into the mapped staging buffer.
+    void WriteSbtHandles(const BufferWrap& Staging, VkDeviceSize SbtSize,
+                         const std::vector<uint8_t>& Handles, uint32_t MissCount,
+                         uint32_t HitCount);
 
     DescriptorWrap PostDesc{};
     void CreatePostDescriptor();
@@ -249,9 +386,7 @@ public:
                             VkImageLayout OldImageLayout, VkImageLayout NewImageLayout,
                             VkImageAspectFlags AspectMask = VK_IMAGE_ASPECT_COLOR_BIT);
     // Run loop
-    bool UseRaytracer = true;
     bool PrepareFrame();
-    void ResetRtAccumulation();
 
     glm::mat4 PriorViewProj{};
     void UpdateCameraBuffer();
@@ -266,19 +401,6 @@ public:
 
     std::string LoadFile(const std::string& Filename);
     uint32_t FindMemoryType(uint32_t TypeFilter, VkMemoryPropertyFlags Properties);
-
-    BufferWrap CreateStagedBufferWrap(VkCommandBuffer CmdBuf, VkDeviceSize Size,
-                                      const void* Data, VkBufferUsageFlags Usage);
-    template <typename T>
-    BufferWrap CreateStagedBufferWrap(VkCommandBuffer CmdBuf, const std::vector<T>& Data,
-                                      VkBufferUsageFlags Usage)
-    {
-        return CreateStagedBufferWrap(CmdBuf, sizeof(T) * Data.size(), Data.data(),
-                                      Usage);
-    }
-
-    BufferWrap CreateBufferWrap(VkDeviceSize Size, VkBufferUsageFlags Usage,
-                                VkMemoryPropertyFlags Properties);
 
     void CopyBuffer(VkBuffer SrcBuffer, VkBuffer DstBuffer, VkDeviceSize Size);
 

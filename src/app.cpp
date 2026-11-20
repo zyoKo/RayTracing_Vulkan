@@ -21,7 +21,10 @@ namespace rtrt
 namespace
 {
 
-// GLFW Callback functions
+constexpr int kWidth = 10 * 128;
+constexpr int kHeight = 6 * 128;
+constexpr char kProject[] = "rtrt";
+
 void OnErrorCallback(int Error, const char* Description)
 {
     fprintf(stderr, "GLFW Error %d: %s\n", Error, Description);
@@ -44,12 +47,95 @@ void StatRow(const FrameStats& Stats, const char* Label, const float* Values)
     ImGui::NextColumn();
 }
 
-void DrawPerfGui(App& A)
+bool ImGuiWantsTextInput()
 {
-    const FrameStats& Stats = A.Stats;
+    return ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantTextInput;
+}
+
+bool ImGuiWantsMouse()
+{
+    return ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse;
+}
+
+}  // namespace
+
+void App::FramebufferSizeCallback(GLFWwindow* Window, int Width, int Height)
+{
+    App* Application = static_cast<App*>(glfwGetWindowUserPointer(Window));
+    Application->FramebufferResized = true;
+}
+
+void App::MouseButtonCallback(GLFWwindow* Window, int Button, int Action, int Mods)
+{
+    App* Application = static_cast<App*>(glfwGetWindowUserPointer(Window));
+    if (ImGuiWantsMouse())
+    {
+        return;
+    }
+
+    double X, Y;
+    glfwGetCursorPos(Window, &X, &Y);
+    Application->MainCamera.SetMousePosition(X, Y);
+}
+
+void App::CursorPosCallback(GLFWwindow* Window, double X, double Y)
+{
+    App* Application = static_cast<App*>(glfwGetWindowUserPointer(Window));
+    if (ImGuiWantsMouse())
+    {
+        return;
+    }
+
+    if (Application->MainCamera.GetLeftButtonDown())
+    {
+        Application->MainCamera.MouseMove(X, Y);
+    }
+}
+
+void App::KeyCallback(GLFWwindow* Window, int Key, int Scancode, int Action, int Mods)
+{
+    App* Application = static_cast<App*>(glfwGetWindowUserPointer(Window));
+    const bool Pressed = Action != GLFW_RELEASE;
+
+    // Keys typed into a settings field (Ctrl+click on a slider) belong to that field.
+    if (ImGuiWantsTextInput())
+    {
+        return;
+    }
+
+    if (Pressed && Key == GLFW_KEY_ESCAPE)
+    {
+        glfwSetWindowShouldClose(Window, 1);
+    }
+
+    if (Action == GLFW_PRESS && Key == GLFW_KEY_F1)
+    {
+        Application->ShowGui = !Application->ShowGui;
+    }
+}
+
+void App::DrawGui(Renderer& VK)
+{
+    if (ShowGui)
+    {
+        DrawSettingsWindow(VK);
+    }
+    if (ShowPerf)
+    {
+        DrawPerfWindow();
+    }
+}
+
+void App::RecordFrameTimes(float FrameMs, float CpuMs, float DrawMs, float GpuWaitMs)
+{
+    Stats.Push(FrameMs, CpuMs, DrawMs, GpuWaitMs);
+}
+
+void App::DrawPerfWindow()
+{
     ImGui::SetNextWindowPos(ImVec2(360, 10), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(420, 330), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Performance", &A.ShowPerf))
+    if (!ImGui::Begin("Performance", &ShowPerf))
     {
         ImGui::End();
         return;
@@ -91,13 +177,11 @@ void DrawPerfGui(App& A)
     ImGui::End();
 }
 
-void DrawGui(Renderer& VK)
+void App::DrawSettingsWindow(Renderer& VK)
 {
-    App& A = *VK.Application;
-
     ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(340, 700), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Settings (F1 to hide)", &A.ShowGui))
+    if (!ImGui::Begin("Settings (F1 to hide)", &ShowGui))
     {
         ImGui::End();
         return;
@@ -106,97 +190,19 @@ void DrawGui(Renderer& VK)
 
     const ImGuiIO& Io = ImGui::GetIO();
     ImGui::Text("%.1f FPS (%.2f ms)", Io.Framerate, 1000.0f / Io.Framerate);
-    ImGui::Text("Frames since reset: %d", VK.FrameCount);
+    ImGui::Text("Frames since reset: %d", VK.GetFrameCount());
 
     // Anything that changes what a path returns makes the existing history wrong.
-    bool ResetHistory = false;
-
-    if (ImGui::RadioButton("Ray tracer", VK.UseRaytracer))
-    {
-        ResetHistory |= !VK.UseRaytracer;
-        VK.UseRaytracer = true;
-    }
-    ImGui::SameLine();
-    if (ImGui::RadioButton("Rasterizer", !VK.UseRaytracer))
-    {
-        VK.UseRaytracer = false;
-    }
-
-    const char* ViewNames[] = {"Final", "Albedo", "Normal", "Depth", "Sample count"};
-    ImGui::Combo("View", &VK.ViewMode, ViewNames, IM_ARRAYSIZE(ViewNames));
-
-    if (ImGui::CollapsingHeader("Path tracer", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        ResetHistory |= ImGui::Checkbox("Specular", &VK.PcRay.FullBrdf);
-        ResetHistory |=
-            ImGui::SliderFloat("Survival chance", &VK.PcRay.Rr, 0.1f, 0.95f, "%.2f");
-        ResetHistory |= ImGui::SliderInt("Max path length", &VK.PcRay.Depth, 1, 32);
-        ResetHistory |= ImGui::SliderFloat("Emission scale", &VK.PcRay.EmissionScale,
-                                           0.0f, 5.0f, "%.2f");
-    }
-
-    if (ImGui::CollapsingHeader("Temporal history", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        ImGui::Checkbox("Use history", &VK.PcRay.UseHistory);
-        ImGui::SliderFloat("Normal threshold", &VK.PcRay.NormalThreshold, 0.0f, 1.0f,
-                           "%.2f");
-        ImGui::SliderFloat("Depth threshold", &VK.PcRay.DepthThreshold, 0.001f, 0.2f,
-                           "%.3f");
-        ImGui::SliderFloat("Max samples (0 = off)", &VK.PcRay.MaxSamples, 0.0f, 4096.0f,
-                           "%.0f", ImGuiSliderFlags_Logarithmic);
-        if (ImGui::Button("Reset history"))
-        {
-            ResetHistory = true;
-        }
-    }
-
-    if (ImGui::CollapsingHeader("Denoiser", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        ImGui::Checkbox("Enabled", &VK.DenoiseEnabled);
-        ImGui::SliderInt("Iterations", &VK.NumAtrousIterations, 0, 8);
-        ImGui::SliderFloat("Normal factor", &VK.PcDenoise.NormFactor, 0.0f, 0.1f, "%.4f",
-                           ImGuiSliderFlags_Logarithmic);
-        ImGui::SliderFloat("Depth factor", &VK.PcDenoise.DepthFactor, 0.0f, 0.1f, "%.4f",
-                           ImGuiSliderFlags_Logarithmic);
-        ImGui::SliderFloat("Albedo factor", &VK.PcDenoise.AlbedoFactor, 0.0f, 1.0f,
-                           "%.3f", ImGuiSliderFlags_Logarithmic);
-    }
-
-    if (ImGui::CollapsingHeader("Display", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        ImGui::SliderFloat("Exposure", &VK.Exposure, 0.1f, 4.0f, "%.2f");
-        ImGui::SliderFloat("Gamma", &VK.Gamma, 1.0f, 3.0f, "%.2f");
-    }
-
-    if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        ImGui::Text("Position: %.2f, %.2f, %.2f", A.MainCamera.Eye.x, A.MainCamera.Eye.y,
-                    A.MainCamera.Eye.z);
-        ImGui::SliderFloat("Move speed", &A.MoveSpeed, 0.1f, 5.0f, "%.2f");
-        if (ImGui::Button("Reset camera"))
-        {
-            const Camera Start;
-            A.MainCamera.Spin = Start.Spin;
-            A.MainCamera.Tilt = Start.Tilt;
-            A.MainCamera.Eye = Start.Eye;
-        }
-    }
-
-    if (ImGui::CollapsingHeader("Shaders", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        if (ImGui::RadioButton("GLSL", !VK.UseSlang))
-        {
-            VK.SetShaderLanguage(false);
-        }
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Slang", VK.UseSlang))
-        {
-            VK.SetShaderLanguage(true);
-        }
-    }
+    bool ResetHistory = DrawModeSettings(VK);
+    ResetHistory |= DrawPathTracerSettings(VK);
+    ResetHistory |= DrawHistorySettings(VK);
+    DrawDenoiserSettings(VK);
+    DrawDisplaySettings(VK);
+    DrawCameraSettings();
+    DrawShaderSettings(VK);
 
     ImGui::Separator();
-    ImGui::Checkbox("Show performance window", &A.ShowPerf);
+    ImGui::Checkbox("Show performance window", &ShowPerf);
     if (ImGui::Button("Restore default settings"))
     {
         VK.SetDefaultSettings();
@@ -211,67 +217,123 @@ void DrawGui(Renderer& VK)
     ImGui::End();
 }
 
-//////////////////////////////////////////////////////////////////////////
-constexpr int kWidth = 10 * 128;
-constexpr int kHeight = 6 * 128;
-constexpr char kProject[] = "rtrt";
-
-void FramebufferSizeCallback(GLFWwindow* Window, int Width, int Height)
+bool App::DrawModeSettings(Renderer& VK)
 {
-    App* Application = static_cast<App*>(glfwGetWindowUserPointer(Window));
-    Application->FramebufferResized = true;
+    RenderSettings& Settings = VK.GetSettings();
+    bool ResetHistory = false;
+
+    if (ImGui::RadioButton("Ray tracer", Settings.UseRaytracer))
+    {
+        ResetHistory |= !Settings.UseRaytracer;
+        Settings.UseRaytracer = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Rasterizer", !Settings.UseRaytracer))
+    {
+        Settings.UseRaytracer = false;
+    }
+
+    const char* ViewNames[] = {"Final", "Albedo", "Normal", "Depth", "Sample count"};
+    ImGui::Combo("View", &Settings.ViewMode, ViewNames, IM_ARRAYSIZE(ViewNames));
+    return ResetHistory;
 }
 
-void MouseButtonCallback(GLFWwindow* Window, int Button, int Action, int Mods)
+bool App::DrawPathTracerSettings(Renderer& VK)
 {
-    App* Application = static_cast<App*>(glfwGetWindowUserPointer(Window));
-    if (ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse)
+    if (!ImGui::CollapsingHeader("Path tracer", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        return false;
+    }
+
+    PushConstantRay& Ray = VK.GetRayConstants();
+    bool ResetHistory = ImGui::Checkbox("Specular", &Ray.FullBrdf);
+    ResetHistory |= ImGui::SliderFloat("Survival chance", &Ray.Rr, 0.1f, 0.95f, "%.2f");
+    ResetHistory |= ImGui::SliderInt("Max path length", &Ray.Depth, 1, 32);
+    ResetHistory |=
+        ImGui::SliderFloat("Emission scale", &Ray.EmissionScale, 0.0f, 5.0f, "%.2f");
+    return ResetHistory;
+}
+
+bool App::DrawHistorySettings(Renderer& VK)
+{
+    if (!ImGui::CollapsingHeader("Temporal history", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        return false;
+    }
+
+    PushConstantRay& Ray = VK.GetRayConstants();
+    ImGui::Checkbox("Use history", &Ray.UseHistory);
+    ImGui::SliderFloat("Normal threshold", &Ray.NormalThreshold, 0.0f, 1.0f, "%.2f");
+    ImGui::SliderFloat("Depth threshold", &Ray.DepthThreshold, 0.001f, 0.2f, "%.3f");
+    ImGui::SliderFloat("Max samples (0 = off)", &Ray.MaxSamples, 0.0f, 4096.0f, "%.0f",
+                       ImGuiSliderFlags_Logarithmic);
+    return ImGui::Button("Reset history");
+}
+
+void App::DrawDenoiserSettings(Renderer& VK)
+{
+    if (!ImGui::CollapsingHeader("Denoiser", ImGuiTreeNodeFlags_DefaultOpen))
     {
         return;
     }
 
-    double X, Y;
-    glfwGetCursorPos(Window, &X, &Y);
-    Application->MainCamera.SetMousePosition(X, Y);
+    RenderSettings& Settings = VK.GetSettings();
+    PushConstantDenoise& Denoise = VK.GetDenoiseConstants();
+    ImGui::Checkbox("Enabled", &Settings.DenoiseEnabled);
+    ImGui::SliderInt("Iterations", &Settings.NumAtrousIterations, 0, 8);
+    ImGui::SliderFloat("Normal factor", &Denoise.NormFactor, 0.0f, 0.1f, "%.4f",
+                       ImGuiSliderFlags_Logarithmic);
+    ImGui::SliderFloat("Depth factor", &Denoise.DepthFactor, 0.0f, 0.1f, "%.4f",
+                       ImGuiSliderFlags_Logarithmic);
+    ImGui::SliderFloat("Albedo factor", &Denoise.AlbedoFactor, 0.0f, 1.0f, "%.3f",
+                       ImGuiSliderFlags_Logarithmic);
 }
 
-void CursorPosCallback(GLFWwindow* Window, double X, double Y)
+void App::DrawDisplaySettings(Renderer& VK)
 {
-    App* Application = static_cast<App*>(glfwGetWindowUserPointer(Window));
-    if (ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse)
+    if (!ImGui::CollapsingHeader("Display", ImGuiTreeNodeFlags_DefaultOpen))
     {
         return;
     }
 
-    if (Application->MainCamera.Lmb)
-    {
-        Application->MainCamera.MouseMove(X, Y);
-    }
+    RenderSettings& Settings = VK.GetSettings();
+    ImGui::SliderFloat("Exposure", &Settings.Exposure, 0.1f, 4.0f, "%.2f");
+    ImGui::SliderFloat("Gamma", &Settings.Gamma, 1.0f, 3.0f, "%.2f");
 }
 
-void KeyCallback(GLFWwindow* Window, int Key, int Scancode, int Action, int Mods)
+void App::DrawCameraSettings()
 {
-    App* Application = static_cast<App*>(glfwGetWindowUserPointer(Window));
-    const bool Pressed = Action != GLFW_RELEASE;
-
-    // Keys typed into a settings field (Ctrl+click on a slider) belong to that field.
-    if (ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantTextInput)
+    if (!ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
     {
         return;
     }
 
-    if (Pressed && Key == GLFW_KEY_ESCAPE)
+    const glm::vec3& Eye = MainCamera.GetEye();
+    ImGui::Text("Position: %.2f, %.2f, %.2f", Eye.x, Eye.y, Eye.z);
+    ImGui::SliderFloat("Move speed", &MoveSpeed, 0.1f, 5.0f, "%.2f");
+    if (ImGui::Button("Reset camera"))
     {
-        glfwSetWindowShouldClose(Window, 1);
-    }
-
-    if (Action == GLFW_PRESS && Key == GLFW_KEY_F1)
-    {
-        Application->ShowGui = !Application->ShowGui;
+        MainCamera.Reset();
     }
 }
 
-}  // namespace
+void App::DrawShaderSettings(Renderer& VK)
+{
+    if (!ImGui::CollapsingHeader("Shaders", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        return;
+    }
+
+    if (ImGui::RadioButton("GLSL", !VK.GetUseSlang()))
+    {
+        VK.SetShaderLanguage(false);
+    }
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Slang", VK.GetUseSlang()))
+    {
+        VK.SetShaderLanguage(true);
+    }
+}
 
 void App::UpdateCamera()
 {
@@ -281,38 +343,38 @@ void App::UpdateCamera()
 
     float Dist = MoveSpeed * Dt;
 
-    MainCamera.Lmb = glfwGetMouseButton(Window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+    MainCamera.SetLeftButtonDown(glfwGetMouseButton(Window, GLFW_MOUSE_BUTTON_LEFT) ==
+                                 GLFW_PRESS);
 
     // Letters typed into a settings field (Ctrl+click on a slider) must not move the
     // camera.
-    if (ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantTextInput)
+    if (ImGuiWantsTextInput())
     {
         return;
     }
 
+    const float Spin = glm::radians(MainCamera.GetSpin());
+    const glm::vec3 Forward(sin(Spin), 0.0, -cos(Spin));
+    const glm::vec3 Right(cos(Spin), 0.0, sin(Spin));
+
     if (glfwGetKey(Window, GLFW_KEY_W) == GLFW_PRESS)
     {
-        MainCamera.EyeMoveBy(Dist * glm::vec3(sin(glm::radians(MainCamera.Spin)), 0.0,
-                                              -cos(glm::radians(MainCamera.Spin))));
+        MainCamera.EyeMoveBy(Dist * Forward);
     }
 
     if (glfwGetKey(Window, GLFW_KEY_S) == GLFW_PRESS)
     {
-        MainCamera.EyeMoveBy(-Dist * glm::vec3(sin(glm::radians(MainCamera.Spin)), 0.0,
-                                               -cos(glm::radians(MainCamera.Spin))));
+        MainCamera.EyeMoveBy(-Dist * Forward);
     }
 
     if (glfwGetKey(Window, GLFW_KEY_A) == GLFW_PRESS)
     {
-        MainCamera.EyeMoveBy(-Dist * glm::vec3(cos(glm::radians(MainCamera.Spin)), 0.0,
-                                               sin(glm::radians(MainCamera.Spin))));
-        ;
+        MainCamera.EyeMoveBy(-Dist * Right);
     }
 
     if (glfwGetKey(Window, GLFW_KEY_D) == GLFW_PRESS)
     {
-        MainCamera.EyeMoveBy(Dist * glm::vec3(cos(glm::radians(MainCamera.Spin)), 0.0,
-                                              sin(glm::radians(MainCamera.Spin))));
+        MainCamera.EyeMoveBy(Dist * Right);
     }
 
     if (glfwGetKey(Window, GLFW_KEY_E) == GLFW_PRESS)
@@ -392,7 +454,7 @@ int main(int Argc, char** Argv)
     rtrt::Renderer VK(&Application);
     if (!VK.Init())
     {
-        glfwDestroyWindow(Application.Window);
+        glfwDestroyWindow(Application.GetWindow());
         glfwTerminate();
         return 1;
     }
@@ -400,30 +462,23 @@ int main(int Argc, char** Argv)
     // The draw loop
     printf("looping =======================================\n");
     double FrameStart = glfwGetTime();
-    while (!glfwWindowShouldClose(Application.Window))
+    while (!glfwWindowShouldClose(Application.GetWindow()))
     {
         glfwPollEvents();
         Application.UpdateCamera();
 
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        if (Application.ShowGui)
-        {
-            rtrt::DrawGui(VK);
-        }
-        if (Application.ShowPerf)
-        {
-            rtrt::DrawPerfGui(Application);
-        }
+        Application.DrawGui(VK);
 
         const double CpuEnd = glfwGetTime();
         VK.DrawFrame();
 
         const double FrameEnd = glfwGetTime();
-        Application.Stats.Push(static_cast<float>((FrameEnd - FrameStart) * 1000.0),
-                               static_cast<float>((CpuEnd - FrameStart) * 1000.0),
-                               static_cast<float>(VK.RecordMs),
-                               static_cast<float>(VK.GpuWaitMs));
+        Application.RecordFrameTimes(static_cast<float>((FrameEnd - FrameStart) * 1000.0),
+                                     static_cast<float>((CpuEnd - FrameStart) * 1000.0),
+                                     static_cast<float>(VK.GetRecordMs()),
+                                     static_cast<float>(VK.GetGpuWaitMs()));
         FrameStart = FrameEnd;
     }
 
@@ -431,7 +486,7 @@ int main(int Argc, char** Argv)
 
     VK.DestroyAllVulkanResources();
 
-    glfwDestroyWindow(Application.Window);
+    glfwDestroyWindow(Application.GetWindow());
     glfwTerminate();
     return 0;
 }

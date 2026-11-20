@@ -35,6 +35,19 @@ void Renderer::DestroyAllVulkanResources()
     DestroySwapchain();
     vkDestroySurfaceKHR(Instance, Surface, nullptr);
     vkDestroyCommandPool(Device, CmdPool, nullptr);
+
+    DestroyPostResources();
+    DestroySceneResources();
+    DestroyScanlineResources();
+    DestroyRaytracingResources();
+    DestroyDenoiseResources();
+
+    vkDestroyDevice(Device, nullptr);
+    vkDestroyInstance(Instance, nullptr);
+}
+
+void Renderer::DestroyPostResources()
+{
     DepthImage.Destroy(Device);
     vkDestroyRenderPass(Device, PostRenderPass, nullptr);
 
@@ -48,7 +61,10 @@ void Renderer::DestroyAllVulkanResources()
 
     vkDestroyPipelineLayout(Device, PostPipelineLayout, nullptr);
     vkDestroyPipeline(Device, PostPipeline, nullptr);
+}
 
+void Renderer::DestroySceneResources()
+{
     for (auto T : ObjTextures)
     {
         T.Destroy(Device);
@@ -65,13 +81,19 @@ void Renderer::DestroyAllVulkanResources()
 
     MatrixBw.Destroy(Device);
     ObjDescriptionBw.Destroy(Device);
+}
+
+void Renderer::DestroyScanlineResources()
+{
     vkDestroyRenderPass(Device, ScanlineRenderPass, nullptr);
     vkDestroyFramebuffer(Device, ScanlineFramebuffer, nullptr);
     ScDesc.Destroy(Device);
     vkDestroyPipelineLayout(Device, ScanlinePipelineLayout, nullptr);
     vkDestroyPipeline(Device, ScanlinePipeline, nullptr);
+}
 
-    // Ray tracing cleanup
+void Renderer::DestroyRaytracingResources()
+{
     RtColCurrBuffer.Destroy(Device);
     RtBuilder.Destroy();
     RtDesc.Destroy(Device);
@@ -79,41 +101,71 @@ void Renderer::DestroyAllVulkanResources()
     vkDestroyPipeline(Device, RtPipeline, nullptr);
     ShaderBindingTableBw.Destroy(Device);
 
-    // History buffer cleanup
+    // History buffers
     RtColPrevBuffer.Destroy(Device);
     RtNdCurrBuffer.Destroy(Device);
     RtNdPrevBuffer.Destroy(Device);
     RtKdCurrBuffer.Destroy(Device);
     RtKdPrevBuffer.Destroy(Device);
+}
 
-    // Denoiser cleanup
+void Renderer::DestroyDenoiseResources()
+{
     DenoiseBuffer.Destroy(Device);
     DenoiseDesc.Destroy(Device);
     vkDestroyPipelineLayout(Device, DenoiseCompPipelineLayout, nullptr);
     vkDestroyPipeline(Device, DenoisePipeline, nullptr);
-
-    vkDestroyDevice(Device, nullptr);
-    vkDestroyInstance(Instance, nullptr);
 }
 
 bool Renderer::RecreateSizedResources()
 {
+    if (!WaitWhileMinimized())
+    {
+        return false;
+    }
+
+    RTRT_CHECK_VK(vkDeviceWaitIdle(Device));
+    Application->SetFramebufferResized(false);
+
+    DestroySizedResources();
+
+    CreateSwapchain();  // -> windowSize
+    CreateDepthResource();
+    CreatePostFrameBuffers();
+    CreateScBuffer();
+    CreateScanlineFramebuffer();
+    CreateRtBuffers();
+    CreateDenoiseBuffer();
+
+    WriteSizedDescriptors();
+
+    // Both graphics pipelines bake in the viewport size
+    CreatePostPipeline();
+    CreateScPipeline();
+
+    ResetRtAccumulation();
+    return true;
+}
+
+bool Renderer::WaitWhileMinimized()
+{
     // A minimized window has a zero-sized framebuffer, which can't back a swapchain.
     int Width = 0, Height = 0;
-    glfwGetFramebufferSize(Application->Window, &Width, &Height);
+    glfwGetFramebufferSize(Application->GetWindow(), &Width, &Height);
     while (Width == 0 || Height == 0)
     {
-        if (glfwWindowShouldClose(Application->Window))
+        if (glfwWindowShouldClose(Application->GetWindow()))
         {
             return false;
         }
         glfwWaitEvents();
-        glfwGetFramebufferSize(Application->Window, &Width, &Height);
+        glfwGetFramebufferSize(Application->GetWindow(), &Width, &Height);
     }
+    return true;
+}
 
-    RTRT_CHECK_VK(vkDeviceWaitIdle(Device));
-    Application->FramebufferResized = false;
-
+void Renderer::DestroySizedResources()
+{
     for (auto& Framebuffer : Framebuffers)
     {
         vkDestroyFramebuffer(Device, Framebuffer, nullptr);
@@ -136,15 +188,10 @@ bool Renderer::RecreateSizedResources()
     vkDestroyPipelineLayout(Device, PostPipelineLayout, nullptr);
     vkDestroyPipeline(Device, ScanlinePipeline, nullptr);
     vkDestroyPipelineLayout(Device, ScanlinePipelineLayout, nullptr);
+}
 
-    CreateSwapchain();  // -> windowSize
-    CreateDepthResource();
-    CreatePostFrameBuffers();
-    CreateScBuffer();
-    CreateScanlineFramebuffer();
-    CreateRtBuffers();
-    CreateDenoiseBuffer();
-
+void Renderer::WriteSizedDescriptors()
+{
     PostDesc.Write(Device, 0, ScImageBuffer.Descriptor());
 
     RtDesc.Write(Device, 1, RtColCurrBuffer.Descriptor());
@@ -158,13 +205,6 @@ bool Renderer::RecreateSizedResources()
     DenoiseDesc.Write(Device, 1, DenoiseBuffer.Descriptor());
     DenoiseDesc.Write(Device, 2, RtKdCurrBuffer.Descriptor());
     DenoiseDesc.Write(Device, 3, RtNdCurrBuffer.Descriptor());
-
-    // Both graphics pipelines bake in the viewport size
-    CreatePostPipeline();
-    CreateScPipeline();
-
-    ResetRtAccumulation();
-    return true;
 }
 
 void Renderer::CreateInstance(bool DoApiDump)
@@ -236,26 +276,14 @@ bool Renderer::CreatePhysicalDevice()
     RTRT_CHECK_VK(vkEnumeratePhysicalDevices(Instance, &PhysicalDevicesCount,
                                              PhysicalDevices.data()));
 
-    std::vector<uint32_t> CompatibleDevices;
-
     printf("%d devices\n", PhysicalDevicesCount);
 
-    // For each GPU:
+    // Pick the first GPU that supports every extension in ReqDeviceExtensions.
     for (auto& Candidate : PhysicalDevices)
     {
-        // Get the GPU's properties
         VkPhysicalDeviceProperties GPUproperties;
         vkGetPhysicalDeviceProperties(Candidate, &GPUproperties);
 
-        // Get the GPU's extension list;  Another two-step list retrieval procedure:
-        uint32_t ExtCount;
-        RTRT_CHECK_VK(
-            vkEnumerateDeviceExtensionProperties(Candidate, nullptr, &ExtCount, nullptr));
-        std::vector<VkExtensionProperties> ExtensionProperties(ExtCount);
-        RTRT_CHECK_VK(vkEnumerateDeviceExtensionProperties(Candidate, nullptr, &ExtCount,
-                                                           ExtensionProperties.data()));
-
-        // Pick the first GPU that supports every extension in reqDeviceExtensions.
         printf("\nGPU: %s", GPUproperties.deviceName);
         if (GPUproperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
         {
@@ -267,30 +295,42 @@ bool Renderer::CreatePhysicalDevice()
         }
         printf("VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU properties!\n");
 
-        printf("Required Extension Properties for GPU:\n");
-        int Count = 0;
-        for (const auto& ReqDeviceExtension : ReqDeviceExtensions)
-        {
-            for (const auto& Properties : ExtensionProperties)
-            {
-                const int Result = strcmp(ReqDeviceExtension, Properties.extensionName);
-                if (!Result)
-                {
-                    printf("%s matches the Required Device Extensions list!\n",
-                           Properties.extensionName);
-                    ++Count;
-                    break;
-                }
-            }
-        }
-
-        if (Count == ReqDeviceExtensions.size())
+        if (SupportsRequiredExtensions(Candidate))
         {
             PhysicalDevice = Candidate;
             return true;
         }
     }
     return false;
+}
+
+bool Renderer::SupportsRequiredExtensions(VkPhysicalDevice Candidate)
+{
+    uint32_t ExtCount;
+    RTRT_CHECK_VK(
+        vkEnumerateDeviceExtensionProperties(Candidate, nullptr, &ExtCount, nullptr));
+    std::vector<VkExtensionProperties> ExtensionProperties(ExtCount);
+    RTRT_CHECK_VK(vkEnumerateDeviceExtensionProperties(Candidate, nullptr, &ExtCount,
+                                                       ExtensionProperties.data()));
+
+    printf("Required Extension Properties for GPU:\n");
+    int Count = 0;
+    for (const auto& ReqDeviceExtension : ReqDeviceExtensions)
+    {
+        for (const auto& Properties : ExtensionProperties)
+        {
+            const int Result = strcmp(ReqDeviceExtension, Properties.extensionName);
+            if (!Result)
+            {
+                printf("%s matches the Required Device Extensions list!\n",
+                       Properties.extensionName);
+                ++Count;
+                break;
+            }
+        }
+    }
+
+    return Count == ReqDeviceExtensions.size();
 }
 
 void Renderer::ChooseQueueIndex()
@@ -376,7 +416,7 @@ void Renderer::GetSurface()
     VkBool32 IsSupported;  // Supports drawing(presenting) on a screen
 
     RTRT_CHECK_VK(
-        glfwCreateWindowSurface(Instance, Application->Window, nullptr, &Surface));
+        glfwCreateWindowSurface(Instance, Application->GetWindow(), nullptr, &Surface));
 
     RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceSupportKHR(PhysicalDevice, GraphicsQueueIndex,
                                                        Surface, &IsSupported));
@@ -420,62 +460,18 @@ void Renderer::CreateSwapchain()
     RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(PhysicalDevice, Surface,
                                                             &Capabilities));
 
-    uint32_t PresentModeCount;
-    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfacePresentModesKHR(PhysicalDevice, Surface,
-                                                            &PresentModeCount, nullptr));
-    std::vector<VkPresentModeKHR> PresentModes(PresentModeCount);
-    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfacePresentModesKHR(
-        PhysicalDevice, Surface, &PresentModeCount, PresentModes.data()));
-
     // FIFO is the one present mode every implementation must support.
     VkPresentModeKHR SwapchainPresentMode = VK_PRESENT_MODE_FIFO_KHR;
 
-    // Get the list of supported surface formats
-    uint32_t SurfaceFormatCount;
-    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(PhysicalDevice, Surface,
-                                                       &SurfaceFormatCount, nullptr));
-    std::vector<VkSurfaceFormatKHR> Formats(SurfaceFormatCount);
-    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(
-        PhysicalDevice, Surface, &SurfaceFormatCount, Formats.data()));
+    const VkSurfaceFormatKHR Format = ChooseSurfaceFormat();
+    VkFormat SurfaceFormat = Format.format;
+    VkColorSpaceKHR SurfaceColor = Format.colorSpace;
 
-    VkFormat SurfaceFormat = Formats[0].format;
-    VkColorSpaceKHR SurfaceColor = Formats[0].colorSpace;
-
-    // Get the swap chain extent
-    VkExtent2D SwapchainExtent = Capabilities.currentExtent;
-    if (Capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
-    {
-        SwapchainExtent = Capabilities.currentExtent;
-    }
-    else
-    {
-        // Does this case ever happen?
-        int Width, Height;
-        glfwGetFramebufferSize(Application->Window, &Width, &Height);
-
-        SwapchainExtent =
-            VkExtent2D{static_cast<uint32_t>(Width), static_cast<uint32_t>(Height)};
-
-        SwapchainExtent.width =
-            std::clamp(SwapchainExtent.width, Capabilities.minImageExtent.width,
-                       Capabilities.maxImageExtent.width);
-        SwapchainExtent.height =
-            std::clamp(SwapchainExtent.height, Capabilities.minImageExtent.height,
-                       Capabilities.maxImageExtent.height);
-    }
-
+    VkExtent2D SwapchainExtent = ChooseSwapchainExtent(Capabilities);
     // A zero size typically means the window is minimized, which isn't handled yet.
     assert(SwapchainExtent.width && SwapchainExtent.height);
 
-    // Choose the number of swap chain images, within the bounds supported.
-    // Recommendation: minImageCount+1
-    uint32_t SwapchainImageCount = Capabilities.minImageCount + 1;
-    if (Capabilities.maxImageCount > 0 &&
-        SwapchainImageCount > Capabilities.maxImageCount)
-    {
-        SwapchainImageCount = Capabilities.maxImageCount;
-    }
-
+    uint32_t SwapchainImageCount = ChooseSwapchainImageCount(Capabilities);
     assert(SwapchainImageCount == 3);  // Other code assumes three swapchain images
 
     // Create the swap chain
@@ -508,10 +504,62 @@ void Renderer::CreateSwapchain()
     RTRT_CHECK_VK(
         vkGetSwapchainImagesKHR(Device, Swapchain, &ImageCount, SwapchainImages.data()));
 
-    Barriers.resize(ImageCount);
+    CreateSwapchainImageViews(SurfaceFormat);
+    TransitionSwapchainImages();
+    CreateFrameSyncObjects();
+
+    WindowSize = SwapchainExtent;
+}
+
+uint32_t Renderer::ChooseSwapchainImageCount(const VkSurfaceCapabilitiesKHR& Capabilities)
+{
+    // Within the bounds supported. Recommendation: minImageCount+1
+    uint32_t SwapchainImageCount = Capabilities.minImageCount + 1;
+    if (Capabilities.maxImageCount > 0 &&
+        SwapchainImageCount > Capabilities.maxImageCount)
+    {
+        SwapchainImageCount = Capabilities.maxImageCount;
+    }
+    return SwapchainImageCount;
+}
+
+VkSurfaceFormatKHR Renderer::ChooseSurfaceFormat()
+{
+    uint32_t SurfaceFormatCount;
+    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(PhysicalDevice, Surface,
+                                                       &SurfaceFormatCount, nullptr));
+    std::vector<VkSurfaceFormatKHR> Formats(SurfaceFormatCount);
+    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(
+        PhysicalDevice, Surface, &SurfaceFormatCount, Formats.data()));
+    return Formats[0];
+}
+
+VkExtent2D Renderer::ChooseSwapchainExtent(const VkSurfaceCapabilitiesKHR& Capabilities)
+{
+    if (Capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+    {
+        return Capabilities.currentExtent;
+    }
+
+    // Does this case ever happen?
+    int Width, Height;
+    glfwGetFramebufferSize(Application->GetWindow(), &Width, &Height);
+
+    VkExtent2D SwapchainExtent{static_cast<uint32_t>(Width),
+                               static_cast<uint32_t>(Height)};
+    SwapchainExtent.width =
+        std::clamp(SwapchainExtent.width, Capabilities.minImageExtent.width,
+                   Capabilities.maxImageExtent.width);
+    SwapchainExtent.height =
+        std::clamp(SwapchainExtent.height, Capabilities.minImageExtent.height,
+                   Capabilities.maxImageExtent.height);
+    return SwapchainExtent;
+}
+
+void Renderer::CreateSwapchainImageViews(VkFormat SurfaceFormat)
+{
     ImageViews.resize(ImageCount);
 
-    // Create an VkImageView for each swap chain image.
     for (uint32_t I = 0; I < ImageCount; I++)
     {
         VkImageViewCreateInfo CreateInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
@@ -530,10 +578,12 @@ void Renderer::CreateSwapchain()
 
         RTRT_CHECK_VK(vkCreateImageView(Device, &CreateInfo, nullptr, &ImageViews[I]));
     }
+}
 
-    // Create three VkImageMemoryBarrier structures (one for each swap
-    // chain image) and specify the desired
-    // layout (VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) for each.
+void Renderer::TransitionSwapchainImages()
+{
+    // One barrier per swapchain image, moving it to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR.
+    Barriers.resize(ImageCount);
     for (uint32_t I = 0; I < ImageCount; I++)
     {
         VkImageSubresourceRange Range = {0};
@@ -553,18 +603,16 @@ void Renderer::CreateSwapchain()
         Barriers[I] = MemBarrier;
     }
 
-    // Create a temporary command buffer. submit the layout conversion
-    // command, submit and destroy the command buffer.
     VkCommandBuffer Cmd = CreateTempCmdBuffer();
     vkCmdPipelineBarrier(Cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                          VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr,
                          ImageCount, Barriers.data());
     SubmitTempCmdBuffer(Cmd);
+}
 
-    // Create the three synchronization objects.  These are not
-    // technically part of the swap chain, but they are used
-    // exclusively for synchronizing the swap chain, so I include them
-    // here.
+void Renderer::CreateFrameSyncObjects()
+{
+    // Not part of the swapchain, but used only to synchronize with it.
     VkFenceCreateInfo FenceCreateInfo{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
     FenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     RTRT_CHECK_VK(vkCreateFence(Device, &FenceCreateInfo, nullptr, &WaitFence));
@@ -578,8 +626,6 @@ void Renderer::CreateSwapchain()
     {
         RTRT_CHECK_VK(vkCreateSemaphore(Device, &SemCreateInfo, nullptr, &Sem));
     }
-
-    WindowSize = SwapchainExtent;
 }
 
 void Renderer::DestroySwapchain()
@@ -792,7 +838,7 @@ void Renderer::CreatePostPipeline()
     // Creating the pipeline layout
     VkPipelineLayoutCreateInfo CreateInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     CreateInfo.setLayoutCount = 1;
-    CreateInfo.pSetLayouts = &PostDesc.DescSetLayout;
+    CreateInfo.pSetLayouts = &PostDesc.GetLayout();
 
     VkPushConstantRange PushConstant{VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                                      sizeof(PushConstantPost)};
@@ -802,13 +848,29 @@ void Renderer::CreatePostPipeline()
     RTRT_CHECK_VK(
         vkCreatePipelineLayout(Device, &CreateInfo, nullptr, &PostPipelineLayout));
 
-    ////////////////////////////////////////////
-    // Create the shaders
-    ////////////////////////////////////////////
+    // No geometry in this pipeline's draw.
+    VkPipelineVertexInputStateCreateInfo VertexInputInfo{};
+    VertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    VertexInputInfo.vertexBindingDescriptionCount = 0;
+    VertexInputInfo.pVertexBindingDescriptions = nullptr;
+    VertexInputInfo.vertexAttributeDescriptionCount = 0;
+    VertexInputInfo.pVertexAttributeDescriptions = nullptr;
+
+    const GraphicsShaders Shaders{"spv/post.vert.spv", "spv/post.vert.slang.spv",
+                                  "spv/post.frag.spv", "spv/post.frag.slang.spv"};
+    PostPipeline = CreateGraphicsPipeline(Shaders, VertexInputInfo, PostPipelineLayout,
+                                          PostRenderPass);
+}
+
+VkPipeline Renderer::CreateGraphicsPipeline(
+    const GraphicsShaders& Shaders,
+    const VkPipelineVertexInputStateCreateInfo& VertexInput, VkPipelineLayout Layout,
+    VkRenderPass RenderPass)
+{
     VkShaderModule VertShaderModule =
-        CreateShaderModule(LoadShader("spv/post.vert.spv", "spv/post.vert.slang.spv"));
+        CreateShaderModule(LoadShader(Shaders.VertGlsl, Shaders.VertSlang));
     VkShaderModule FragShaderModule =
-        CreateShaderModule(LoadShader("spv/post.frag.spv", "spv/post.frag.slang.spv"));
+        CreateShaderModule(LoadShader(Shaders.FragGlsl, Shaders.FragSlang));
 
     VkPipelineShaderStageCreateInfo VertShaderStageInfo{};
     VertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -825,103 +887,96 @@ void Renderer::CreatePostPipeline()
     VkPipelineShaderStageCreateInfo ShaderStages[] = {VertShaderStageInfo,
                                                       FragShaderStageInfo};
 
-    VkPipelineVertexInputStateCreateInfo VertexInputInfo{};
-    VertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-
-    // No geometry in this pipeline's draw.
-    VertexInputInfo.vertexBindingDescriptionCount = 0;
-    VertexInputInfo.pVertexBindingDescriptions = nullptr;
-
-    VertexInputInfo.vertexAttributeDescriptionCount = 0;
-    VertexInputInfo.pVertexAttributeDescriptions = nullptr;
-
-    VkPipelineInputAssemblyStateCreateInfo InputAssembly{};
-    InputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    InputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    InputAssembly.primitiveRestartEnable = VK_FALSE;
-
-    VkViewport Viewport{};
-    Viewport.x = 0.0f;
-    Viewport.y = 0.0f;
-    Viewport.width = static_cast<float>(WindowSize.width);
-    Viewport.height = static_cast<float>(WindowSize.height);
-    Viewport.minDepth = 0.0f;
-    Viewport.maxDepth = 1.0f;
-
-    VkRect2D Scissor{};
-    Scissor.offset = {0, 0};
-    Scissor.extent = VkExtent2D{WindowSize.width, WindowSize.height};
-
-    VkPipelineViewportStateCreateInfo ViewportState{};
-    ViewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    ViewportState.viewportCount = 1;
-    ViewportState.pViewports = &Viewport;
-    ViewportState.scissorCount = 1;
-    ViewportState.pScissors = &Scissor;
-
-    VkPipelineRasterizationStateCreateInfo Rasterizer{};
-    Rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    Rasterizer.depthClampEnable = VK_FALSE;
-    Rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    Rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-    Rasterizer.lineWidth = 1.0f;
-    Rasterizer.cullMode = VK_CULL_MODE_NONE;
-    Rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    Rasterizer.depthBiasEnable = VK_FALSE;
-
-    VkPipelineMultisampleStateCreateInfo Multisampling{};
-    Multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    Multisampling.sampleShadingEnable = VK_FALSE;
-    Multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
-    VkPipelineDepthStencilStateCreateInfo DepthStencil{};
-    DepthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    DepthStencil.depthTestEnable = VK_TRUE;
-    DepthStencil.depthWriteEnable = VK_TRUE;
-    DepthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;  // BEWARE!!  NECESSARY!!
-    DepthStencil.depthBoundsTestEnable = VK_FALSE;
-    DepthStencil.stencilTestEnable = VK_FALSE;
-
-    VkPipelineColorBlendAttachmentState ColorBlendAttachment{};
-    ColorBlendAttachment.colorWriteMask =
-        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
-        VK_COLOR_COMPONENT_A_BIT;
-    ColorBlendAttachment.blendEnable = VK_FALSE;
-
-    VkPipelineColorBlendStateCreateInfo ColorBlending{};
-    ColorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    ColorBlending.logicOpEnable = VK_FALSE;
-    ColorBlending.logicOp = VK_LOGIC_OP_COPY;
-    ColorBlending.attachmentCount = 1;
-    ColorBlending.pAttachments = &ColorBlendAttachment;
-    ColorBlending.blendConstants[0] = 0.0f;
-    ColorBlending.blendConstants[1] = 0.0f;
-    ColorBlending.blendConstants[2] = 0.0f;
-    ColorBlending.blendConstants[3] = 0.0f;
+    // The state points into itself, so it's wired up here rather than copied around.
+    FixedFunctionState State = MakeFixedFunctionState();
+    State.ViewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    State.ViewportState.viewportCount = 1;
+    State.ViewportState.pViewports = &State.Viewport;
+    State.ViewportState.scissorCount = 1;
+    State.ViewportState.pScissors = &State.Scissor;
+    State.ColorBlending.pAttachments = &State.ColorBlendAttachment;
 
     VkGraphicsPipelineCreateInfo PipelineInfo{};
     PipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     PipelineInfo.stageCount = 2;
     PipelineInfo.pStages = ShaderStages;
-    PipelineInfo.pVertexInputState = &VertexInputInfo;
-    PipelineInfo.pInputAssemblyState = &InputAssembly;
-    PipelineInfo.pViewportState = &ViewportState;
-    PipelineInfo.pRasterizationState = &Rasterizer;
-    PipelineInfo.pMultisampleState = &Multisampling;
-    PipelineInfo.pDepthStencilState = &DepthStencil;
-    PipelineInfo.pColorBlendState = &ColorBlending;
-    PipelineInfo.layout = PostPipelineLayout;
-    PipelineInfo.renderPass = PostRenderPass;
+    PipelineInfo.pVertexInputState = &VertexInput;
+    PipelineInfo.pInputAssemblyState = &State.InputAssembly;
+    PipelineInfo.pViewportState = &State.ViewportState;
+    PipelineInfo.pRasterizationState = &State.Rasterizer;
+    PipelineInfo.pMultisampleState = &State.Multisampling;
+    PipelineInfo.pDepthStencilState = &State.DepthStencil;
+    PipelineInfo.pColorBlendState = &State.ColorBlending;
+    PipelineInfo.layout = Layout;
+    PipelineInfo.renderPass = RenderPass;
     PipelineInfo.subpass = 0;
     PipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
+    VkPipeline Pipeline = VK_NULL_HANDLE;
     RTRT_CHECK_VK(vkCreateGraphicsPipelines(Device, VK_NULL_HANDLE, 1, &PipelineInfo,
-                                            nullptr, &PostPipeline));
+                                            nullptr, &Pipeline));
 
     // The pipeline has fully compiled copies of the shaders, so these
     // intermediate (SPV) versions can be destroyed.
     vkDestroyShaderModule(Device, FragShaderModule, nullptr);
     vkDestroyShaderModule(Device, VertShaderModule, nullptr);
+    return Pipeline;
+}
+
+Renderer::FixedFunctionState Renderer::MakeFixedFunctionState() const
+{
+    FixedFunctionState State;
+
+    State.InputAssembly.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    State.InputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    State.InputAssembly.primitiveRestartEnable = VK_FALSE;
+
+    State.Viewport.x = 0.0f;
+    State.Viewport.y = 0.0f;
+    State.Viewport.width = static_cast<float>(WindowSize.width);
+    State.Viewport.height = static_cast<float>(WindowSize.height);
+    State.Viewport.minDepth = 0.0f;
+    State.Viewport.maxDepth = 1.0f;
+
+    State.Scissor.offset = {0, 0};
+    State.Scissor.extent = VkExtent2D{WindowSize.width, WindowSize.height};
+
+    State.Rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    State.Rasterizer.depthClampEnable = VK_FALSE;
+    State.Rasterizer.rasterizerDiscardEnable = VK_FALSE;
+    State.Rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    State.Rasterizer.lineWidth = 1.0f;
+    State.Rasterizer.cullMode = VK_CULL_MODE_NONE;
+    State.Rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    State.Rasterizer.depthBiasEnable = VK_FALSE;
+
+    State.Multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    State.Multisampling.sampleShadingEnable = VK_FALSE;
+    State.Multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    State.DepthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    State.DepthStencil.depthTestEnable = VK_TRUE;
+    State.DepthStencil.depthWriteEnable = VK_TRUE;
+    // BEWARE!!  NECESSARY!!
+    State.DepthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+    State.DepthStencil.depthBoundsTestEnable = VK_FALSE;
+    State.DepthStencil.stencilTestEnable = VK_FALSE;
+
+    State.ColorBlendAttachment.colorWriteMask =
+        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+        VK_COLOR_COMPONENT_A_BIT;
+    State.ColorBlendAttachment.blendEnable = VK_FALSE;
+
+    State.ColorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    State.ColorBlending.logicOpEnable = VK_FALSE;
+    State.ColorBlending.logicOp = VK_LOGIC_OP_COPY;
+    State.ColorBlending.attachmentCount = 1;
+    State.ColorBlending.blendConstants[0] = 0.0f;
+    State.ColorBlending.blendConstants[1] = 0.0f;
+    State.ColorBlending.blendConstants[2] = 0.0f;
+    State.ColorBlending.blendConstants[3] = 0.0f;
+    return State;
 }
 
 std::string Renderer::LoadShader(const char* GlslSpv, const char* SlangSpv)
@@ -1011,12 +1066,14 @@ void Renderer::PostProcess()
             static_cast<float>(WindowSize.width) / static_cast<float>(WindowSize.height);
         vkCmdBindPipeline(CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PostPipeline);
         vkCmdBindDescriptorSets(CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                PostPipelineLayout, 0, 1, &PostDesc.DescSet, 0, nullptr);
+                                PostPipelineLayout, 0, 1, &PostDesc.GetSet(), 0, nullptr);
 
         // The rasterizer has no G-buffer images, so the debug views only apply to the ray
         // tracer.
         PushConstantPost PcPost{
-            Exposure, Gamma, static_cast<uint32_t>(UseRaytracer ? ViewMode : kViewFinal)};
+            Settings.Exposure, Settings.Gamma,
+            static_cast<uint32_t>(Settings.UseRaytracer ? Settings.ViewMode
+                                                        : kViewFinal)};
         vkCmdPushConstants(CommandBuffer, PostPipelineLayout,
                            VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstantPost),
                            &PcPost);

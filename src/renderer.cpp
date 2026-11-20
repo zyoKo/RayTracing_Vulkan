@@ -26,8 +26,8 @@ Renderer::Renderer(App* Owner) : Application(Owner)
 
 bool Renderer::Init()
 {
-    UseSlang = Application->UseSlang;        // -slang picks the starting shader language
-    CreateInstance(Application->DoApiDump);  // -> Instance
+    UseSlang = Application->GetUseSlang();  // -slang picks the starting shader language
+    CreateInstance(Application->GetDoApiDump());  // -> Instance
     assert(Instance);
     if (!CreatePhysicalDevice())
     {
@@ -92,10 +92,10 @@ void Renderer::DrawFrame()
         UpdateCameraBuffer();
 
         // Draw scene
-        if (UseRaytracer)
+        if (Settings.UseRaytracer)
         {
             Raytrace();
-            if (DenoiseEnabled && ViewMode == kViewFinal)
+            if (Settings.DenoiseEnabled && Settings.ViewMode == kViewFinal)
             {
                 Denoise();
             }
@@ -157,7 +157,7 @@ bool Renderer::PrepareFrame()
     CheckVkResult(WaitResult, "vkWaitForFences", __FILE__, __LINE__);
     GpuWaitMs = (glfwGetTime() - WaitStart) * 1000.0;
 
-    if (Application->FramebufferResized && !RecreateSizedResources())
+    if (Application->GetFramebufferResized() && !RecreateSizedResources())
     {
         return false;
     }
@@ -211,7 +211,7 @@ void Renderer::SubmitFrame()
     VkResult Result = vkQueuePresentKHR(Queue, &PresentInfo);
     if (Result == VK_ERROR_OUT_OF_DATE_KHR || Result == VK_SUBOPTIMAL_KHR)
     {
-        Application->FramebufferResized = true;
+        Application->SetFramebufferResized(true);
     }
     else
     {
@@ -285,7 +285,7 @@ void Renderer::InitGui()
     SubmitTempCmdBuffer(Cmdbuf);
     ImGui_ImplVulkan_DestroyFontUploadObjects();  // Staging buffer is no longer needed
 
-    ImGui_ImplGlfw_InitForVulkan(Application->Window, true);
+    ImGui_ImplGlfw_InitForVulkan(Application->GetWindow(), true);
 }
 
 }  // namespace rtrt

@@ -7,10 +7,12 @@
 #include <GLFW/glfw3.h>
 
 #include "camera.h"
+#include "renderer.h"
 
 namespace rtrt
 {
 
+// The last kFrameCount frame timings, in milliseconds, kept as a ring buffer.
 struct FrameStats
 {
     static constexpr int kFrameCount = 240;
@@ -57,17 +59,81 @@ struct FrameStats
     }
 };
 
+// The window, its input and the ImGui windows drawn on top of the renderer.
 class App
 {
 public:
     App() = default;
     App(const App&) = delete;
     App& operator=(const App&) = delete;
+
+    // Reads the command line and opens the window. False on a bad argument or when
+    // GLFW, the window or Vulkan isn't available.
     bool Init(int Argc, char** Argv);
+
+    // Moves the camera for the keys and mouse button held down since the last frame.
+    void UpdateCamera();
+
+    // Draws the settings and performance windows that are switched on.
+    void DrawGui(Renderer& VK);
+
+    // Adds one frame's timings, in milliseconds, to the performance history.
+    void RecordFrameTimes(float FrameMs, float CpuMs, float DrawMs, float GpuWaitMs);
+
+    GLFWwindow* GetWindow() const
+    {
+        return Window;
+    }
+
+    const Camera& GetCamera() const
+    {
+        return MainCamera;
+    }
+
+    bool GetDoApiDump() const
+    {
+        return DoApiDump;
+    }
+
+    bool GetUseSlang() const
+    {
+        return UseSlang;
+    }
+
+    bool GetFramebufferResized() const
+    {
+        return FramebufferResized;
+    }
+
+    void SetFramebufferResized(bool Resized)
+    {
+        FramebufferResized = Resized;
+    }
+
+private:
+    static void FramebufferSizeCallback(GLFWwindow* Window, int Width, int Height);
+    static void MouseButtonCallback(GLFWwindow* Window, int Button, int Action, int Mods);
+    static void CursorPosCallback(GLFWwindow* Window, double X, double Y);
+    static void KeyCallback(GLFWwindow* Window, int Key, int Scancode, int Action,
+                            int Mods);
+
+    void DrawSettingsWindow(Renderer& VK);
+    void DrawPerfWindow();
+
+    // Each returns true when a change makes the accumulated history wrong.
+    bool DrawModeSettings(Renderer& VK);
+    bool DrawPathTracerSettings(Renderer& VK);
+    bool DrawHistorySettings(Renderer& VK);
+
+    void DrawDenoiserSettings(Renderer& VK);
+    void DrawDisplaySettings(Renderer& VK);
+    void DrawCameraSettings();
+    void DrawShaderSettings(Renderer& VK);
 
     GLFWwindow* Window = nullptr;
     bool DoApiDump = false;
-    bool UseSlang = false;  // -slang: start with the Slang shaders
+    // -slang: start with the Slang shaders
+    bool UseSlang = false;
 
     bool ShowGui = true;
     bool ShowPerf = false;
@@ -76,7 +142,6 @@ public:
     Camera MainCamera;
     FrameStats Stats;
     float LastTime = 0;
-    void UpdateCamera();
 };
 
 }  // namespace rtrt

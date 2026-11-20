@@ -39,7 +39,12 @@ struct ModelData
     std::vector<std::string> Textures;
 
     void ReadAssimpFile(const std::string& Path, const mat4& M);
+    // Appends one Assimp material, and its diffuse texture if it has one.
+    void ReadMaterial(const aiMaterial* Mtl, const std::string& Path);
 };
+
+// Reads the file with Assimp; exits with an error if it's missing or unreadable.
+const aiScene* ImportScene(Assimp::Importer& Importer, const std::string& Path);
 
 void RecurseModelNodes(ModelData* Meshdata, const aiScene* Aiscene, const aiNode* Node,
                        const aiMatrix4x4& ParentTr, const int Level = 0);
@@ -54,28 +59,22 @@ VkDeviceAddress GetBufferDeviceAddress(VkDevice DeviceHandle, VkBuffer Buffer)
 
 }  // namespace
 
-void Renderer::MyLoadModel(const std::string& Filename, const glm::mat4& Transform)
+namespace
 {
-    ModelData Meshdata;
-    Meshdata.ReadAssimpFile(Filename, glm::mat4(1.0f));
 
+void PrintModelSummary(const ModelData& Meshdata)
+{
     printf("vertices: %zd\n", Meshdata.Vertices.size());
     printf("indices: %zd (%zd)\n", Meshdata.Indicies.size(),
            Meshdata.Indicies.size() / 3);
     printf("materials: %zd\n", Meshdata.Materials.size());
     printf("matIndx: %zd\n", Meshdata.MatIndx.size());
     printf("textures: %zd\n", Meshdata.Textures.size());
+}
 
-    // The model's emitters are too dim as authored; boost them.
-    for (auto& Mat : Meshdata.Materials)
-    {
-        if (Mat.Emission != vec3(0))
-        {
-            Mat.Emission *= 2.5f;
-        }
-    }
-
-    // Collect emissive geometry as a list of light-emitting triangles
+// Appends the model's emissive geometry as light-emitting triangles.
+void CollectEmitters(const ModelData& Meshdata, std::vector<Emitter>& LightList)
+{
     for (int I = 0; I < Meshdata.Materials.size(); ++I)
     {
         if (Meshdata.Materials[I].Emission != vec3(0.0f))
@@ -90,27 +89,53 @@ void Renderer::MyLoadModel(const std::string& Filename, const glm::mat4& Transfo
             LightList.push_back(Light);
         }
     }
+}
 
+// Creates the buffers on the device and copies vertices, indices and materials in.
+ObjData UploadModel(Renderer& VK, const ModelData& Meshdata)
+{
     ObjData Object;
     Object.NbIndices = static_cast<uint32_t>(Meshdata.Indicies.size());
     Object.NbVertices = static_cast<uint32_t>(Meshdata.Vertices.size());
 
-    // Create the buffers on Device and copy vertices, indices and materials
-    VkCommandBuffer CmdBuf = CreateTempCmdBuffer();
+    VkCommandBuffer CmdBuf = VK.CreateTempCmdBuffer();
 
     VkBufferUsageFlags Flag =
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
     VkBufferUsageFlags RtFlags =
         Flag | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
 
-    Object.VertexBuffer = CreateStagedBufferWrap(
+    Object.VertexBuffer = VK.CreateStagedBufferWrap(
         CmdBuf, Meshdata.Vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | RtFlags);
-    Object.IndexBuffer = CreateStagedBufferWrap(
+    Object.IndexBuffer = VK.CreateStagedBufferWrap(
         CmdBuf, Meshdata.Indicies, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | RtFlags);
-    Object.MatColorBuffer = CreateStagedBufferWrap(CmdBuf, Meshdata.Materials, Flag);
-    Object.MatIndexBuffer = CreateStagedBufferWrap(CmdBuf, Meshdata.MatIndx, Flag);
+    Object.MatColorBuffer = VK.CreateStagedBufferWrap(CmdBuf, Meshdata.Materials, Flag);
+    Object.MatIndexBuffer = VK.CreateStagedBufferWrap(CmdBuf, Meshdata.MatIndx, Flag);
 
-    SubmitTempCmdBuffer(CmdBuf);
+    VK.SubmitTempCmdBuffer(CmdBuf);
+    return Object;
+}
+
+}  // namespace
+
+void Renderer::MyLoadModel(const std::string& Filename, const glm::mat4& Transform)
+{
+    ModelData Meshdata;
+    Meshdata.ReadAssimpFile(Filename, glm::mat4(1.0f));
+    PrintModelSummary(Meshdata);
+
+    // The model's emitters are too dim as authored; boost them.
+    for (auto& Mat : Meshdata.Materials)
+    {
+        if (Mat.Emission != vec3(0))
+        {
+            Mat.Emission *= 2.5f;
+        }
+    }
+
+    CollectEmitters(Meshdata, LightList);
+
+    ObjData Object = UploadModel(*this, Meshdata);
 
     // Creates all textures on the GPU
     // Offset is current size
@@ -152,6 +177,23 @@ void ModelData::ReadAssimpFile(const std::string& Path, const mat4& M)
                         M[3][1], M[0][2], M[1][2], M[2][2], M[3][2], M[0][3], M[1][3],
                         M[2][3], M[3][3]);
 
+    Assimp::Importer Importer;
+    const aiScene* Aiscene = ImportScene(Importer, Path);
+
+    printf("Assimp mNumMeshes: %d\n", Aiscene->mNumMeshes);
+    printf("Assimp mNumMaterials: %d\n", Aiscene->mNumMaterials);
+    printf("Assimp mNumTextures: %d\n", Aiscene->mNumTextures);
+
+    for (int I = 0; I < Aiscene->mNumMaterials; I++)
+    {
+        ReadMaterial(Aiscene->mMaterials[I], Path);
+    }
+
+    RecurseModelNodes(this, Aiscene, Aiscene->mRootNode, ModelTr);
+}
+
+const aiScene* ImportScene(Assimp::Importer& Importer, const std::string& Path)
+{
     // Does the file exist?
     std::ifstream FindIt(Path.c_str());
     if (FindIt.fail())
@@ -162,7 +204,6 @@ void ModelData::ReadAssimpFile(const std::string& Path, const mat4& M)
     // Invoke assimp to read the file.
     printf("Assimp %d.%d Reading %s\n", aiGetVersionMajor(), aiGetVersionMinor(),
            Path.c_str());
-    Assimp::Importer Importer;
     const aiScene* Aiscene = Importer.ReadFile(
         Path.c_str(), aiProcess_Triangulate | aiProcess_GenSmoothNormals);
 
@@ -176,73 +217,67 @@ void ModelData::ReadAssimpFile(const std::string& Path, const mat4& M)
     {
         RTRT_FATAL("Model %s has no root node", Path.c_str());
     }
+    return Aiscene;
+}
 
-    printf("Assimp mNumMeshes: %d\n", Aiscene->mNumMeshes);
-    printf("Assimp mNumMaterials: %d\n", Aiscene->mNumMaterials);
-    printf("Assimp mNumTextures: %d\n", Aiscene->mNumTextures);
+void ModelData::ReadMaterial(const aiMaterial* Mtl, const std::string& Path)
+{
+    aiString Name;
+    Mtl->Get(AI_MATKEY_NAME, Name);
+    aiColor3D Emit(0.f, 0.f, 0.f);
+    aiColor3D Diff(0.f, 0.f, 0.f), Spec(0.f, 0.f, 0.f);
+    float Alpha = 20.0;
+    bool He = Mtl->Get(AI_MATKEY_COLOR_EMISSIVE, Emit);
+    bool Hd = Mtl->Get(AI_MATKEY_COLOR_DIFFUSE, Diff);
+    bool Hs = Mtl->Get(AI_MATKEY_COLOR_SPECULAR, Spec);
+    bool Ha = Mtl->Get(AI_MATKEY_SHININESS, &Alpha, nullptr);
+    aiColor3D Trans;
+    bool Ht = Mtl->Get(AI_MATKEY_COLOR_TRANSPARENT, Trans);
 
-    for (int I = 0; I < Aiscene->mNumMaterials; I++)
+    Material Newmat;
+    // An emitter
+    if (!Emit.IsBlack())
     {
-        aiMaterial* Mtl = Aiscene->mMaterials[I];
-        aiString Name;
-        Mtl->Get(AI_MATKEY_NAME, Name);
-        aiColor3D Emit(0.f, 0.f, 0.f);
-        aiColor3D Diff(0.f, 0.f, 0.f), Spec(0.f, 0.f, 0.f);
-        float Alpha = 20.0;
-        bool He = Mtl->Get(AI_MATKEY_COLOR_EMISSIVE, Emit);
-        bool Hd = Mtl->Get(AI_MATKEY_COLOR_DIFFUSE, Diff);
-        bool Hs = Mtl->Get(AI_MATKEY_COLOR_SPECULAR, Spec);
-        bool Ha = Mtl->Get(AI_MATKEY_SHININESS, &Alpha, nullptr);
-        aiColor3D Trans;
-        bool Ht = Mtl->Get(AI_MATKEY_COLOR_TRANSPARENT, Trans);
-
-        Material Newmat;
-        // An emitter
-        if (!Emit.IsBlack())
-        {
-            // An emitter needs (1,1,1), else black screen!  WTF???
-            Newmat.Diffuse = {1, 1, 1};
-            Newmat.Specular = {0, 0, 0};
-            Newmat.Shininess = 0.0;
-            Newmat.Emission = {Emit.r, Emit.g, Emit.b};
-            Newmat.TextureId = -1;
-        }
-
-        else
-        {
-            vec3 Kd(0.5f, 0.5f, 0.5f);
-            vec3 Ks(0.03f, 0.03f, 0.03f);
-            if (AI_SUCCESS == Hd)
-            {
-                Kd = vec3(Diff.r, Diff.g, Diff.b);
-            }
-            if (AI_SUCCESS == Hs)
-            {
-                Ks = vec3(Spec.r, Spec.g, Spec.b);
-            }
-            Newmat.Diffuse = {Kd[0], Kd[1], Kd[2]};
-            Newmat.Specular = {Ks[0], Ks[1], Ks[2]};
-            // Phong exponent -> GGX roughness
-            Newmat.Shininess = sqrtf(2.0f / (2.0f + Alpha));
-            Newmat.Emission = {0, 0, 0};
-            Newmat.TextureId = -1;
-        }
-
-        aiString TexPath;
-        if (AI_SUCCESS == Mtl->GetTexture(aiTextureType_DIFFUSE, 0, &TexPath))
-        {
-            fs::path FullPath = Path;
-            FullPath.replace_filename(TexPath.C_Str());
-            printf("Texture: %ls\n", FullPath.c_str());
-            Newmat.TextureId = Textures.size();
-            auto Xxx = FullPath.u8string();
-            Textures.push_back(std::string(Xxx));
-        }
-
-        Materials.push_back(Newmat);
+        // An emitter needs (1,1,1), else black screen!  WTF???
+        Newmat.Diffuse = {1, 1, 1};
+        Newmat.Specular = {0, 0, 0};
+        Newmat.Shininess = 0.0;
+        Newmat.Emission = {Emit.r, Emit.g, Emit.b};
+        Newmat.TextureId = -1;
     }
 
-    RecurseModelNodes(this, Aiscene, Aiscene->mRootNode, ModelTr);
+    else
+    {
+        vec3 Kd(0.5f, 0.5f, 0.5f);
+        vec3 Ks(0.03f, 0.03f, 0.03f);
+        if (AI_SUCCESS == Hd)
+        {
+            Kd = vec3(Diff.r, Diff.g, Diff.b);
+        }
+        if (AI_SUCCESS == Hs)
+        {
+            Ks = vec3(Spec.r, Spec.g, Spec.b);
+        }
+        Newmat.Diffuse = {Kd[0], Kd[1], Kd[2]};
+        Newmat.Specular = {Ks[0], Ks[1], Ks[2]};
+        // Phong exponent -> GGX roughness
+        Newmat.Shininess = sqrtf(2.0f / (2.0f + Alpha));
+        Newmat.Emission = {0, 0, 0};
+        Newmat.TextureId = -1;
+    }
+
+    aiString TexPath;
+    if (AI_SUCCESS == Mtl->GetTexture(aiTextureType_DIFFUSE, 0, &TexPath))
+    {
+        fs::path FullPath = Path;
+        FullPath.replace_filename(TexPath.C_Str());
+        printf("Texture: %ls\n", FullPath.c_str());
+        Newmat.TextureId = Textures.size();
+        auto Xxx = FullPath.u8string();
+        Textures.push_back(std::string(Xxx));
+    }
+
+    Materials.push_back(Newmat);
 }
 
 // Recursively traverses the assimp node hierarchy, accumulating

@@ -55,15 +55,15 @@ void Renderer::SetDefaultSettings()
     PcRay.DepthThreshold = 0.04f;
     PcRay.MaxSamples = 0.0f;
 
-    DenoiseEnabled = true;
-    NumAtrousIterations = 5;
+    Settings.DenoiseEnabled = true;
+    Settings.NumAtrousIterations = 5;
     PcDenoise.NormFactor = 0.003f;
     PcDenoise.DepthFactor = 0.007f;
     PcDenoise.AlbedoFactor = 0.1f;
 
-    ViewMode = kViewFinal;
-    Exposure = 1.0f;
-    Gamma = 2.2f;
+    Settings.ViewMode = kViewFinal;
+    Settings.Exposure = 1.0f;
+    Settings.Gamma = 2.2f;
 
     ResetRtAccumulation();
 }
@@ -127,17 +127,39 @@ void Renderer::CreateRtDescriptorSet()
 //
 void Renderer::CreateRtPipeline()
 {
-    //////////////////////////////////////////////////////////////////////////////////////
-    // stages: Array of shaders: 1 raygen, 1 miss, 1 closest-hit
-
-    //////////////////////////////////////////////////////////////////////////////////////
-    // Group the shaders.  Raygen and miss shaders get their own
-    // groups. Hit shaders can group with any-hit and intersection
-    // shaders -- of which we have none -- so the hit shader(s) get
-    // their own group also.
     std::vector<VkPipelineShaderStageCreateInfo> Stages{};
     std::vector<VkRayTracingShaderGroupCreateInfoKHR> Groups{};
+    CollectRtShaders(Stages, Groups);
 
+    CreateRtPipelineLayout();
+
+    // Assemble the shader stages and recursion depth info into the ray tracing pipeline
+    VkRayTracingPipelineCreateInfoKHR RayPipelineInfo{
+        VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR};
+    // Stages are shaders
+    RayPipelineInfo.stageCount = static_cast<uint32_t>(Stages.size());
+    RayPipelineInfo.pStages = Stages.data();
+
+    RayPipelineInfo.groupCount = static_cast<uint32_t>(Groups.size());
+    RayPipelineInfo.pGroups = Groups.data();
+
+    RayPipelineInfo.maxPipelineRayRecursionDepth = 10;  // Ray depth
+    RayPipelineInfo.layout = RtPipelineLayout;
+
+    RTRT_CHECK_VK(vkCreateRayTracingPipelinesKHR(Device, {}, {}, 1, &RayPipelineInfo,
+                                                 nullptr, &RtPipeline));
+    for (auto& S : Stages)
+    {
+        vkDestroyShaderModule(Device, S.module, nullptr);
+    }
+}
+
+void Renderer::CollectRtShaders(std::vector<VkPipelineShaderStageCreateInfo>& Stages,
+                                std::vector<VkRayTracingShaderGroupCreateInfoKHR>& Groups)
+{
+    // Raygen and miss shaders get their own groups. Hit shaders can group with any-hit
+    // and intersection shaders -- of which we have none -- so the hit shader gets its
+    // own group too.
     VkPipelineShaderStageCreateInfo Stage{
         VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
     Stage.pName = "main";  // All the same entry point
@@ -170,6 +192,7 @@ void Renderer::CreateRtPipeline()
     Group.generalShader = Stages.size() - 1;  // Index of miss shader
     Groups.push_back(Group);
     Group.generalShader = VK_SHADER_UNUSED_KHR;
+
     // Closest hit shader stage and group appended to stages and groups lists
     Stage.module = CreateShaderModule(
         LoadShader("spv/raytrace.rchit.spv", "spv/raytrace.rchit.slang.spv"));
@@ -179,9 +202,10 @@ void Renderer::CreateRtPipeline()
     Group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
     Group.closestHitShader = Stages.size() - 1;  // Index of hit shader
     Groups.push_back(Group);
+}
 
-    //////////////////////////////////////////////////////////////////////////////////////
-    // Create the ray tracing pipeline layout.
+void Renderer::CreateRtPipelineLayout()
+{
     // Push constant: we want to be able to update constants used by the shaders
     VkPushConstantRange PushConstant{VK_SHADER_STAGE_RAYGEN_BIT_KHR |
                                          VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR |
@@ -195,36 +219,14 @@ void Renderer::CreateRtPipeline()
 
     // Descriptor sets: one specific to ray tracing, and one shared with the rasterization
     // pipeline
-    std::vector<VkDescriptorSetLayout> RtDescSetLayouts = {RtDesc.DescSetLayout,
-                                                           ScDesc.DescSetLayout};
+    std::vector<VkDescriptorSetLayout> RtDescSetLayouts = {RtDesc.GetLayout(),
+                                                           ScDesc.GetLayout()};
     PipelineLayoutCreateInfo.setLayoutCount =
         static_cast<uint32_t>(RtDescSetLayouts.size());
     PipelineLayoutCreateInfo.pSetLayouts = RtDescSetLayouts.data();
 
     RTRT_CHECK_VK(vkCreatePipelineLayout(Device, &PipelineLayoutCreateInfo, nullptr,
                                          &RtPipelineLayout));
-
-    //////////////////////////////////////////////////////////////////////////////////////
-    // Create the ray tracing pipeline.
-    // Assemble the shader stages and recursion depth info into the ray tracing pipeline
-    VkRayTracingPipelineCreateInfoKHR RayPipelineInfo{
-        VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR};
-    // Stages are shaders
-    RayPipelineInfo.stageCount = static_cast<uint32_t>(Stages.size());
-    RayPipelineInfo.pStages = Stages.data();
-
-    RayPipelineInfo.groupCount = static_cast<uint32_t>(Groups.size());
-    RayPipelineInfo.pGroups = Groups.data();
-
-    RayPipelineInfo.maxPipelineRayRecursionDepth = 10;  // Ray depth
-    RayPipelineInfo.layout = RtPipelineLayout;
-
-    RTRT_CHECK_VK(vkCreateRayTracingPipelinesKHR(Device, {}, {}, 1, &RayPipelineInfo,
-                                                 nullptr, &RtPipeline));
-    for (auto& S : Stages)
-    {
-        vkDestroyShaderModule(Device, S.module, nullptr);
-    }
 }
 
 //----------------------------------------------------------------------------------------
@@ -245,40 +247,11 @@ constexpr Integral AlignUp(Integral X, size_t A) noexcept
 
 void Renderer::CreateRtShaderBindingTable()
 {
-    uint32_t MissCount{1};
-    uint32_t HitCount{1};
+    const uint32_t MissCount{1};
+    const uint32_t HitCount{1};
+    const uint32_t HandleCount = 1 + MissCount + HitCount;
 
-    uint32_t HandleCount = 1 + MissCount + HitCount;
-
-    // The SBT (buffer) needs to have starting group to be aligned
-    // and handles in the group to be aligned.
-    // handleAlignment==32
-    uint32_t HandleSizeAligned = AlignUp(HandleSize, HandleAlignment);
-
-    // baseAlignment==64
-    RgenRegion.stride = AlignUp(HandleSizeAligned, BaseAlignment);
-    // The size member must be equal to its stride member
-    RgenRegion.size = RgenRegion.stride;
-
-    MissRegion.stride = HandleSizeAligned;
-    MissRegion.size = AlignUp(MissCount * HandleSizeAligned, BaseAlignment);
-
-    HitRegion.stride = HandleSizeAligned;
-    HitRegion.size = AlignUp(HitCount * HandleSizeAligned, BaseAlignment);
-
-    printf("Shader binding table:\n");
-    printf("  alignments:\n");
-    printf("    handleAlignment: %d\n", HandleAlignment);
-    printf("    baseAlignment:   %d\n", BaseAlignment);
-    printf("  counts:\n");
-    printf("    miss:   %d\n", MissCount);
-    printf("    hit:    %d\n", HitCount);
-    printf("    handle: %d = 1+missCount+hitCount\n", HandleCount);
-    printf("  regions stride:size:\n");
-    printf("    rgen %2ld:%2ld\n", RgenRegion.stride, RgenRegion.size);
-    printf("    miss %2ld:%2ld\n", MissRegion.stride, MissRegion.size);
-    printf("    hit  %2ld:%2ld\n", HitRegion.stride, HitRegion.size);
-    printf("    call %2ld:%2ld\n", CallRegion.stride, CallRegion.size);
+    ComputeSbtRegions(MissCount, HitCount);
 
     // Get the shader group handles.  This is a byte array retrieved
     // from the pipeline.
@@ -310,6 +283,52 @@ void Renderer::CreateRtShaderBindingTable()
     MissRegion.deviceAddress = SbtAddress + RgenRegion.size;
     HitRegion.deviceAddress = SbtAddress + RgenRegion.size + MissRegion.size;
 
+    WriteSbtHandles(Staging, SbtSize, Handles, MissCount, HitCount);
+
+    CopyBuffer(Staging.Buffer, ShaderBindingTableBw.Buffer, SbtSize);
+
+    Staging.Destroy(Device);
+}
+
+void Renderer::ComputeSbtRegions(uint32_t MissCount, uint32_t HitCount)
+{
+    const uint32_t HandleCount = 1 + MissCount + HitCount;
+
+    // The SBT (buffer) needs to have starting group to be aligned
+    // and handles in the group to be aligned.
+    // handleAlignment==32
+    uint32_t HandleSizeAligned = AlignUp(HandleSize, HandleAlignment);
+
+    // baseAlignment==64
+    RgenRegion.stride = AlignUp(HandleSizeAligned, BaseAlignment);
+    // The size member must be equal to its stride member
+    RgenRegion.size = RgenRegion.stride;
+
+    MissRegion.stride = HandleSizeAligned;
+    MissRegion.size = AlignUp(MissCount * HandleSizeAligned, BaseAlignment);
+
+    HitRegion.stride = HandleSizeAligned;
+    HitRegion.size = AlignUp(HitCount * HandleSizeAligned, BaseAlignment);
+
+    printf("Shader binding table:\n");
+    printf("  alignments:\n");
+    printf("    handleAlignment: %d\n", HandleAlignment);
+    printf("    baseAlignment:   %d\n", BaseAlignment);
+    printf("  counts:\n");
+    printf("    miss:   %d\n", MissCount);
+    printf("    hit:    %d\n", HitCount);
+    printf("    handle: %d = 1+missCount+hitCount\n", HandleCount);
+    printf("  regions stride:size:\n");
+    printf("    rgen %2ld:%2ld\n", RgenRegion.stride, RgenRegion.size);
+    printf("    miss %2ld:%2ld\n", MissRegion.stride, MissRegion.size);
+    printf("    hit  %2ld:%2ld\n", HitRegion.stride, HitRegion.size);
+    printf("    call %2ld:%2ld\n", CallRegion.stride, CallRegion.size);
+}
+
+void Renderer::WriteSbtHandles(const BufferWrap& Staging, VkDeviceSize SbtSize,
+                               const std::vector<uint8_t>& Handles, uint32_t MissCount,
+                               uint32_t HitCount)
+{
     // Helper to retrieve the handle data
     auto GetHandle = [&](int I) { return Handles.data() + I * HandleSize; };
 
@@ -340,10 +359,6 @@ void Renderer::CreateRtShaderBindingTable()
     }
 
     vkUnmapMemory(Device, Staging.Memory);
-
-    CopyBuffer(Staging.Buffer, ShaderBindingTableBw.Buffer, SbtSize);
-
-    Staging.Destroy(Device);
 }
 
 void Renderer::CmdCopyImage(ImageWrap& Src, ImageWrap& Dst)
@@ -389,7 +404,7 @@ void Renderer::Raytrace()
 
     // Bind the descriptor sets (the ray tracing specific one, and the
     // full model descriptor)
-    std::vector<VkDescriptorSet> DescSets{RtDesc.DescSet, ScDesc.DescSet};
+    std::vector<VkDescriptorSet> DescSets{RtDesc.GetSet(), ScDesc.GetSet()};
     vkCmdBindDescriptorSets(CommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
                             RtPipelineLayout, 0, DescSets.size(), DescSets.data(), 0,
                             nullptr);
@@ -409,11 +424,11 @@ void Renderer::Raytrace()
     // Copy the ray tracer output image to the scanline output image
     // -- because we already have the operations needed to display
     // that image on the screen.  The debug views show a G-buffer image instead.
-    if (ViewMode == kViewAlbedo)
+    if (Settings.ViewMode == kViewAlbedo)
     {
         CmdCopyImage(RtKdCurrBuffer, ScImageBuffer);
     }
-    else if (ViewMode == kViewNormal || ViewMode == kViewDepth)
+    else if (Settings.ViewMode == kViewNormal || Settings.ViewMode == kViewDepth)
     {
         CmdCopyImage(RtNdCurrBuffer, ScImageBuffer);
     }

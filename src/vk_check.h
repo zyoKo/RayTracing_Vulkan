@@ -11,6 +11,7 @@
 namespace rtrt
 {
 
+// Prints "File:Line: " and the printf-style message, then aborts.
 [[noreturn]] inline void FatalError(const char* File, int Line, const char* Format, ...)
 {
     std::fprintf(stderr, "%s:%d: ", File, Line);

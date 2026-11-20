@@ -11,6 +11,7 @@
 namespace rtrt
 {
 
+// One descriptor set with its layout and pool.
 class DescriptorWrap
 {
 public:
@@ -18,22 +19,34 @@ public:
     DescriptorWrap(const DescriptorWrap&) = delete;
     DescriptorWrap& operator=(const DescriptorWrap&) = delete;
 
-    std::vector<VkDescriptorSetLayoutBinding> BindingTable;
-
-    VkDescriptorSetLayout DescSetLayout;
-    VkDescriptorPool DescPool;
-    VkDescriptorSet DescSet;  // Could be  vector<VkDescriptorSet> for multiple sets;
-
+    // Creates the layout, a pool and one descriptor set for these bindings.
     void SetBindings(const VkDevice Device,
                      const std::vector<VkDescriptorSetLayoutBinding>& Bindings);
     void Destroy(VkDevice Device);
 
-    // Any data can be written into a descriptor set.  Apparently I need only these few
-    // types:
+    // Writes one binding of the set; the binding's type must match the data.
     void Write(VkDevice Device, uint32_t Index, VkBuffer Buffer);
     void Write(VkDevice Device, uint32_t Index, const VkDescriptorImageInfo& TextureDesc);
     void Write(VkDevice Device, uint32_t Index, const std::vector<ImageWrap>& Textures);
     void Write(VkDevice Device, uint32_t Index, VkAccelerationStructureKHR Tlas);
+
+    const VkDescriptorSetLayout& GetLayout() const
+    {
+        return DescSetLayout;
+    }
+
+    const VkDescriptorSet& GetSet() const
+    {
+        return DescSet;
+    }
+
+private:
+    std::vector<VkDescriptorSetLayoutBinding> BindingTable;
+
+    VkDescriptorSetLayout DescSetLayout{VK_NULL_HANDLE};
+    VkDescriptorPool DescPool{VK_NULL_HANDLE};
+    // Could be vector<VkDescriptorSet> for multiple sets.
+    VkDescriptorSet DescSet{VK_NULL_HANDLE};
 };
 
 }  // namespace rtrt

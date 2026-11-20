@@ -6,6 +6,7 @@
 namespace rtrt
 {
 
+// A VkBuffer and the memory bound to it. Plain data; Destroy() frees both.
 struct BufferWrap
 {
     VkBuffer Buffer;
