@@ -256,7 +256,7 @@ $(SlangC) %(Identity) -entry closestHitMain -o spv\raytrace.rchit.slang.spv</Com
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;GLM_FORCE_RADIANS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
@@ -270,7 +270,7 @@ $(SlangC) %(Identity) -entry closestHitMain -o spv\raytrace.rchit.slang.spv</Com
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;GLM_FORCE_RADIANS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
@@ -284,7 +284,7 @@ $(SlangC) %(Identity) -entry closestHitMain -o spv\raytrace.rchit.slang.spv</Com
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN64;_DEBUG;_CONSOLE;GLM_FORCE_RADIANS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)..\libs\glm;$(VULKAN_SDK)\Include;$(ProjectDir)..\libs\glfw/include;$(ProjectDir)..\libs\imgui-master;$(ProjectDir)..\libs\assimp\include;$(ProjectDir)..\libs\</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -305,7 +305,7 @@ $(SlangC) %(Identity) -entry closestHitMain -o spv\raytrace.rchit.slang.spv</Com
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN64;NDEBUG;_CONSOLE;GLM_FORCE_RADIANS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)..\libs\glm;$(VULKAN_SDK)\Include;$(ProjectDir)..\libs\glfw/include;$(ProjectDir)..\libs\imgui-master;$(ProjectDir)..\libs\assimp\include;$(ProjectDir)..\libs\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>

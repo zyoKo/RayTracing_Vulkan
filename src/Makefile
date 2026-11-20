@@ -9,7 +9,7 @@ CXX = g++
 
 OPTIMIZE = -g
 
-CXXFLAGS = -DPROJECT_NAME=\"rtrt\" -DPROJECT_RELDIRECTORY=\".\"  $(OPTIMIZE) -std=c++17 -I. -I$(SDK) -I$(LIBDIR)/glm -I$(LIBDIR)/imgui-master -I$(LIBDIR)/imgui-master/backends -I$(LIBDIR)  -I$(LIBDIR)/glfw/include
+CXXFLAGS = -DGLM_FORCE_RADIANS -DPROJECT_NAME=\"rtrt\" -DPROJECT_RELDIRECTORY=\".\"  $(OPTIMIZE) -std=c++17 -I. -I$(SDK) -I$(LIBDIR)/glm -I$(LIBDIR)/imgui-master -I$(LIBDIR)/imgui-master/backends -I$(LIBDIR)  -I$(LIBDIR)/glfw/include
 
 LIBS =  -lassimp  -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi `pkg-config --static --libs glfw3`
 
