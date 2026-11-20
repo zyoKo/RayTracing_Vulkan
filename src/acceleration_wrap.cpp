@@ -117,7 +117,8 @@ void RaytracingBuilderKHR::buildBlas(const std::vector<BlasInput>& input,
         maxScratchSize,
         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    NAME(VK->m_scratch1.buffer, VK_OBJECT_TYPE_BUFFER, "buildBlas scratch buffer");
+    SetDebugName(m_device, VK->m_scratch1.buffer, VK_OBJECT_TYPE_BUFFER,
+                 "buildBlas scratch buffer");
 
     VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
                                          nullptr, VK->m_scratch1.buffer};
@@ -370,7 +371,8 @@ void RaytracingBuilderKHR::cmdCreateTlas(VkCommandBuffer cmdBuf, uint32_t countI
         sizeInfo.buildScratchSize,
         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    NAME(VK->m_scratch2.buffer, VK_OBJECT_TYPE_BUFFER, "cmdCreateTlas scratch buffer");
+    SetDebugName(m_device, VK->m_scratch2.buffer, VK_OBJECT_TYPE_BUFFER,
+                 "cmdCreateTlas scratch buffer");
 
     VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
                                          nullptr, VK->m_scratch2.buffer};

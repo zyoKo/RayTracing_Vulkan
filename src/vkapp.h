@@ -12,12 +12,10 @@
 #include "descriptor_wrap.h"
 #include "image_wrap.h"
 #include "shaders/shared_structs.h"
+#include "vk_check.h"
 
 namespace rtrt
 {
-
-// Imgui
-#define GUI
 
 // The OBJ model: Vulkan buffers of object data
 struct ObjData
@@ -31,13 +29,16 @@ struct ObjData
     BufferWrap matIndexBuffer;  // Buffer of each triangle's material index
 };
 
-#define NAME(handle, objType, name)                                            \
-    {                                                                          \
-        const VkDebugUtilsObjectNameInfoEXT imageNameInfo = {                  \
-            VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT, NULL, objType, \
-            (uint64_t)handle, name};                                           \
-        vkSetDebugUtilsObjectNameEXT(m_device, &imageNameInfo);                \
-    }
+template <typename Handle>
+void SetDebugName(VkDevice Device, Handle Object, VkObjectType Type, const char* Name)
+{
+    VkDebugUtilsObjectNameInfoEXT Info{
+        VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT};
+    Info.objectType = Type;
+    Info.objectHandle = reinterpret_cast<uint64_t>(Object);
+    Info.pObjectName = Name;
+    RTRT_CHECK_VK(vkSetDebugUtilsObjectNameEXT(Device, &Info));
+}
 
 // Pair each instance with its instance transform
 struct ObjInst
@@ -56,7 +57,6 @@ public:
         "VK_KHR_win32_surface", "VK_KHR_surface"};
 
     std::vector<const char*> reqInstanceLayers = {
-        //"VK_LAYER_LUNARG_api_dump",  // Useful, but prefer to add (or not) at runtime
         "VK_LAYER_KHRONOS_validation"  // ALWAYS!!
     };
 
@@ -152,10 +152,8 @@ public:
     VkPipeline m_postPipeline{VK_NULL_HANDLE};
     void createPostPipeline();
 
-#ifdef GUI
     VkDescriptorPool m_imguiDescPool{VK_NULL_HANDLE};
     void initGUI();
-#endif
 
     VkRenderPass m_scanlineRenderPass{VK_NULL_HANDLE};
     VkFramebuffer m_scanlineFramebuffer{VK_NULL_HANDLE};

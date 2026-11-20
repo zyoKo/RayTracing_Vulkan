@@ -727,7 +727,7 @@ void VkApp::updateCameraBuffer()
     const float aspectRatio = windowSize.width / static_cast<float>(windowSize.height);
     MatrixUniforms hostUBO = {};
 
-    glm::mat4 view = app->myCamera.view(glfwGetTime());
+    glm::mat4 view = app->myCamera.view();
     glm::mat4 proj = app->myCamera.perspective(aspectRatio);
 
     hostUBO.priorViewProj = m_priorViewProj;

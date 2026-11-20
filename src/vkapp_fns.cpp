@@ -27,12 +27,10 @@ void VkApp::destroyAllVulkanResources()
     RTRT_CHECK_VK(vkDeviceWaitIdle(m_device));
 
     // All objects created on m_device must be destroyed before m_device.
-#ifdef GUI
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
     vkDestroyDescriptorPool(m_device, m_imguiDescPool, nullptr);
-#endif
 
     destroySwapchain();
     vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
@@ -1028,10 +1026,8 @@ void VkApp::postProcess()
         // Full-screen triangle: the vertex shader generates positions from gl_VertexIndex
         vkCmdDraw(m_commandBuffer, 3, 1, 0, 0);
 
-#ifdef GUI
         ImGui::Render();  // Rendering UI
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_commandBuffer);
-#endif
     }
     vkCmdEndRenderPass(m_commandBuffer);
 }

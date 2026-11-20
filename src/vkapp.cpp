@@ -52,9 +52,7 @@ bool VkApp::Init()
     createPostDescriptor();
     createPostPipeline();  // -> m_postPipelineLayout
 
-#ifdef GUI
     initGUI();
-#endif
 
     myloadModel("models/living_room/living_room.obj", glm::mat4(1.0f));
 
@@ -83,9 +81,7 @@ void VkApp::drawFrame()
     const double start = glfwGetTime();
     if (!prepareFrame())
     {
-#ifdef GUI
         ImGui::EndFrame();
-#endif
         return;
     }
 
@@ -249,7 +245,6 @@ VkPipelineShaderStageCreateInfo VkApp::createShaderStageInfo(const std::string& 
     return shaderStage;
 }
 
-#ifdef GUI
 void VkApp::initGUI()
 {
     uint32_t subpassID = 0;
@@ -294,6 +289,5 @@ void VkApp::initGUI()
 
     ImGui_ImplGlfw_InitForVulkan(app->GLFW_window, true);
 }
-#endif
 
 }  // namespace rtrt

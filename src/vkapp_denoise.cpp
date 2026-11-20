@@ -6,9 +6,12 @@
 namespace rtrt
 {
 
-#define SHADOW
+namespace
+{
 
-#define GROUP_SIZE 128
+constexpr uint32_t GROUP_SIZE = 128;
+
+}  // namespace
 
 void VkApp::createDenoiseBuffer()
 {

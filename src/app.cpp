@@ -221,32 +221,13 @@ void framebuffersize_cb(GLFWwindow* window, int w, int h)
     app->m_framebufferResized = true;
 }
 
-void scroll_cb(GLFWwindow* window, double x, double y)
-{
-    App* app = static_cast<App*>(glfwGetWindowUserPointer(window));
-#ifdef GUI
-    if (ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse)
-    {
-        return;
-    }
-#endif
-
-    int delta = y;
-    if (delta != 0)
-    {
-        app->myCamera.wheel(delta > 0 ? 1 : -1);
-    }
-}
-
 void mousebutton_cb(GLFWwindow* window, int button, int action, int mods)
 {
     App* app = static_cast<App*>(glfwGetWindowUserPointer(window));
-#ifdef GUI
     if (ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse)
     {
         return;
     }
-#endif
 
     double x, y;
     glfwGetCursorPos(window, &x, &y);
@@ -256,27 +237,15 @@ void mousebutton_cb(GLFWwindow* window, int button, int action, int mods)
 void cursorpos_cb(GLFWwindow* window, double x, double y)
 {
     App* app = static_cast<App*>(glfwGetWindowUserPointer(window));
-#ifdef GUI
     if (ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse)
     {
         return;
     }
-#endif
 
-    if (app->myCamera.lmb || app->myCamera.rmb || app->myCamera.mmb)
+    if (app->myCamera.lmb)
     {
         app->myCamera.mouseMove(x, y);
     }
-}
-
-void char_cb(GLFWwindow* window, unsigned int key)
-{
-#ifdef GUI
-    if (ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureKeyboard)
-    {
-        return;
-    }
-#endif
 }
 
 void key_cb(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -284,13 +253,11 @@ void key_cb(GLFWwindow* window, int key, int scancode, int action, int mods)
     App* app = static_cast<App*>(glfwGetWindowUserPointer(window));
     const bool pressed = action != GLFW_RELEASE;
 
-// Keys typed into a settings field (Ctrl+click on a slider) belong to that field.
-#ifdef GUI
+    // Keys typed into a settings field (Ctrl+click on a slider) belong to that field.
     if (ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantTextInput)
     {
         return;
     }
-#endif
 
     if (pressed && key == GLFW_KEY_ESCAPE)
     {
@@ -315,13 +282,12 @@ void App::updateCamera()
 
     myCamera.lmb = glfwGetMouseButton(GLFW_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
 
-// Letters typed into a settings field (Ctrl+click on a slider) must not move the camera.
-#ifdef GUI
+    // Letters typed into a settings field (Ctrl+click on a slider) must not move the
+    // camera.
     if (ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantTextInput)
     {
         return;
     }
-#endif
 
     if (glfwGetKey(GLFW_window, GLFW_KEY_W) == GLFW_PRESS)
     {
@@ -404,10 +370,8 @@ bool App::Init(int argc, char** argv)
 
     glfwSetWindowUserPointer(GLFW_window, this);
     glfwSetKeyCallback(GLFW_window, &key_cb);
-    glfwSetCharCallback(GLFW_window, &char_cb);
     glfwSetCursorPosCallback(GLFW_window, &cursorpos_cb);
     glfwSetMouseButtonCallback(GLFW_window, &mousebutton_cb);
-    glfwSetScrollCallback(GLFW_window, &scroll_cb);
     glfwSetFramebufferSizeCallback(GLFW_window, &framebuffersize_cb);
     return true;
 }
@@ -440,7 +404,6 @@ int main(int argc, char** argv)
         glfwPollEvents();
         app.updateCamera();
 
-#ifdef GUI
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
         if (app.m_show_gui)
@@ -451,7 +414,6 @@ int main(int argc, char** argv)
         {
             rtrt::drawPerfGUI(app);
         }
-#endif
 
         const double cpuEnd = glfwGetTime();
         VK.drawFrame();
