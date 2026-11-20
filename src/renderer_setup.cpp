@@ -1018,7 +1018,7 @@ void Renderer::postProcess()
         // tracer.
         PushConstantPost pcPost{
             m_exposure, m_gamma,
-            static_cast<uint32_t>(useRaytracer ? m_viewMode : eViewFinal)};
+            static_cast<uint32_t>(useRaytracer ? m_viewMode : kViewFinal)};
         vkCmdPushConstants(m_commandBuffer, m_postPipelineLayout,
                            VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstantPost),
                            &pcPost);

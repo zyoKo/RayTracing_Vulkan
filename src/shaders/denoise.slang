@@ -2,7 +2,7 @@
 
 #include "shared_structs.h"
 
-static const int GROUP_SIZE = 128;  // Must match GROUP_SIZE in vkapp_denoise.cpp
+static const int GROUP_SIZE = 128;  // Must match GROUP_SIZE in renderer_denoise.cpp
 
 [[vk::binding(0, 0)]] [[vk::image_format("rgba32f")]] RWTexture2D<float4> inImage;
 [[vk::binding(1, 0)]] [[vk::image_format("rgba32f")]] RWTexture2D<float4> outImage;
@@ -35,7 +35,7 @@ void main(uint3 dispatchId : SV_DispatchThreadID)
         for (int j = -2; j <= 2; j++)
         {
             // Offset of 5x5 pixels **with holes**
-            int2 pos = gpos + int2(i, j) * pc.stepwidth;
+            int2 pos = gpos + int2(i, j) * pc.StepWidth;
             float3 pKd = clamp(kdBuff.Load(pos).xyz, float3(0.1), float3(1.0));
             float3 pVal = inImage.Load(pos).xyz;
             float3 pDem = pVal / pKd;
@@ -49,15 +49,15 @@ void main(uint3 dispatchId : SV_DispatchThreadID)
             float v_weight = gaussian[j + 2];
             //  3: depth similarity, exp(-t^2 / depthFactor) (1 if factor is 0)
             float t = cDepth - pDepth;
-            float d_weight = pc.depthFactor == 0.0 ? 1.0 : exp(-(t * t) / pc.depthFactor);
+            float d_weight = pc.DepthFactor == 0.0 ? 1.0 : exp(-(t * t) / pc.DepthFactor);
             //  4: normal similarity, exp(-|cNrm - pNrm|^2 / stepwidth^2 / normFactor) (1 if factor is 0)
             float3 nDiff = cNrm - pNrm;
-            float d = dot(nDiff, nDiff) / float(pc.stepwidth * pc.stepwidth);
-            float n_weight = pc.normFactor == 0.0 ? 1.0 : exp(-d / pc.normFactor);
+            float d = dot(nDiff, nDiff) / float(pc.StepWidth * pc.StepWidth);
+            float n_weight = pc.NormFactor == 0.0 ? 1.0 : exp(-d / pc.NormFactor);
             //  5: albedo similarity; keeps specular light on dark-albedo pixels
             //     from bleeding onto brighter neighbours as a halo.
             float3 kdDiff = cKd - pKd;
-            float k_weight = pc.albedoFactor == 0.0 ? 1.0 : exp(-dot(kdDiff, kdDiff) / pc.albedoFactor);
+            float k_weight = pc.AlbedoFactor == 0.0 ? 1.0 : exp(-dot(kdDiff, kdDiff) / pc.AlbedoFactor);
 
             float weight = h_weight * v_weight * d_weight * n_weight * k_weight;
             numerator += pDem * weight;

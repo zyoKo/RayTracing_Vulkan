@@ -13,9 +13,9 @@ static const float PI = 3.14159265f;
 [[vk::binding(5, 0)]] [[vk::image_format("rgba32f")]] RWTexture2D<float4> KdCurr;
 [[vk::binding(6, 0)]] [[vk::image_format("rgba32f")]] RWTexture2D<float4> KdPrev;
 
-[[vk::binding(eMatrices, 1)]] ConstantBuffer<MatrixUniforms> mats;
-[[vk::binding(eObjDescs, 1)]] StructuredBuffer<ObjDesc> objDesc;
-[[vk::binding(eTextures, 1)]] Sampler2D textureSamplers[];
+[[vk::binding(kMatrices, 1)]] ConstantBuffer<MatrixUniforms> mats;
+[[vk::binding(kObjDescs, 1)]] StructuredBuffer<ObjDesc> objDesc;
+[[vk::binding(kTextures, 1)]] Sampler2D textureSamplers[];
 
 // Smith masking term for one direction (Walter et al. 2007). dotVN must be > 0.
 float G1(float dotVN, float dotVH, float alphaSqr)
@@ -35,8 +35,8 @@ float3 EvalBrdf(float3 N, float3 L, float3 V, Material mat)
     if (dotLN <= 0.0f || dotVN <= 0.0f)
         return float3(0.0f);
 
-    float3 Kd = mat.diffuse;
-    float3 Ks = mat.specular;
+    float3 Kd = mat.Diffuse;
+    float3 Ks = mat.Specular;
     float3 H = normalize(V + L);
 
     float dotHN = clamp(dot(H, N), 0.0f, 1.0f);
@@ -44,7 +44,7 @@ float3 EvalBrdf(float3 N, float3 L, float3 V, Material mat)
     float dotVH = clamp(dot(V, H), 0.0f, 1.0f);
 
     // shininess holds GGX roughness; the floor keeps D finite for near-mirror surfaces
-    float alpha = max(mat.shininess, 1e-3f);
+    float alpha = max(mat.Shininess, 1e-3f);
     float alphaSqr = alpha * alpha;
 
     // Schlick; the grazing value is scaled so materials authored with Ks = 0 stay non-specular
@@ -85,8 +85,8 @@ float3 SampleLobe(float3 A, float c, float phi)
 // reflectance of each. Clamped so that neither lobe is ever left unsampled.
 float SpecularProbability(float3 N, float3 V, Material mat)
 {
-    float f0 = max(mat.specular.r, max(mat.specular.g, mat.specular.b));
-    float kd = max(mat.diffuse.r, max(mat.diffuse.g, mat.diffuse.b));
+    float f0 = max(mat.Specular.r, max(mat.Specular.g, mat.Specular.b));
+    float kd = max(mat.Diffuse.r, max(mat.Diffuse.g, mat.Diffuse.b));
 
     float m = 1.0f - clamp(dot(N, V), 0.0f, 1.0f);
     float f90 = clamp(50.0f * f0, 0.0f, 1.0f);
@@ -124,7 +124,7 @@ float3 SampleGgx(inout uint seed, float3 N, float3 V, float alpha)
 float3 SampleBrdf(inout uint seed, float3 N, float3 V, Material mat)
 {
     if (rnd(seed) < SpecularProbability(N, V, mat))
-        return SampleGgx(seed, N, V, max(mat.shininess, 1e-3f));
+        return SampleGgx(seed, N, V, max(mat.Shininess, 1e-3f));
 
     float c = sqrt(rnd(seed));
     float phi = 2.0f * PI * rnd(seed);
@@ -143,7 +143,7 @@ float PdfBrdf(float3 N, float3 L, float3 V, Material mat)
     float dotHN = clamp(dot(H, N), 0.0f, 1.0f);
     float dotVH = clamp(dot(V, H), 0.0f, 1.0f);
 
-    float alpha = max(mat.shininess, 1e-3f);
+    float alpha = max(mat.Shininess, 1e-3f);
     float alphaSqr = alpha * alpha;
     float d = dotHN * dotHN * (alphaSqr - 1.0f) + 1.0f;
     float D = alphaSqr / (PI * d * d);
@@ -162,7 +162,7 @@ void rayGenMain()
     uint2 launchSize = DispatchRaysDimensions().xy;
 
     // Push-constant layout check (see alignmentTest in shared_structs.h)
-    if (pcRay.alignmentTest != 1234)
+    if (pcRay.AlignmentTest != 1234)
     {
         colCurr.Store(pixel, float4(1, 0, 0, 0));
         return;
@@ -171,8 +171,8 @@ void rayGenMain()
     float2 pixelCenter = float2(pixel) + float2(0.5);
     float2 pixelNDC = pixelCenter / float2(launchSize) * 2.0 - 1.0;
 
-    float3 eyeW = mul(mats.viewInverse, float4(0, 0, 0, 1)).xyz;
-    float4 pixelH = mul(mats.viewInverse, mul(mats.projInverse, float4(pixelNDC.x, pixelNDC.y, 1, 1)));
+    float3 eyeW = mul(mats.ViewInverse, float4(0, 0, 0, 1)).xyz;
+    float4 pixelH = mul(mats.ViewInverse, mul(mats.ProjInverse, float4(pixelNDC.x, pixelNDC.y, 1, 1)));
     float3 pixelW = pixelH.xyz / pixelH.w;
 
     RayDesc ray;
@@ -182,7 +182,7 @@ void rayGenMain()
     ray.TMax = 10000.0;
 
     RayPayload payload;
-    payload.seed = tea(pixel.y * launchSize.x + pixel.x, pcRay.frameSeed);
+    payload.Seed = tea(pixel.y * launchSize.x + pixel.x, pcRay.FrameSeed);
     float3 C = float3(0.0);
     float3 W = float3(1.0);
 
@@ -192,45 +192,45 @@ void rayGenMain()
     float3 firstNrm = float3(0.0f);
     float3 firstKd = float3(0.0f);
 
-    // Paths end by Russian roulette below; pcRay.depth is only an upper limit on their length.
-    for (int i = 0; i < pcRay.depth; ++i)
+    // Paths end by Russian roulette below; pcRay.Depth is only an upper limit on their length.
+    for (int i = 0; i < pcRay.Depth; ++i)
     {
         TraceRay(topLevelAS, RAY_FLAG_FORCE_OPAQUE, 0xFF, 0, 0, 0, ray, payload);
 
-        if (!payload.hit)
+        if (!payload.Hit)
             break;
 
-        ObjDesc objResources = objDesc[payload.instanceIndex];
-        Vertex* vertices = (Vertex*)objResources.vertexAddress;
-        int3* indices = (int3*)objResources.indexAddress;
-        Material* materials = (Material*)objResources.materialAddress;
-        int* matIndices = (int*)objResources.materialIndexAddress;
+        ObjDesc objResources = objDesc[payload.InstanceIndex];
+        Vertex* vertices = (Vertex*)objResources.VertexAddress;
+        int3* indices = (int3*)objResources.IndexAddress;
+        Material* materials = (Material*)objResources.MaterialAddress;
+        int* matIndices = (int*)objResources.MaterialIndexAddress;
 
-        int3 ind = indices[payload.primitiveIndex];
-        Material mat = materials[matIndices[payload.primitiveIndex]];
+        int3 ind = indices[payload.PrimitiveIndex];
+        Material mat = materials[matIndices[payload.PrimitiveIndex]];
 
         Vertex v0 = vertices[ind.x];
         Vertex v1 = vertices[ind.y];
         Vertex v2 = vertices[ind.z];
 
-        float3 bc = payload.bc;
-        float3 nrm = bc.x * v0.nrm + bc.y * v1.nrm + bc.z * v2.nrm;
-        float2 uv = bc.x * v0.texCoord + bc.y * v1.texCoord + bc.z * v2.texCoord;
+        float3 bc = payload.Bc;
+        float3 nrm = bc.x * v0.Nrm + bc.y * v1.Nrm + bc.z * v2.Nrm;
+        float2 uv = bc.x * v0.TexCoord + bc.y * v1.TexCoord + bc.z * v2.TexCoord;
 
-        if (mat.textureId >= 0)
+        if (mat.TextureId >= 0)
         {
-            uint txtId = objResources.txtOffset + mat.textureId;
-            mat.diffuse = textureSamplers[NonUniformResourceIndex(txtId)].SampleLevel(uv, 0).xyz;
+            uint txtId = objResources.TxtOffset + mat.TextureId;
+            mat.Diffuse = textureSamplers[NonUniformResourceIndex(txtId)].SampleLevel(uv, 0).xyz;
         }
 
-        if (!pcRay.fullBRDF)
-            mat.specular = float3(0.0f);
+        if (!pcRay.FullBrdf)
+            mat.Specular = float3(0.0f);
 
         // Instances have culling disabled, so back faces are hit: orient the normals towards
         // the incoming ray. The shading normal falls back to the geometric one if it faces away.
         float3 Wo = -ray.Direction;
 
-        float3 Ng = cross(v1.pos - v0.pos, v2.pos - v0.pos);
+        float3 Ng = cross(v1.Pos - v0.Pos, v2.Pos - v0.Pos);
         Ng = dot(Ng, Ng) > 0.0f ? normalize(Ng) : Wo;
         if (dot(Ng, Wo) < 0.0f)
             Ng = -Ng;
@@ -244,19 +244,19 @@ void rayGenMain()
         if (i == 0)
         {
             firstHit = true;
-            firstPos = payload.hitPos;
-            firstDepth = mul(mats.viewProj, float4(payload.hitPos, 1.0f)).w;  // View-space depth
+            firstPos = payload.HitPos;
+            firstDepth = mul(mats.ViewProj, float4(payload.HitPos, 1.0f)).w;  // View-space depth
             firstNrm = N;
-            firstKd = mat.diffuse;
+            firstKd = mat.Diffuse;
         }
 
-        if (dot(mat.emission, mat.emission) > 0.0f)
+        if (dot(mat.Emission, mat.Emission) > 0.0f)
         {
-            C += mat.emission * pcRay.emissionScale * W;
+            C += mat.Emission * pcRay.EmissionScale * W;
             break;
         }
 
-        float3 Wi = SampleBrdf(payload.seed, N, Wo, mat);
+        float3 Wi = SampleBrdf(payload.Seed, N, Wo, mat);
 
         // A GGX sample can reflect below N, and a shading normal can send the sample
         // through the surface it was generated from. Neither carries any energy.
@@ -271,22 +271,22 @@ void rayGenMain()
 
         W *= f / p;
 
-        if (rnd(payload.seed) >= pcRay.rr)
+        if (rnd(payload.Seed) >= pcRay.Rr)
             break;
-        W /= pcRay.rr;
+        W /= pcRay.Rr;
 
-        ray.Origin = payload.hitPos;
+        ray.Origin = payload.HitPos;
         ray.Direction = Wi;
     }
 
     float4 P = float4(0.0f);
     float total_weight = 0.0f;
 
-    if (firstHit && pcRay.useHistory && !pcRay.clear)
+    if (firstHit && pcRay.UseHistory && !pcRay.Clear)
     {
         // Reproject into the prior frame. For this projection clip w is view-space depth, so
         // screenH.w is the depth this point should have recorded in NdPrev last frame.
-        float4 screenH = mul(mats.priorViewProj, float4(firstPos, 1.0f));
+        float4 screenH = mul(mats.PriorViewProj, float4(firstPos, 1.0f));
 
         if (screenH.w > 0.0f)
         {
@@ -310,9 +310,9 @@ void rayGenMain()
                         float4 prevNd = NdPrev.Load(loc);
 
                         // d_threshold is the allowed depth difference, as a fraction of the depth
-                        if (abs(screenH.w - prevNd.w) >= pcRay.d_threshold * screenH.w)
+                        if (abs(screenH.w - prevNd.w) >= pcRay.DepthThreshold * screenH.w)
                             continue;
-                        if (dot(firstNrm, prevNd.xyz) <= pcRay.n_threshold)
+                        if (dot(firstNrm, prevNd.xyz) <= pcRay.NormalThreshold)
                             continue;
 
                         float bilinear_weight = (i == 0 ? 1.0f - offset.x : offset.x)
@@ -337,8 +337,8 @@ void rayGenMain()
         oldAve = P.xyz;
 
         // Limiting the count keeps new samples weighted at 1/maxSamples or more
-        if (pcRay.maxSamples > 0.0f)
-            oldN = min(oldN, pcRay.maxSamples - 1.0f);
+        if (pcRay.MaxSamples > 0.0f)
+            oldN = min(oldN, pcRay.MaxSamples - 1.0f);
     }
 
     // A non-finite sample must not enter the running average, so it is dropped.
@@ -359,7 +359,7 @@ void rayGenMain()
 [shader("miss")]
 void missMain(inout RayPayload payload)
 {
-    payload.hit = false;
+    payload.Hit = false;
 }
 
 [shader("miss")]
@@ -371,10 +371,10 @@ void shadowMissMain(inout RayPayload payload)
 void closestHitMain(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr)
 {
     float2 bc = attr.barycentrics;
-    payload.hit = true;
-    payload.hitDist = RayTCurrent();
-    payload.instanceIndex = InstanceID();
-    payload.primitiveIndex = PrimitiveIndex();
-    payload.bc = float3(1.0 - bc.x - bc.y, bc.x, bc.y);
-    payload.hitPos = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+    payload.Hit = true;
+    payload.HitDist = RayTCurrent();
+    payload.InstanceIndex = InstanceID();
+    payload.PrimitiveIndex = PrimitiveIndex();
+    payload.Bc = float3(1.0 - bc.x - bc.y, bc.x, bc.y);
+    payload.HitPos = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
 }

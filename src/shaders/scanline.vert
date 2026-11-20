@@ -35,12 +35,12 @@ out gl_PerVertex
 
 void main()
 {
-  vec3 eye = vec3(mats.viewInverse * vec4(0, 0, 0, 1));
+  vec3 eye = vec3(mats.ViewInverse * vec4(0, 0, 0, 1));
 
-  worldPos = vec3(pcRaster.modelMatrix * vec4(i_position, 1.0));
+  worldPos = vec3(pcRaster.ModelMatrix * vec4(i_position, 1.0));
   viewDir  = vec3(eye - worldPos);
   texCoord = i_texCoord;
-  worldNrm = mat3(pcRaster.modelMatrix) * i_normal;
+  worldNrm = mat3(pcRaster.ModelMatrix) * i_normal;
 
-  gl_Position = mats.viewProj * vec4(worldPos, 1.0);
+  gl_Position = mats.ViewProj * vec4(worldPos, 1.0);
 }

@@ -11,10 +11,10 @@ hitAttributeEXT vec2 bc;  // Hit point's barycentric coordinates (two of them)
 
 void main()
 {
-    payload.hit = true;
-    payload.hitDist = gl_HitTEXT;
-    payload.instanceIndex = gl_InstanceCustomIndexEXT;
-    payload.primitiveIndex = gl_PrimitiveID;
-    payload.bc = vec3(1.0-bc.x-bc.y, bc.x, bc.y);
-    payload.hitPos = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
+    payload.Hit = true;
+    payload.HitDist = gl_HitTEXT;
+    payload.InstanceIndex = gl_InstanceCustomIndexEXT;
+    payload.PrimitiveIndex = gl_PrimitiveID;
+    payload.Bc = vec3(1.0-bc.x-bc.y, bc.x, bc.y);
+    payload.HitPos = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
 }

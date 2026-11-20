@@ -95,7 +95,7 @@ void Renderer::drawFrame()
         if (useRaytracer)
         {
             raytrace();
-            if (m_denoiseEnabled && m_viewMode == eViewFinal)
+            if (m_denoiseEnabled && m_viewMode == kViewFinal)
             {
                 denoise();
             }

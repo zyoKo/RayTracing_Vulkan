@@ -126,22 +126,22 @@ void drawGUI(Renderer& VK)
 
     if (ImGui::CollapsingHeader("Path tracer", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        resetHistory |= ImGui::Checkbox("Specular", &VK.m_pcRay.fullBRDF);
+        resetHistory |= ImGui::Checkbox("Specular", &VK.m_pcRay.FullBrdf);
         resetHistory |=
-            ImGui::SliderFloat("Survival chance", &VK.m_pcRay.rr, 0.1f, 0.95f, "%.2f");
-        resetHistory |= ImGui::SliderInt("Max path length", &VK.m_pcRay.depth, 1, 32);
-        resetHistory |= ImGui::SliderFloat("Emission scale", &VK.m_pcRay.emissionScale,
+            ImGui::SliderFloat("Survival chance", &VK.m_pcRay.Rr, 0.1f, 0.95f, "%.2f");
+        resetHistory |= ImGui::SliderInt("Max path length", &VK.m_pcRay.Depth, 1, 32);
+        resetHistory |= ImGui::SliderFloat("Emission scale", &VK.m_pcRay.EmissionScale,
                                            0.0f, 5.0f, "%.2f");
     }
 
     if (ImGui::CollapsingHeader("Temporal history", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        ImGui::Checkbox("Use history", &VK.m_pcRay.useHistory);
-        ImGui::SliderFloat("Normal threshold", &VK.m_pcRay.n_threshold, 0.0f, 1.0f,
+        ImGui::Checkbox("Use history", &VK.m_pcRay.UseHistory);
+        ImGui::SliderFloat("Normal threshold", &VK.m_pcRay.NormalThreshold, 0.0f, 1.0f,
                            "%.2f");
-        ImGui::SliderFloat("Depth threshold", &VK.m_pcRay.d_threshold, 0.001f, 0.2f,
+        ImGui::SliderFloat("Depth threshold", &VK.m_pcRay.DepthThreshold, 0.001f, 0.2f,
                            "%.3f");
-        ImGui::SliderFloat("Max samples (0 = off)", &VK.m_pcRay.maxSamples, 0.0f, 4096.0f,
+        ImGui::SliderFloat("Max samples (0 = off)", &VK.m_pcRay.MaxSamples, 0.0f, 4096.0f,
                            "%.0f", ImGuiSliderFlags_Logarithmic);
         if (ImGui::Button("Reset history"))
         {
@@ -153,11 +153,11 @@ void drawGUI(Renderer& VK)
     {
         ImGui::Checkbox("Enabled", &VK.m_denoiseEnabled);
         ImGui::SliderInt("Iterations", &VK.m_num_atrous_iterations, 0, 8);
-        ImGui::SliderFloat("Normal factor", &VK.m_pcDenoise.normFactor, 0.0f, 0.1f,
+        ImGui::SliderFloat("Normal factor", &VK.m_pcDenoise.NormFactor, 0.0f, 0.1f,
                            "%.4f", ImGuiSliderFlags_Logarithmic);
-        ImGui::SliderFloat("Depth factor", &VK.m_pcDenoise.depthFactor, 0.0f, 0.1f,
+        ImGui::SliderFloat("Depth factor", &VK.m_pcDenoise.DepthFactor, 0.0f, 0.1f,
                            "%.4f", ImGuiSliderFlags_Logarithmic);
-        ImGui::SliderFloat("Albedo factor", &VK.m_pcDenoise.albedoFactor, 0.0f, 1.0f,
+        ImGui::SliderFloat("Albedo factor", &VK.m_pcDenoise.AlbedoFactor, 0.0f, 1.0f,
                            "%.3f", ImGuiSliderFlags_Logarithmic);
     }
 

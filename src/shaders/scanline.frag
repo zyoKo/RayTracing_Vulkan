@@ -31,40 +31,40 @@ layout(buffer_reference, scalar) buffer Indices {uint i[]; };       // Triangle 
 layout(buffer_reference, scalar) buffer Materials {Material m[]; }; // Array of materials
 layout(buffer_reference, scalar) buffer MatIndices {int i[]; };     // Material ID for each triangle
 
-layout(binding=eObjDescs, scalar) buffer ObjDesc_ { ObjDesc i[]; } objDesc;
-layout(binding=eTextures) uniform sampler2D[] textureSamplers;
+layout(binding=kObjDescs, scalar) buffer ObjDesc_ { ObjDesc i[]; } objDesc;
+layout(binding=kTextures) uniform sampler2D[] textureSamplers;
 
 float pi = 3.14159;
 void main()
 {
   // Material of the object
-  ObjDesc    obj = objDesc.i[pcRaster.objIndex];
-  MatIndices matIndices  = MatIndices(obj.materialIndexAddress);
-  Materials  materials   = Materials(obj.materialAddress);
+  ObjDesc    obj = objDesc.i[pcRaster.ObjIndex];
+  MatIndices matIndices  = MatIndices(obj.MaterialIndexAddress);
+  Materials  materials   = Materials(obj.MaterialAddress);
   
   int matIndex = matIndices.i[gl_PrimitiveID];
   Material mat = materials.m[matIndex];
   
   vec3 N = normalize(worldNrm);
   vec3 V = normalize(viewDir);
-  vec3 lDir = pcRaster.lightPosition - worldPos;
+  vec3 lDir = pcRaster.LightPosition - worldPos;
   vec3 L = normalize(lDir);
 
   float NL = max(dot(N,L),0.0);
 
   
-  vec3 Kd = mat.diffuse;
-  vec3 Ks = mat.specular;
-  const float alpha = mat.shininess;
+  vec3 Kd = mat.Diffuse;
+  vec3 Ks = mat.Specular;
+  const float alpha = mat.Shininess;
   
-  if (mat.textureId >= 0)
+  if (mat.TextureId >= 0)
   {
-    int  txtOffset  = obj.txtOffset;
-    uint txtId      = txtOffset + mat.textureId;
+    int  txtOffset  = obj.TxtOffset;
+    uint txtId      = txtOffset + mat.TextureId;
     Kd = texture(textureSamplers[nonuniformEXT(txtId)], texCoord).xyz;
   }
   
   // This very minimal lighting calculation should be replaced with a modern BRDF calculation. 
-  fragColor.xyz = pcRaster.lightIntensity*NL*Kd/pi;
+  fragColor.xyz = pcRaster.LightIntensity*NL*Kd/pi;
 
 }

@@ -83,7 +83,7 @@ void Renderer::denoise()
     for (int a = 0; a < m_num_atrous_iterations; a++)
     {
         // Tell the A-Trous algorithm its "hole" size
-        m_pcDenoise.stepwidth = stepwidth;
+        m_pcDenoise.StepWidth = stepwidth;
         stepwidth *= 2;
 
         // Select the compute shader, and its descriptor set and push constant

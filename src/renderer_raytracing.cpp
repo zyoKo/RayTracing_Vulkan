@@ -46,22 +46,22 @@ void Renderer::createRtBuffers()
 void Renderer::setDefaultSettings()
 {
     // Russian roulette survival chance, tested per bounce in the shader
-    m_pcRay.rr = 0.7f;
-    m_pcRay.depth = 16;  // Upper limit on path length; 0.7^16 of paths would reach it
-    m_pcRay.emissionScale = 1.0f;
-    m_pcRay.fullBRDF = true;
-    m_pcRay.useHistory = true;
-    m_pcRay.n_threshold = 0.80f;
-    m_pcRay.d_threshold = 0.04f;
-    m_pcRay.maxSamples = 0.0f;
+    m_pcRay.Rr = 0.7f;
+    m_pcRay.Depth = 16;  // Upper limit on path length; 0.7^16 of paths would reach it
+    m_pcRay.EmissionScale = 1.0f;
+    m_pcRay.FullBrdf = true;
+    m_pcRay.UseHistory = true;
+    m_pcRay.NormalThreshold = 0.80f;
+    m_pcRay.DepthThreshold = 0.04f;
+    m_pcRay.MaxSamples = 0.0f;
 
     m_denoiseEnabled = true;
     m_num_atrous_iterations = 5;
-    m_pcDenoise.normFactor = 0.003f;
-    m_pcDenoise.depthFactor = 0.007f;
-    m_pcDenoise.albedoFactor = 0.1f;
+    m_pcDenoise.NormFactor = 0.003f;
+    m_pcDenoise.DepthFactor = 0.007f;
+    m_pcDenoise.AlbedoFactor = 0.1f;
 
-    m_viewMode = eViewFinal;
+    m_viewMode = kViewFinal;
     m_exposure = 1.0f;
     m_gamma = 2.2f;
 
@@ -375,13 +375,13 @@ void Renderer::raytrace()
 {
     // The push constants for the ray tracing pipeline.
     // These are temporary -- used only for ray casting step.
-    m_pcRay.alignmentTest = 1234;
-    m_pcRay.tempLightPos = vec4(0.5f, 2.5f, 3.0f, 0.0);
-    m_pcRay.tempLightInt = vec4(2.5, 2.5, 2.5, 0.0);
-    m_pcRay.tempAmbient = vec4(0.2f);
+    m_pcRay.AlignmentTest = 1234;
+    m_pcRay.TempLightPos = vec4(0.5f, 2.5f, 3.0f, 0.0);
+    m_pcRay.TempLightInt = vec4(2.5, 2.5, 2.5, 0.0);
+    m_pcRay.TempAmbient = vec4(0.2f);
 
-    m_pcRay.frameSeed = rand() % 32768;
-    m_pcRay.clear = m_resetHistory;
+    m_pcRay.FrameSeed = rand() % 32768;
+    m_pcRay.Clear = m_resetHistory;
     m_resetHistory = false;
 
     // Bind the ray tracing pipeline
@@ -410,11 +410,11 @@ void Renderer::raytrace()
     // Copy the ray tracer output image to the scanline output image
     // -- because we already have the operations needed to display
     // that image on the screen.  The debug views show a G-buffer image instead.
-    if (m_viewMode == eViewAlbedo)
+    if (m_viewMode == kViewAlbedo)
     {
         CmdCopyImage(m_rtKdCurrBuffer, m_scImageBuffer);
     }
-    else if (m_viewMode == eViewNormal || m_viewMode == eViewDepth)
+    else if (m_viewMode == kViewNormal || m_viewMode == kViewDepth)
     {
         CmdCopyImage(m_rtNdCurrBuffer, m_scImageBuffer);
     }

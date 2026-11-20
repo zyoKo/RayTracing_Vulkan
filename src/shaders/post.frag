@@ -12,7 +12,7 @@ layout(push_constant) uniform _PushConstantPost { PushConstantPost pc; };
 
 vec3 gammaEncode(vec3 color)
 {
-    return pow(max(color, vec3(0.0)), vec3(1.0/pc.gamma));
+    return pow(max(color, vec3(0.0)), vec3(1.0/pc.Gamma));
 }
 
 void main()
@@ -20,16 +20,16 @@ void main()
     vec4 value = texelFetch(renderedImage, ivec2(gl_FragCoord.xy), 0);
 
     vec3 color;
-    if (pc.viewMode == eViewAlbedo)
+    if (pc.ViewMode == kViewAlbedo)
         color = gammaEncode(value.xyz);
-    else if (pc.viewMode == eViewNormal)
+    else if (pc.ViewMode == kViewNormal)
         color = value.xyz * 0.5 + 0.5;
-    else if (pc.viewMode == eViewDepth)
+    else if (pc.ViewMode == kViewDepth)
         color = vec3(value.w / 15.0);
-    else if (pc.viewMode == eViewSamples)
+    else if (pc.ViewMode == kViewSamples)
         color = vec3(log2(1.0 + value.w) / 12.0);  // White at 4095 samples
     else
-        color = gammaEncode(value.xyz * pc.exposure);
+        color = gammaEncode(value.xyz * pc.Exposure);
 
     fragColor = vec4(color, 1.0);
 }

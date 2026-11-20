@@ -15,7 +15,7 @@ float4 vertexMain(uint vertexId : SV_VulkanVertexID) : SV_Position
 
 float3 gammaEncode(float3 color)
 {
-    return pow(max(color, float3(0.0)), float3(1.0 / pc.gamma));
+    return pow(max(color, float3(0.0)), float3(1.0 / pc.Gamma));
 }
 
 [shader("fragment")]
@@ -24,16 +24,16 @@ float4 fragmentMain(float4 fragCoord : SV_Position) : SV_Target0
     float4 value = renderedImage.Load(int3(int2(fragCoord.xy), 0));
 
     float3 color;
-    if (pc.viewMode == eViewAlbedo)
+    if (pc.ViewMode == kViewAlbedo)
         color = gammaEncode(value.xyz);
-    else if (pc.viewMode == eViewNormal)
+    else if (pc.ViewMode == kViewNormal)
         color = value.xyz * 0.5 + 0.5;
-    else if (pc.viewMode == eViewDepth)
+    else if (pc.ViewMode == kViewDepth)
         color = float3(value.w / 15.0);
-    else if (pc.viewMode == eViewSamples)
+    else if (pc.ViewMode == kViewSamples)
         color = float3(log2(1.0 + value.w) / 12.0);  // White at 4095 samples
     else
-        color = gammaEncode(value.xyz * pc.exposure);
+        color = gammaEncode(value.xyz * pc.Exposure);
 
     return float4(color, 1.0);
 }

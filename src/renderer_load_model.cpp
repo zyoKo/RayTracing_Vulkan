@@ -69,23 +69,23 @@ void Renderer::myloadModel(const std::string& filename, const glm::mat4& transfo
     // The model's emitters are too dim as authored; boost them.
     for (auto& material : meshdata.materials)
     {
-        if (material.emission != vec3(0))
+        if (material.Emission != vec3(0))
         {
-            material.emission *= 2.5f;
+            material.Emission *= 2.5f;
         }
     }
 
     // Collect emissive geometry as a list of light-emitting triangles
     for (int i = 0; i < meshdata.materials.size(); ++i)
     {
-        if (meshdata.materials[i].emission != vec3(0.0f))
+        if (meshdata.materials[i].Emission != vec3(0.0f))
         {
             Emitter emitter;
-            emitter.v0 = meshdata.vertices[meshdata.indicies[i * 3]].pos;
-            emitter.v1 = meshdata.vertices[meshdata.indicies[3 * i + 1]].pos;
-            emitter.v2 = meshdata.vertices[meshdata.indicies[3 * i + 2]].pos;
-            emitter.emission = 4.0f * meshdata.materials[i].emission;
-            emitter.index = i;
+            emitter.V0 = meshdata.vertices[meshdata.indicies[i * 3]].Pos;
+            emitter.V1 = meshdata.vertices[meshdata.indicies[3 * i + 1]].Pos;
+            emitter.V2 = meshdata.vertices[meshdata.indicies[3 * i + 2]].Pos;
+            emitter.Emission = 4.0f * meshdata.materials[i].Emission;
+            emitter.Index = i;
 
             lightList.push_back(emitter);
         }
@@ -130,11 +130,11 @@ void Renderer::myloadModel(const std::string& filename, const glm::mat4& transfo
 
     // Creating information for device access
     ObjDesc desc;
-    desc.txtOffset = txtOffset;
-    desc.vertexAddress = getBufferDeviceAddress(m_device, object.vertexBuffer.buffer);
-    desc.indexAddress = getBufferDeviceAddress(m_device, object.indexBuffer.buffer);
-    desc.materialAddress = getBufferDeviceAddress(m_device, object.matColorBuffer.buffer);
-    desc.materialIndexAddress =
+    desc.TxtOffset = txtOffset;
+    desc.VertexAddress = getBufferDeviceAddress(m_device, object.vertexBuffer.buffer);
+    desc.IndexAddress = getBufferDeviceAddress(m_device, object.indexBuffer.buffer);
+    desc.MaterialAddress = getBufferDeviceAddress(m_device, object.matColorBuffer.buffer);
+    desc.MaterialIndexAddress =
         getBufferDeviceAddress(m_device, object.matIndexBuffer.buffer);
 
     m_objData.emplace_back(object);
@@ -201,11 +201,11 @@ void ModelData::readAssimpFile(const std::string& path, const mat4& M)
         if (!emit.IsBlack())
         {
             // An emitter needs (1,1,1), else black screen!  WTF???
-            newmat.diffuse = {1, 1, 1};
-            newmat.specular = {0, 0, 0};
-            newmat.shininess = 0.0;
-            newmat.emission = {emit.r, emit.g, emit.b};
-            newmat.textureId = -1;
+            newmat.Diffuse = {1, 1, 1};
+            newmat.Specular = {0, 0, 0};
+            newmat.Shininess = 0.0;
+            newmat.Emission = {emit.r, emit.g, emit.b};
+            newmat.TextureId = -1;
         }
 
         else
@@ -220,12 +220,12 @@ void ModelData::readAssimpFile(const std::string& path, const mat4& M)
             {
                 Ks = vec3(spec.r, spec.g, spec.b);
             }
-            newmat.diffuse = {Kd[0], Kd[1], Kd[2]};
-            newmat.specular = {Ks[0], Ks[1], Ks[2]};
+            newmat.Diffuse = {Kd[0], Kd[1], Kd[2]};
+            newmat.Specular = {Ks[0], Ks[1], Ks[2]};
             // Phong exponent -> GGX roughness
-            newmat.shininess = sqrtf(2.0f / (2.0f + alpha));
-            newmat.emission = {0, 0, 0};
-            newmat.textureId = -1;
+            newmat.Shininess = sqrtf(2.0f / (2.0f + alpha));
+            newmat.Emission = {0, 0, 0};
+            newmat.TextureId = -1;
         }
 
         aiString texPath;
@@ -234,7 +234,7 @@ void ModelData::readAssimpFile(const std::string& path, const mat4& M)
             fs::path fullPath = path;
             fullPath.replace_filename(texPath.C_Str());
             printf("Texture: %ls\n", fullPath.c_str());
-            newmat.textureId = textures.size();
+            newmat.TextureId = textures.size();
             auto xxx = fullPath.u8string();
             textures.push_back(std::string(xxx));
         }

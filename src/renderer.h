@@ -77,7 +77,7 @@ public:
     int frameCount = 0;  // Frames rendered since the history was last reset
     bool m_resetHistory = false;
     bool m_denoiseEnabled = true;
-    int m_viewMode = eViewFinal;
+    int m_viewMode = kViewFinal;
     float m_exposure = 1.0f;
     float m_gamma = 2.2f;
     void setDefaultSettings();

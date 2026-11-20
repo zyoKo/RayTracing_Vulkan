@@ -1,5 +1,5 @@
-#ifndef COMMON_HOST_DEVICE
-#define COMMON_HOST_DEVICE
+#ifndef RTRT_SRC_SHADERS_SHARED_STRUCTS_H_
+#define RTRT_SRC_SHADERS_SHARED_STRUCTS_H_
 
 #ifdef __cplusplus
 #include <glm/glm.hpp>
@@ -24,35 +24,35 @@ typealias mat4 = float4x4;
 
 // clang-format off
 #ifdef __cplusplus // Descriptor binding helper for C++, GLSL and Slang
-#define START_ENUM(a) enum a {
-#define END_ENUM() }
+#define RTRT_START_ENUM(a) enum a {
+#define RTRT_END_ENUM() }
 #elif defined(__SLANG__)
-#define START_ENUM(a)  static const uint
-#define END_ENUM()
+#define RTRT_START_ENUM(a)  static const uint
+#define RTRT_END_ENUM()
 #else
-#define START_ENUM(a)  const uint
-#define END_ENUM() 
+#define RTRT_START_ENUM(a)  const uint
+#define RTRT_END_ENUM() 
 #endif
 
-START_ENUM(ScBindings)
-eMatrices = 0,  // Global uniform containing camera matrices
-eObjDescs = 1,  // Access to the object descriptions
-eTextures = 2   // Access to textures
-END_ENUM();
+RTRT_START_ENUM(ScBindings)
+kMatrices = 0,  // Global uniform containing camera matrices
+kObjDescs = 1,  // Access to the object descriptions
+kTextures = 2   // Access to textures
+RTRT_END_ENUM();
 
-START_ENUM(RtBindings)
-eTlas = 0,  // Top-level acceleration structure
-eOutImage = 1,   // Ray tracer output image
-eColorHistoryImage = 2
-END_ENUM();
+RTRT_START_ENUM(RtBindings)
+kTlas = 0,  // Top-level acceleration structure
+kOutImage = 1,   // Ray tracer output image
+kColorHistoryImage = 2
+RTRT_END_ENUM();
 
-START_ENUM(ViewModes)
-eViewFinal = 0,    // Tone-mapped result
-eViewAlbedo = 1,   // First-hit diffuse color
-eViewNormal = 2,   // First-hit normal
-eViewDepth = 3,    // First-hit view-space depth
-eViewSamples = 4   // Accumulated sample count per pixel
-END_ENUM();
+RTRT_START_ENUM(ViewModes)
+kViewFinal = 0,    // Tone-mapped result
+kViewAlbedo = 1,   // First-hit diffuse color
+kViewNormal = 2,   // First-hit normal
+kViewDepth = 3,    // First-hit view-space depth
+kViewSamples = 4   // Accumulated sample count per pixel
+RTRT_END_ENUM();
 // clang-format on
 
 
@@ -60,58 +60,58 @@ END_ENUM();
 // Information of a obj model when referenced in a shader
 struct ObjDesc
 {
-    int      txtOffset;             // Texture index offset in the array of textures
-    uint64_t vertexAddress;         // Address of the Vertex buffer
-    uint64_t indexAddress;          // Address of the index buffer
-    uint64_t materialAddress;       // Address of the material buffer
-    uint64_t materialIndexAddress;  // Address of the triangle material index buffer
+    int      TxtOffset;             // Texture index offset in the array of textures
+    uint64_t VertexAddress;         // Address of the Vertex buffer
+    uint64_t IndexAddress;          // Address of the index buffer
+    uint64_t MaterialAddress;       // Address of the material buffer
+    uint64_t MaterialIndexAddress;  // Address of the triangle material index buffer
 };
 
 // An emitter
 struct Emitter
 {
-    vec3 v0;
-    vec3 v1;
-    vec3 v2;
-    vec3 emission;
-    vec3 normal;
-    float area;
-    uint index;
+    vec3 V0;
+    vec3 V1;
+    vec3 V2;
+    vec3 Emission;
+    vec3 Normal;
+    float Area;
+    uint Index;
 };
 
 // Uniform buffer set at each frame
 struct MatrixUniforms
 {
-    mat4 viewProj;      // Camera view * projection
-    mat4 priorViewProj; // Camera view * projection
-    mat4 viewInverse;   // Camera inverse view matrix
-    mat4 projInverse;   // Camera inverse projection matrix
+    mat4 ViewProj;      // Camera view * projection
+    mat4 PriorViewProj; // Camera view * projection
+    mat4 ViewInverse;   // Camera inverse view matrix
+    mat4 ProjInverse;   // Camera inverse projection matrix
 };
 
 // Push constant structure for the raster
 struct PushConstantRaster
 {
-    mat4  modelMatrix;  // matrix of the instance
-    vec3  lightPosition;
-    uint  objIndex;
-    float lightIntensity;
-    int   lightType;
+    mat4  ModelMatrix;  // matrix of the instance
+    vec3  LightPosition;
+    uint  ObjIndex;
+    float LightIntensity;
+    int   LightType;
 };
 
 
 #ifdef __cplusplus
-#define ALIGNAS(N) alignas(N)
+#define RTRT_ALIGNAS(N) alignas(N)
 #else
-#define ALIGNAS(N)
+#define RTRT_ALIGNAS(N)
 #endif
 
 // For structures used by both C++ and GLSL, byte alignment
 // differs between the two languages.  Ints, uints, and floats align
 // nicely, but bool's do not.
-//  Use ALIGNAS(4) to align bools.
-//  Use ALIGNAS(4) or not for ints, uints, and floats as they naturally align to 4 byte boundaries.
-//  Use ALIGNAS(16) for vec3 and vec4, and probably mat4 (untested).
-// PushConstantRay ends with a sentinel (alignmentTest) that the C++ side
+//  Use RTRT_ALIGNAS(4) to align bools.
+//  Use RTRT_ALIGNAS(4) or not for ints, uints, and floats as they naturally align to 4 byte boundaries.
+//  Use RTRT_ALIGNAS(16) for vec3 and vec4, and probably mat4 (untested).
+// PushConstantRay ends with a sentinel (AlignmentTest) that the C++ side
 // sets to 1234 and raytrace.rgen checks, filling the screen with an error
 // color on mismatch. A misaligned layout also trips validation error
 // VUID-VkRayTracingPipelineCreateInfoKHR-layout-03427.
@@ -119,68 +119,68 @@ struct PushConstantRaster
 // Push constant structure for the ray tracer
 struct PushConstantRay
 {
-    ALIGNAS(4) uint frameSeed;
-    ALIGNAS(4) int depth;
-    ALIGNAS(4) float rr;
-    ALIGNAS(16) vec4 tempLightPos;
-    ALIGNAS(16) vec4 tempLightInt;
-    ALIGNAS(16) vec4 tempAmbient;
-    ALIGNAS(4) bool fullBRDF;
-    ALIGNAS(4) bool bilinear;
-    ALIGNAS(4) float n_threshold;
-    ALIGNAS(4) float d_threshold;
-    ALIGNAS(4) bool accumulate;
-    ALIGNAS(4) bool useHistory;
-    ALIGNAS(4) bool doExplicit;
-    ALIGNAS(4) bool clear;
-    ALIGNAS(4) float emissionScale;
-    ALIGNAS(4) float maxSamples;  // Limit on the history's sample count; 0 means no limit
-    ALIGNAS(4) int alignmentTest; // Sentinel (1234) for checking host/shader layout agreement
+    RTRT_ALIGNAS(4) uint FrameSeed;
+    RTRT_ALIGNAS(4) int Depth;
+    RTRT_ALIGNAS(4) float Rr;
+    RTRT_ALIGNAS(16) vec4 TempLightPos;
+    RTRT_ALIGNAS(16) vec4 TempLightInt;
+    RTRT_ALIGNAS(16) vec4 TempAmbient;
+    RTRT_ALIGNAS(4) bool FullBrdf;
+    RTRT_ALIGNAS(4) bool Bilinear;
+    RTRT_ALIGNAS(4) float NormalThreshold;
+    RTRT_ALIGNAS(4) float DepthThreshold;
+    RTRT_ALIGNAS(4) bool Accumulate;
+    RTRT_ALIGNAS(4) bool UseHistory;
+    RTRT_ALIGNAS(4) bool DoExplicit;
+    RTRT_ALIGNAS(4) bool Clear;
+    RTRT_ALIGNAS(4) float EmissionScale;
+    RTRT_ALIGNAS(4) float MaxSamples;  // Limit on the history's sample count; 0 means no limit
+    RTRT_ALIGNAS(4) int AlignmentTest; // Sentinel (1234) for checking host/shader layout agreement
 };
 
 struct Vertex  // Created by readModel; used in shaders
 {
-    vec3 pos;
-    vec3 nrm;
-    vec2 texCoord;
+    vec3 Pos;
+    vec3 Nrm;
+    vec2 TexCoord;
 };
 
 struct Material  // Created by readModel; used in shaders
 {
-    vec3  diffuse;
-    vec3  specular;
-    vec3  emission;
-    float shininess;
-    int   textureId;
+    vec3  Diffuse;
+    vec3  Specular;
+    vec3  Emission;
+    float Shininess;
+    int   TextureId;
 };
 
 
 // Push constant structure for the denoiser
 struct PushConstantDenoise
 {
-    float normFactor;
-    float depthFactor;
-    int   stepwidth;
-    float albedoFactor;
+    float NormFactor;
+    float DepthFactor;
+    int   StepWidth;
+    float AlbedoFactor;
 };
 
 // Push constant structure for the post-processing pass
 struct PushConstantPost
 {
-    float exposure;
-    float gamma;
-    uint  viewMode;
+    float Exposure;
+    float Gamma;
+    uint  ViewMode;
 };
 
 struct RayPayload
 {
-    uint seed;		    // Used in Path Tracing step as random number seed
-    bool hit;           // Does the ray intersect anything or not?
-    float hitDist;      // Used in the denoising step
-    vec3 hitPos;	    // The world coordinates of the hit point.      
-    int instanceIndex;  // Index of the object instance hit (we have only one, so =0)
-    int primitiveIndex; // Index of the hit triangle primitive within object
-    vec3 bc;            // Barycentric coordinates of the hit point within triangle
+    uint Seed;		    // Used in Path Tracing step as random number seed
+    bool Hit;           // Does the ray intersect anything or not?
+    float HitDist;      // Used in the denoising step
+    vec3 HitPos;	    // The world coordinates of the hit point.      
+    int InstanceIndex;  // Index of the object instance hit (we have only one, so =0)
+    int PrimitiveIndex; // Index of the hit triangle primitive within object
+    vec3 Bc;            // Barycentric coordinates of the hit point within triangle
 };
 
 #endif

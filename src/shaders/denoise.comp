@@ -33,7 +33,7 @@ void main()
     {
         for (int j=-2;  j<=2;  j++) 
         {
-            ivec2 offset = ivec2(i,j) * pc.stepwidth; // Offset of 5x5 pixels **with holes**
+            ivec2 offset = ivec2(i,j) * pc.StepWidth; // Offset of 5x5 pixels **with holes**
             // The same values for the offset pixel
             ivec2 total_offset = gpos + offset;
             vec3 pKd = clamp(imageLoad(kdBuff, total_offset).xyz, vec3(0.1), vec3(1.0));
@@ -48,21 +48,21 @@ void main()
             float v_weight = gaussian[j + 2];
             //  3: depth similarity, exp(-t^2 / depthFactor) with t = cDepth - pDepth (1 if factor is 0)
             float t = cDepth - pDepth;
-            float d_weight = exp(-(t * t) / pc.depthFactor);
-            if (pc.depthFactor == 0.0f)
+            float d_weight = exp(-(t * t) / pc.DepthFactor);
+            if (pc.DepthFactor == 0.0f)
                 d_weight = 1.0f;
             //  4: normal similarity, exp(-d / normFactor) with d = |cNrm - pNrm|^2 / stepwidth^2 (1 if factor is 0)
             vec3 _t = cNrm - pNrm;
-            float d = dot(_t, _t) / float(pc.stepwidth * pc.stepwidth);
-            float n_weight = exp(-d / pc.normFactor);
-            if (pc.normFactor == 0.0f)
+            float d = dot(_t, _t) / float(pc.StepWidth * pc.StepWidth);
+            float n_weight = exp(-d / pc.NormFactor);
+            if (pc.NormFactor == 0.0f)
                 n_weight = 1.0f;
 
             //  5: an albedo related weight. Dividing by a dark albedo inflates any specular light
             //     on that pixel, which would otherwise bleed onto brighter neighbours as a halo.
             vec3 kdDiff = cKd - pKd;
-            float k_weight = exp(-dot(kdDiff, kdDiff) / pc.albedoFactor);
-            if (pc.albedoFactor == 0.0f)
+            float k_weight = exp(-dot(kdDiff, kdDiff) / pc.AlbedoFactor);
+            if (pc.AlbedoFactor == 0.0f)
                 k_weight = 1.0f;
 
             float weight = h_weight * v_weight * d_weight * n_weight * k_weight;

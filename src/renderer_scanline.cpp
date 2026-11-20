@@ -498,17 +498,17 @@ void Renderer::createScDescriptorSet()
 
     m_scDesc.setBindings(
         m_device,
-        {{ScBindings::eMatrices, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
+        {{ScBindings::kMatrices, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
           VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR},
-         {ScBindings::eObjDescs, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+         {ScBindings::kObjDescs, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
           VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT |
               VK_SHADER_STAGE_RAYGEN_BIT_KHR},
-         {ScBindings::eTextures, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbTxt,
+         {ScBindings::kTextures, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbTxt,
           VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR}});
 
-    m_scDesc.write(m_device, ScBindings::eMatrices, m_matrixBW.buffer);
-    m_scDesc.write(m_device, ScBindings::eObjDescs, m_objDescriptionBW.buffer);
-    m_scDesc.write(m_device, ScBindings::eTextures, m_objText);
+    m_scDesc.write(m_device, ScBindings::kMatrices, m_matrixBW.buffer);
+    m_scDesc.write(m_device, ScBindings::kObjDescs, m_objDescriptionBW.buffer);
+    m_scDesc.write(m_device, ScBindings::kTextures, m_objText);
 }
 
 void Renderer::createScPipeline()
@@ -553,10 +553,10 @@ void Renderer::createScPipeline()
                                                        VK_VERTEX_INPUT_RATE_VERTEX};
 
     std::vector<VkVertexInputAttributeDescription> attributeDescriptions{
-        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, static_cast<uint32_t>(offsetof(Vertex, pos))},
-        {1, 0, VK_FORMAT_R32G32B32_SFLOAT, static_cast<uint32_t>(offsetof(Vertex, nrm))},
+        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, static_cast<uint32_t>(offsetof(Vertex, Pos))},
+        {1, 0, VK_FORMAT_R32G32B32_SFLOAT, static_cast<uint32_t>(offsetof(Vertex, Nrm))},
         {2, 0, VK_FORMAT_R32G32_SFLOAT,
-         static_cast<uint32_t>(offsetof(Vertex, texCoord))}};
+         static_cast<uint32_t>(offsetof(Vertex, TexCoord))}};
 
     vertexInputInfo.vertexBindingDescriptionCount = 1;
     vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
@@ -707,8 +707,8 @@ void Renderer::rasterize()
             1.0f                 // light intensity;  Should not be hard-coded here!
         };
 
-        pcRaster.objIndex = inst.objIndex;  // Telling which object is drawn
-        pcRaster.modelMatrix = inst.transform;
+        pcRaster.ObjIndex = inst.objIndex;  // Telling which object is drawn
+        pcRaster.ModelMatrix = inst.transform;
 
         vkCmdPushConstants(m_commandBuffer, m_scanlinePipelineLayout,
                            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
@@ -732,11 +732,11 @@ void Renderer::updateCameraBuffer()
     glm::mat4 view = app->myCamera.view();
     glm::mat4 proj = app->myCamera.perspective(aspectRatio);
 
-    hostUBO.priorViewProj = m_priorViewProj;
-    hostUBO.viewProj = proj * view;
-    m_priorViewProj = hostUBO.viewProj;
-    hostUBO.viewInverse = glm::inverse(view);
-    hostUBO.projInverse = glm::inverse(proj);
+    hostUBO.PriorViewProj = m_priorViewProj;
+    hostUBO.ViewProj = proj * view;
+    m_priorViewProj = hostUBO.ViewProj;
+    hostUBO.ViewInverse = glm::inverse(view);
+    hostUBO.ProjInverse = glm::inverse(proj);
 
     // UBO on the device, and what stages access it.
     VkBuffer deviceUBO = m_matrixBW.buffer;
