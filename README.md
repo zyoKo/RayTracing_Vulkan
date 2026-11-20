@@ -68,9 +68,9 @@ At the default 1280×768 window, the path tracer with the denoiser runs at about
 
 ## Building and running
 
-1. Open `src/rtrt.sln` in Visual Studio.
+1. Open `vs/rtrt.sln` in Visual Studio.
 2. Choose the `x64` platform and either the `Debug` or `Release` configuration, then build. The shaders are compiled to `src/spv/` as part of the build.
-3. Run `rtrt.exe` with `src/` as the working directory, so it can find `models/` and `spv/`.
+3. The build writes `rtrt.exe` to `vs/x64/<configuration>/`. Visual Studio starts it with `src/` as the working directory, so it can find `models/` and `spv/`. When starting it some other way, run it from `src/`.
 
 Command-line options:
 
