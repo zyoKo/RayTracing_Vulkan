@@ -20,13 +20,13 @@ namespace rtrt
 // The OBJ model: Vulkan buffers of object data
 struct ObjData
 {
-    uint32_t nbIndices{0};
-    uint32_t nbVertices{0};
-    glm::mat4 transform;        // Instance matrix of the object
-    BufferWrap vertexBuffer;    // Buffer of vertices
-    BufferWrap indexBuffer;     // Buffer of triangle indices
-    BufferWrap matColorBuffer;  // Buffer of materials
-    BufferWrap matIndexBuffer;  // Buffer of each triangle's material index
+    uint32_t NbIndices{0};
+    uint32_t NbVertices{0};
+    glm::mat4 Transform;        // Instance matrix of the object
+    BufferWrap VertexBuffer;    // Buffer of vertices
+    BufferWrap IndexBuffer;     // Buffer of triangle indices
+    BufferWrap MatColorBuffer;  // Buffer of materials
+    BufferWrap MatIndexBuffer;  // Buffer of each triangle's material index
 };
 
 template <typename Handle>
@@ -43,8 +43,8 @@ void SetDebugName(VkDevice Device, Handle Object, VkObjectType Type, const char*
 // Pair each instance with its instance transform
 struct ObjInst
 {
-    glm::mat4 transform;  // Matrix of the instance
-    uint32_t objIndex;    // Model index
+    glm::mat4 Transform;  // Matrix of the instance
+    uint32_t ObjIndex;    // Model index
 };
 
 class App;
@@ -52,254 +52,254 @@ class App;
 class Renderer
 {
 public:
-    std::vector<const char*> reqInstanceExtensions = {  // GLFW will add to this
+    std::vector<const char*> ReqInstanceExtensions = {  // GLFW will add to this
         "VK_EXT_debug_utils",  // Can help debug validation errors
         "VK_KHR_win32_surface", "VK_KHR_surface"};
 
-    std::vector<const char*> reqInstanceLayers = {
+    std::vector<const char*> ReqInstanceLayers = {
         "VK_LAYER_KHRONOS_validation"  // ALWAYS!!
     };
 
-    std::vector<const char*> reqDeviceExtensions = {
+    std::vector<const char*> ReqDeviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,  // Presentation engine; draws to screen
         VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,  // Ray tracing extension
         VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,    // Ray tracing extension
         // Required by ray tracing pipeline;
         VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
 
-    App* app;
-    explicit Renderer(App* _app);
+    App* Application;
+    explicit Renderer(App* Owner);
     Renderer(const Renderer&) = delete;
     Renderer& operator=(const Renderer&) = delete;
     bool Init();  // False if no GPU supports the required extensions
 
     // Variables managed by ImGui
-    int frameCount = 0;  // Frames rendered since the history was last reset
-    bool m_resetHistory = false;
-    bool m_denoiseEnabled = true;
-    int m_viewMode = kViewFinal;
-    float m_exposure = 1.0f;
-    float m_gamma = 2.2f;
-    void setDefaultSettings();
+    int FrameCount = 0;  // Frames rendered since the history was last reset
+    bool ResetHistory = false;
+    bool DenoiseEnabled = true;
+    int ViewMode = kViewFinal;
+    float Exposure = 1.0f;
+    float Gamma = 2.2f;
+    void SetDefaultSettings();
 
-    bool m_useSlang = false;
-    std::string loadShader(const char* glslSpv, const char* slangSpv);
-    void setShaderLanguage(bool useSlang);  // Rebuilds every pipeline
+    bool UseSlang = false;
+    std::string LoadShader(const char* GlslSpv, const char* SlangSpv);
+    void SetShaderLanguage(bool UseSlangShaders);  // Rebuilds every pipeline
 
-    double m_gpuWaitMs = 0.0;  // Blocked on the previous frame's fence
-    double m_recordMs = 0.0;   // Acquire, record, submit and present
-    void drawFrame();
+    double GpuWaitMs = 0.0;  // Blocked on the previous frame's fence
+    double RecordMs = 0.0;   // Acquire, record, submit and present
+    void DrawFrame();
 
-    void destroyAllVulkanResources();
+    void DestroyAllVulkanResources();
 
     // Some auxiliary functions
-    bool recreateSizedResources();  // False if the window closed while minimized
-    VkCommandBuffer createTempCmdBuffer();
-    void submitTempCmdBuffer(VkCommandBuffer cmdBuffer);
-    VkShaderModule createShaderModule(const std::string& code);
-    VkPipelineShaderStageCreateInfo createShaderStageInfo(
-        const std::string& code, VkShaderStageFlagBits stage,
-        const char* entryPoint = "main");
+    bool RecreateSizedResources();  // False if the window closed while minimized
+    VkCommandBuffer CreateTempCmdBuffer();
+    void SubmitTempCmdBuffer(VkCommandBuffer CmdBuffer);
+    VkShaderModule CreateShaderModule(const std::string& Code);
+    VkPipelineShaderStageCreateInfo CreateShaderStageInfo(
+        const std::string& Code, VkShaderStageFlagBits Stage,
+        const char* EntryPoint = "main");
 
     // Vulkan objects that will be created and the functions that will do the creation.
-    VkInstance m_instance{};
-    void createInstance(bool doApiDump);
+    VkInstance Instance{};
+    void CreateInstance(bool DoApiDump);
 
-    VkPhysicalDevice m_physicalDevice{};
-    bool createPhysicalDevice();
+    VkPhysicalDevice PhysicalDevice{};
+    bool CreatePhysicalDevice();
 
-    uint32_t m_graphicsQueueIndex{VK_QUEUE_FAMILY_IGNORED};
-    void chooseQueueIndex();
+    uint32_t GraphicsQueueIndex{VK_QUEUE_FAMILY_IGNORED};
+    void ChooseQueueIndex();
 
-    VkDevice m_device{};
-    void createDevice();
+    VkDevice Device{};
+    void CreateDevice();
 
-    VkQueue m_queue{};
-    void getCommandQueue();
+    VkQueue Queue{};
+    void GetCommandQueue();
 
-    void loadExtensions();
+    void LoadExtensions();
 
-    VkSurfaceKHR m_surface{};
-    void getSurface();
+    VkSurfaceKHR Surface{};
+    void GetSurface();
 
-    VkCommandPool m_cmdPool{VK_NULL_HANDLE};
-    VkCommandBuffer m_commandBuffer{};
-    void createCommandPool();
+    VkCommandPool CmdPool{VK_NULL_HANDLE};
+    VkCommandBuffer CommandBuffer{};
+    void CreateCommandPool();
 
-    VkSwapchainKHR m_swapchain{VK_NULL_HANDLE};
-    uint32_t m_imageCount{0};
-    std::vector<VkImage> m_swapchainImages{};  // from vkGetSwapchainImagesKHR
-    std::vector<VkImageView> m_imageViews{};
+    VkSwapchainKHR Swapchain{VK_NULL_HANDLE};
+    uint32_t ImageCount{0};
+    std::vector<VkImage> SwapchainImages{};  // from vkGetSwapchainImagesKHR
+    std::vector<VkImageView> ImageViews{};
     // Filled in  VkImageMemoryBarrier objects
-    std::vector<VkImageMemoryBarrier> m_barriers{};
-    VkFence m_waitFence{};
-    VkSemaphore m_readSemaphore{};
-    std::vector<VkSemaphore> m_writtenSemaphores{};  // One per swapchain image
-    VkExtent2D windowSize{0, 0};                     // Size of the window
-    void createSwapchain();
-    void destroySwapchain();
+    std::vector<VkImageMemoryBarrier> Barriers{};
+    VkFence WaitFence{};
+    VkSemaphore ReadSemaphore{};
+    std::vector<VkSemaphore> WrittenSemaphores{};  // One per swapchain image
+    VkExtent2D WindowSize{0, 0};                   // Size of the window
+    void CreateSwapchain();
+    void DestroySwapchain();
 
-    ImageWrap m_depthImage;
-    void createDepthResource();
+    ImageWrap DepthImage;
+    void CreateDepthResource();
 
-    VkPipelineLayout m_postPipelineLayout{VK_NULL_HANDLE};
-    VkRenderPass m_postRenderPass{};
-    void createPostRenderPass();
+    VkPipelineLayout PostPipelineLayout{VK_NULL_HANDLE};
+    VkRenderPass PostRenderPass{};
+    void CreatePostRenderPass();
 
-    std::vector<VkFramebuffer> m_framebuffers{};  // One frambuffer per swapchain image.
-    void createPostFrameBuffers();
+    std::vector<VkFramebuffer> Framebuffers{};  // One frambuffer per swapchain image.
+    void CreatePostFrameBuffers();
 
-    VkPipeline m_postPipeline{VK_NULL_HANDLE};
-    void createPostPipeline();
+    VkPipeline PostPipeline{VK_NULL_HANDLE};
+    void CreatePostPipeline();
 
-    VkDescriptorPool m_imguiDescPool{VK_NULL_HANDLE};
-    void initGUI();
+    VkDescriptorPool ImguiDescPool{VK_NULL_HANDLE};
+    void InitGui();
 
-    VkRenderPass m_scanlineRenderPass{VK_NULL_HANDLE};
-    VkFramebuffer m_scanlineFramebuffer{VK_NULL_HANDLE};
-    void createScanlineRenderPass();
-    void createScanlineFramebuffer();
+    VkRenderPass ScanlineRenderPass{VK_NULL_HANDLE};
+    VkFramebuffer ScanlineFramebuffer{VK_NULL_HANDLE};
+    void CreateScanlineRenderPass();
+    void CreateScanlineFramebuffer();
 
-    ImageWrap m_scImageBuffer{};
-    void createScBuffer();
+    ImageWrap ScImageBuffer{};
+    void CreateScBuffer();
 
-    void destroyRaytracingResources();
-    void destroyDenoiseResources();
+    void DestroyRaytracingResources();
+    void DestroyDenoiseResources();
 
-    ImageWrap m_rtColCurrBuffer{};
-    ImageWrap m_rtColPrevBuffer{};
+    ImageWrap RtColCurrBuffer{};
+    ImageWrap RtColPrevBuffer{};
 
-    ImageWrap m_rtKdCurrBuffer{};
-    ImageWrap m_rtKdPrevBuffer{};
+    ImageWrap RtKdCurrBuffer{};
+    ImageWrap RtKdPrevBuffer{};
 
-    ImageWrap m_rtNdCurrBuffer{};
-    ImageWrap m_rtNdPrevBuffer{};
+    ImageWrap RtNdCurrBuffer{};
+    ImageWrap RtNdPrevBuffer{};
 
-    void createRtBuffers();
+    void CreateRtBuffers();
 
-    ImageWrap m_denoiseBuffer{};
-    void createDenoiseBuffer();
+    ImageWrap DenoiseBuffer{};
+    void CreateDenoiseBuffer();
 
     // Arrays of objects instances and textures in the scene
-    std::vector<ObjData> m_objData{};    // Obj data in Vulkan Buffers
-    std::vector<ObjDesc> m_objDesc{};    // Device-addresses of those buffers
-    std::vector<ImageWrap> m_objText{};  // All textures of the scene
-    std::vector<ObjInst> m_objInst{};    // Instances paring an object and a transform
-    BufferWrap m_lightBuff{};            // Buffer of light list
-    void myloadModel(const std::string& filename, const glm::mat4& transform);
+    std::vector<ObjData> ObjDataList{};    // Obj data in Vulkan Buffers
+    std::vector<ObjDesc> ObjDescList{};    // Device-addresses of those buffers
+    std::vector<ImageWrap> ObjTextures{};  // All textures of the scene
+    std::vector<ObjInst> ObjInstList{};    // Instances paring an object and a transform
+    BufferWrap LightBuff{};                // Buffer of light list
+    void MyLoadModel(const std::string& Filename, const glm::mat4& Transform);
 
-    BufferWrap m_objDescriptionBW{};  // Device buffer of the OBJ descriptions
-    void createObjDescriptionBuffer();
+    BufferWrap ObjDescriptionBw{};  // Device buffer of the OBJ descriptions
+    void CreateObjDescriptionBuffer();
 
-    DescriptorWrap m_scDesc{};
-    void createScDescriptorSet();
+    DescriptorWrap ScDesc{};
+    void CreateScDescriptorSet();
 
-    VkPipelineLayout m_scanlinePipelineLayout{};
-    VkPipeline m_scanlinePipeline{};
-    void createScPipeline();
+    VkPipelineLayout ScanlinePipelineLayout{};
+    VkPipeline ScanlinePipeline{};
+    void CreateScPipeline();
 
-    BufferWrap m_matrixBW{};  // Device-Host of the camera matrices
-    void createMatrixBuffer();
+    BufferWrap MatrixBw{};  // Device-Host of the camera matrices
+    void CreateMatrixBuffer();
 
-    RaytracingBuilder m_rtBuilder{};
-    float m_maxAnis = 0;
-    std::vector<Emitter> lightList;
-    PushConstantRay m_pcRay{};  // Push constant for ray tracer
-    int m_num_atrous_iterations = 5;
-    PushConstantDenoise m_pcDenoise{};
-    uint32_t handleSize{};
-    uint32_t handleAlignment{};
-    uint32_t baseAlignment{};
-    void initRayTracing();
+    RaytracingBuilder RtBuilder{};
+    float MaxAnis = 0;
+    std::vector<Emitter> LightList;
+    PushConstantRay PcRay{};  // Push constant for ray tracer
+    int NumAtrousIterations = 5;
+    PushConstantDenoise PcDenoise{};
+    uint32_t HandleSize{};
+    uint32_t HandleAlignment{};
+    uint32_t BaseAlignment{};
+    void InitRayTracing();
 
     // // Accelleration structure objects and functions
 
-    BufferWrap m_scratch1;
-    BufferWrap m_scratch2;
-    BlasInput objectToVkGeometryKHR(const ObjData& model);
-    void createRtAccelerationStructure();
+    BufferWrap Scratch1;
+    BufferWrap Scratch2;
+    BlasInput ObjectToVkGeometryKhr(const ObjData& Model);
+    void CreateRtAccelerationStructure();
 
-    DescriptorWrap m_rtDesc{};
-    void createRtDescriptorSet();
+    DescriptorWrap RtDesc{};
+    void CreateRtDescriptorSet();
 
-    VkPipelineLayout m_rtPipelineLayout{};
-    VkPipeline m_rtPipeline{};
-    void createRtPipeline();
+    VkPipelineLayout RtPipelineLayout{};
+    VkPipeline RtPipeline{};
+    void CreateRtPipeline();
 
-    BufferWrap m_shaderBindingTableBW;
-    VkStridedDeviceAddressRegionKHR m_rgenRegion{};
-    VkStridedDeviceAddressRegionKHR m_missRegion{};
-    VkStridedDeviceAddressRegionKHR m_hitRegion{};
-    VkStridedDeviceAddressRegionKHR m_callRegion{};
-    void createRtShaderBindingTable();
+    BufferWrap ShaderBindingTableBw;
+    VkStridedDeviceAddressRegionKHR RgenRegion{};
+    VkStridedDeviceAddressRegionKHR MissRegion{};
+    VkStridedDeviceAddressRegionKHR HitRegion{};
+    VkStridedDeviceAddressRegionKHR CallRegion{};
+    void CreateRtShaderBindingTable();
 
-    DescriptorWrap m_postDesc{};
-    void createPostDescriptor();
+    DescriptorWrap PostDesc{};
+    void CreatePostDescriptor();
 
-    DescriptorWrap m_denoiseDesc{};
-    void createDenoiseDescriptorSet();
+    DescriptorWrap DenoiseDesc{};
+    void CreateDenoiseDescriptorSet();
 
-    VkPipelineLayout m_denoiseCompPipelineLayout{};
-    VkPipeline m_denoisePipeline{};
-    void createDenoiseCompPipeline();
+    VkPipelineLayout DenoiseCompPipelineLayout{};
+    VkPipeline DenoisePipeline{};
+    void CreateDenoiseCompPipeline();
 
-    void CmdCopyImage(ImageWrap& src, ImageWrap& dst);
+    void CmdCopyImage(ImageWrap& Src, ImageWrap& Dst);
 
-    void imageLayoutBarrier(VkCommandBuffer cmdbuffer, VkImage image,
-                            VkImageLayout oldImageLayout, VkImageLayout newImageLayout,
-                            VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT);
+    void ImageLayoutBarrier(VkCommandBuffer Cmdbuffer, VkImage Image,
+                            VkImageLayout OldImageLayout, VkImageLayout NewImageLayout,
+                            VkImageAspectFlags AspectMask = VK_IMAGE_ASPECT_COLOR_BIT);
     // Run loop
-    bool useRaytracer = true;
-    bool prepareFrame();
+    bool UseRaytracer = true;
+    bool PrepareFrame();
     void ResetRtAccumulation();
 
-    glm::mat4 m_priorViewProj{};
-    void updateCameraBuffer();
-    void rasterize();
-    void raytrace();
-    void denoise();
+    glm::mat4 PriorViewProj{};
+    void UpdateCameraBuffer();
+    void Rasterize();
+    void Raytrace();
+    void Denoise();
 
-    uint32_t m_swapchainIndex{0};
+    uint32_t SwapchainIndex{0};
 
-    void postProcess();
-    void submitFrame();
+    void PostProcess();
+    void SubmitFrame();
 
-    std::string loadFile(const std::string& filename);
-    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+    std::string LoadFile(const std::string& Filename);
+    uint32_t FindMemoryType(uint32_t TypeFilter, VkMemoryPropertyFlags Properties);
 
-    BufferWrap createStagedBufferWrap(VkCommandBuffer cmdBuf, VkDeviceSize size,
-                                      const void* data, VkBufferUsageFlags usage);
+    BufferWrap CreateStagedBufferWrap(VkCommandBuffer CmdBuf, VkDeviceSize Size,
+                                      const void* Data, VkBufferUsageFlags Usage);
     template <typename T>
-    BufferWrap createStagedBufferWrap(VkCommandBuffer cmdBuf, const std::vector<T>& data,
-                                      VkBufferUsageFlags usage)
+    BufferWrap CreateStagedBufferWrap(VkCommandBuffer CmdBuf, const std::vector<T>& Data,
+                                      VkBufferUsageFlags Usage)
     {
-        return createStagedBufferWrap(cmdBuf, sizeof(T) * data.size(), data.data(),
-                                      usage);
+        return CreateStagedBufferWrap(CmdBuf, sizeof(T) * Data.size(), Data.data(),
+                                      Usage);
     }
 
-    BufferWrap createBufferWrap(VkDeviceSize size, VkBufferUsageFlags usage,
-                                VkMemoryPropertyFlags properties);
+    BufferWrap CreateBufferWrap(VkDeviceSize Size, VkBufferUsageFlags Usage,
+                                VkMemoryPropertyFlags Properties);
 
-    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+    void CopyBuffer(VkBuffer SrcBuffer, VkBuffer DstBuffer, VkDeviceSize Size);
 
-    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout,
-                               VkImageLayout newLayout, uint32_t mipLevels = 1);
-    void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
-                           uint32_t height);
+    void TransitionImageLayout(VkImage Image, VkFormat Format, VkImageLayout OldLayout,
+                               VkImageLayout NewLayout, uint32_t MipLevels = 1);
+    void CopyBufferToImage(VkBuffer Buffer, VkImage Image, uint32_t Width,
+                           uint32_t Height);
 
-    ImageWrap createTextureImage(const std::string& fileName);
-    ImageWrap createBufferImage(VkExtent2D& size);
+    ImageWrap CreateTextureImage(const std::string& FileName);
+    ImageWrap CreateBufferImage(VkExtent2D& Size);
 
-    ImageWrap createImageWrap(uint32_t width, uint32_t height, VkFormat format,
-                              VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
-                              uint32_t mipLevels = 1);
+    ImageWrap CreateImageWrap(uint32_t Width, uint32_t Height, VkFormat Format,
+                              VkImageUsageFlags Usage, VkMemoryPropertyFlags Properties,
+                              uint32_t MipLevels = 1);
 
-    VkImageView createImageView(VkImage image, VkFormat format,
-                                VkImageAspectFlagBits aspect = VK_IMAGE_ASPECT_COLOR_BIT);
-    VkSampler createTextureSampler();
+    VkImageView CreateImageView(VkImage Image, VkFormat Format,
+                                VkImageAspectFlagBits Aspect = VK_IMAGE_ASPECT_COLOR_BIT);
+    VkSampler CreateTextureSampler();
 
-    void generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth,
-                         int32_t texHeight, uint32_t mipLevels);
+    void GenerateMipmaps(VkImage Image, VkFormat ImageFormat, int32_t TexWidth,
+                         int32_t TexHeight, uint32_t MipLevels);
 };
 
 }  // namespace rtrt

@@ -14,56 +14,56 @@
 namespace rtrt
 {
 
-void Renderer::createRtBuffers()
+void Renderer::CreateRtBuffers()
 {
-    // Note: This will grow to create more than the single buffer m_rtColCurrBuffer.
-    m_rtColCurrBuffer = createBufferImage(windowSize);
-    transitionImageLayout(m_rtColCurrBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    // Note: This will grow to create more than the single buffer RtColCurrBuffer.
+    RtColCurrBuffer = CreateBufferImage(WindowSize);
+    TransitionImageLayout(RtColCurrBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 
-    m_rtColPrevBuffer = createBufferImage(windowSize);
-    transitionImageLayout(m_rtColPrevBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    RtColPrevBuffer = CreateBufferImage(WindowSize);
+    TransitionImageLayout(RtColPrevBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 
-    m_rtNdCurrBuffer = createBufferImage(windowSize);
-    transitionImageLayout(m_rtNdCurrBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    RtNdCurrBuffer = CreateBufferImage(WindowSize);
+    TransitionImageLayout(RtNdCurrBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 
-    m_rtNdPrevBuffer = createBufferImage(windowSize);
-    transitionImageLayout(m_rtNdPrevBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    RtNdPrevBuffer = CreateBufferImage(WindowSize);
+    TransitionImageLayout(RtNdPrevBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 
-    m_rtKdCurrBuffer = createBufferImage(windowSize);
-    transitionImageLayout(m_rtKdCurrBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    RtKdCurrBuffer = CreateBufferImage(WindowSize);
+    TransitionImageLayout(RtKdCurrBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 
-    m_rtKdPrevBuffer = createBufferImage(windowSize);
-    transitionImageLayout(m_rtKdPrevBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    RtKdPrevBuffer = CreateBufferImage(WindowSize);
+    TransitionImageLayout(RtKdPrevBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 }
 
 // The values of everything adjustable in the settings panel
-void Renderer::setDefaultSettings()
+void Renderer::SetDefaultSettings()
 {
     // Russian roulette survival chance, tested per bounce in the shader
-    m_pcRay.Rr = 0.7f;
-    m_pcRay.Depth = 16;  // Upper limit on path length; 0.7^16 of paths would reach it
-    m_pcRay.EmissionScale = 1.0f;
-    m_pcRay.FullBrdf = true;
-    m_pcRay.UseHistory = true;
-    m_pcRay.NormalThreshold = 0.80f;
-    m_pcRay.DepthThreshold = 0.04f;
-    m_pcRay.MaxSamples = 0.0f;
+    PcRay.Rr = 0.7f;
+    PcRay.Depth = 16;  // Upper limit on path length; 0.7^16 of paths would reach it
+    PcRay.EmissionScale = 1.0f;
+    PcRay.FullBrdf = true;
+    PcRay.UseHistory = true;
+    PcRay.NormalThreshold = 0.80f;
+    PcRay.DepthThreshold = 0.04f;
+    PcRay.MaxSamples = 0.0f;
 
-    m_denoiseEnabled = true;
-    m_num_atrous_iterations = 5;
-    m_pcDenoise.NormFactor = 0.003f;
-    m_pcDenoise.DepthFactor = 0.007f;
-    m_pcDenoise.AlbedoFactor = 0.1f;
+    DenoiseEnabled = true;
+    NumAtrousIterations = 5;
+    PcDenoise.NormFactor = 0.003f;
+    PcDenoise.DepthFactor = 0.007f;
+    PcDenoise.AlbedoFactor = 0.1f;
 
-    m_viewMode = kViewFinal;
-    m_exposure = 1.0f;
-    m_gamma = 2.2f;
+    ViewMode = kViewFinal;
+    Exposure = 1.0f;
+    Gamma = 2.2f;
 
     ResetRtAccumulation();
 }
@@ -71,37 +71,37 @@ void Renderer::setDefaultSettings()
 // Makes the next frame discard all temporal history
 void Renderer::ResetRtAccumulation()
 {
-    m_resetHistory = true;
-    frameCount = 0;
+    ResetHistory = true;
+    FrameCount = 0;
 }
 
 // Initialize ray tracing
-void Renderer::initRayTracing()
+void Renderer::InitRayTracing()
 {
     // Requesting ray tracing properties
-    VkPhysicalDeviceProperties2 prop2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
-    VkPhysicalDeviceRayTracingPipelinePropertiesKHR rtProps{
+    VkPhysicalDeviceProperties2 Prop2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+    VkPhysicalDeviceRayTracingPipelinePropertiesKHR RtProps{
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR};
-    prop2.pNext = &rtProps;
-    vkGetPhysicalDeviceProperties2(m_physicalDevice, &prop2);
+    Prop2.pNext = &RtProps;
+    vkGetPhysicalDeviceProperties2(PhysicalDevice, &Prop2);
 
-    setDefaultSettings();
+    SetDefaultSettings();
 
-    handleSize = rtProps.shaderGroupHandleSize;
-    handleAlignment = rtProps.shaderGroupHandleAlignment;
-    baseAlignment = rtProps.shaderGroupBaseAlignment;
+    HandleSize = RtProps.shaderGroupHandleSize;
+    HandleAlignment = RtProps.shaderGroupHandleAlignment;
+    BaseAlignment = RtProps.shaderGroupBaseAlignment;
 
     // This initializes the acceleration structure helper class
-    m_rtBuilder.Setup(this, m_device, m_graphicsQueueIndex);
+    RtBuilder.Setup(this, Device, GraphicsQueueIndex);
 }
 
 //----------------------------------------------------------------------------------------
 // This descriptor set holds the Acceleration structure and the output image
 //
-void Renderer::createRtDescriptorSet()
+void Renderer::CreateRtDescriptorSet()
 {
-    m_rtDesc.SetBindings(
-        m_device,
+    RtDesc.SetBindings(
+        Device,
         {{0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1,  // TLAS
           VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR},
          {1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1,  // Output image
@@ -114,18 +114,18 @@ void Renderer::createRtDescriptorSet()
 
     // Note: This will grow to include more buffers.
 
-    m_rtDesc.Write(m_device, 0, m_rtBuilder.GetAccelerationStructure());
-    m_rtDesc.Write(m_device, 1, m_rtColCurrBuffer.Descriptor());
-    m_rtDesc.Write(m_device, 2, m_rtColPrevBuffer.Descriptor());
-    m_rtDesc.Write(m_device, 3, m_rtNdCurrBuffer.Descriptor());
-    m_rtDesc.Write(m_device, 4, m_rtNdPrevBuffer.Descriptor());
-    m_rtDesc.Write(m_device, 5, m_rtKdCurrBuffer.Descriptor());
-    m_rtDesc.Write(m_device, 6, m_rtKdPrevBuffer.Descriptor());
+    RtDesc.Write(Device, 0, RtBuilder.GetAccelerationStructure());
+    RtDesc.Write(Device, 1, RtColCurrBuffer.Descriptor());
+    RtDesc.Write(Device, 2, RtColPrevBuffer.Descriptor());
+    RtDesc.Write(Device, 3, RtNdCurrBuffer.Descriptor());
+    RtDesc.Write(Device, 4, RtNdPrevBuffer.Descriptor());
+    RtDesc.Write(Device, 5, RtKdCurrBuffer.Descriptor());
+    RtDesc.Write(Device, 6, RtKdPrevBuffer.Descriptor());
 }
 
 // Pipeline for the ray tracer: all shaders, raygen, chit, miss
 //
-void Renderer::createRtPipeline()
+void Renderer::CreateRtPipeline()
 {
     //////////////////////////////////////////////////////////////////////////////////////
     // stages: Array of shaders: 1 raygen, 1 miss, 1 closest-hit
@@ -135,95 +135,95 @@ void Renderer::createRtPipeline()
     // groups. Hit shaders can group with any-hit and intersection
     // shaders -- of which we have none -- so the hit shader(s) get
     // their own group also.
-    std::vector<VkPipelineShaderStageCreateInfo> stages{};
-    std::vector<VkRayTracingShaderGroupCreateInfoKHR> groups{};
+    std::vector<VkPipelineShaderStageCreateInfo> Stages{};
+    std::vector<VkRayTracingShaderGroupCreateInfoKHR> Groups{};
 
-    VkPipelineShaderStageCreateInfo stage{
+    VkPipelineShaderStageCreateInfo Stage{
         VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
-    stage.pName = "main";  // All the same entry point
+    Stage.pName = "main";  // All the same entry point
 
-    VkRayTracingShaderGroupCreateInfoKHR group{
+    VkRayTracingShaderGroupCreateInfoKHR Group{
         VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR};
-    group.anyHitShader = VK_SHADER_UNUSED_KHR;
-    group.closestHitShader = VK_SHADER_UNUSED_KHR;
-    group.generalShader = VK_SHADER_UNUSED_KHR;
-    group.intersectionShader = VK_SHADER_UNUSED_KHR;
+    Group.anyHitShader = VK_SHADER_UNUSED_KHR;
+    Group.closestHitShader = VK_SHADER_UNUSED_KHR;
+    Group.generalShader = VK_SHADER_UNUSED_KHR;
+    Group.intersectionShader = VK_SHADER_UNUSED_KHR;
 
     // Raygen shader stage and group appended to stages and groups lists
-    stage.module = createShaderModule(
-        loadShader("spv/raytrace.rgen.spv", "spv/raytrace.rgen.slang.spv"));
-    stage.stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-    stages.push_back(stage);
+    Stage.module = CreateShaderModule(
+        LoadShader("spv/raytrace.rgen.spv", "spv/raytrace.rgen.slang.spv"));
+    Stage.stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+    Stages.push_back(Stage);
 
-    group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
-    group.generalShader = stages.size() - 1;  // Index of raygen shader
-    groups.push_back(group);
-    group.generalShader = VK_SHADER_UNUSED_KHR;
+    Group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+    Group.generalShader = Stages.size() - 1;  // Index of raygen shader
+    Groups.push_back(Group);
+    Group.generalShader = VK_SHADER_UNUSED_KHR;
 
     // Miss shader stage and group appended to stages and groups lists
-    stage.module = createShaderModule(
-        loadShader("spv/raytrace.rmiss.spv", "spv/raytrace.rmiss.slang.spv"));
-    stage.stage = VK_SHADER_STAGE_MISS_BIT_KHR;
-    stages.push_back(stage);
+    Stage.module = CreateShaderModule(
+        LoadShader("spv/raytrace.rmiss.spv", "spv/raytrace.rmiss.slang.spv"));
+    Stage.stage = VK_SHADER_STAGE_MISS_BIT_KHR;
+    Stages.push_back(Stage);
 
-    group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
-    group.generalShader = stages.size() - 1;  // Index of miss shader
-    groups.push_back(group);
-    group.generalShader = VK_SHADER_UNUSED_KHR;
+    Group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+    Group.generalShader = Stages.size() - 1;  // Index of miss shader
+    Groups.push_back(Group);
+    Group.generalShader = VK_SHADER_UNUSED_KHR;
     // Closest hit shader stage and group appended to stages and groups lists
-    stage.module = createShaderModule(
-        loadShader("spv/raytrace.rchit.spv", "spv/raytrace.rchit.slang.spv"));
-    stage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-    stages.push_back(stage);
+    Stage.module = CreateShaderModule(
+        LoadShader("spv/raytrace.rchit.spv", "spv/raytrace.rchit.slang.spv"));
+    Stage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+    Stages.push_back(Stage);
 
-    group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
-    group.closestHitShader = stages.size() - 1;  // Index of hit shader
-    groups.push_back(group);
+    Group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
+    Group.closestHitShader = Stages.size() - 1;  // Index of hit shader
+    Groups.push_back(Group);
 
     //////////////////////////////////////////////////////////////////////////////////////
     // Create the ray tracing pipeline layout.
     // Push constant: we want to be able to update constants used by the shaders
-    VkPushConstantRange pushConstant{VK_SHADER_STAGE_RAYGEN_BIT_KHR |
+    VkPushConstantRange PushConstant{VK_SHADER_STAGE_RAYGEN_BIT_KHR |
                                          VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR |
                                          VK_SHADER_STAGE_MISS_BIT_KHR,
                                      0, sizeof(PushConstantRay)};
 
-    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{
+    VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo{
         VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-    pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-    pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
+    PipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+    PipelineLayoutCreateInfo.pPushConstantRanges = &PushConstant;
 
     // Descriptor sets: one specific to ray tracing, and one shared with the rasterization
     // pipeline
-    std::vector<VkDescriptorSetLayout> rtDescSetLayouts = {m_rtDesc.DescSetLayout,
-                                                           m_scDesc.DescSetLayout};
-    pipelineLayoutCreateInfo.setLayoutCount =
-        static_cast<uint32_t>(rtDescSetLayouts.size());
-    pipelineLayoutCreateInfo.pSetLayouts = rtDescSetLayouts.data();
+    std::vector<VkDescriptorSetLayout> RtDescSetLayouts = {RtDesc.DescSetLayout,
+                                                           ScDesc.DescSetLayout};
+    PipelineLayoutCreateInfo.setLayoutCount =
+        static_cast<uint32_t>(RtDescSetLayouts.size());
+    PipelineLayoutCreateInfo.pSetLayouts = RtDescSetLayouts.data();
 
-    RTRT_CHECK_VK(vkCreatePipelineLayout(m_device, &pipelineLayoutCreateInfo, nullptr,
-                                         &m_rtPipelineLayout));
+    RTRT_CHECK_VK(vkCreatePipelineLayout(Device, &PipelineLayoutCreateInfo, nullptr,
+                                         &RtPipelineLayout));
 
     //////////////////////////////////////////////////////////////////////////////////////
     // Create the ray tracing pipeline.
     // Assemble the shader stages and recursion depth info into the ray tracing pipeline
-    VkRayTracingPipelineCreateInfoKHR rayPipelineInfo{
+    VkRayTracingPipelineCreateInfoKHR RayPipelineInfo{
         VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR};
     // Stages are shaders
-    rayPipelineInfo.stageCount = static_cast<uint32_t>(stages.size());
-    rayPipelineInfo.pStages = stages.data();
+    RayPipelineInfo.stageCount = static_cast<uint32_t>(Stages.size());
+    RayPipelineInfo.pStages = Stages.data();
 
-    rayPipelineInfo.groupCount = static_cast<uint32_t>(groups.size());
-    rayPipelineInfo.pGroups = groups.data();
+    RayPipelineInfo.groupCount = static_cast<uint32_t>(Groups.size());
+    RayPipelineInfo.pGroups = Groups.data();
 
-    rayPipelineInfo.maxPipelineRayRecursionDepth = 10;  // Ray depth
-    rayPipelineInfo.layout = m_rtPipelineLayout;
+    RayPipelineInfo.maxPipelineRayRecursionDepth = 10;  // Ray depth
+    RayPipelineInfo.layout = RtPipelineLayout;
 
-    RTRT_CHECK_VK(vkCreateRayTracingPipelinesKHR(m_device, {}, {}, 1, &rayPipelineInfo,
-                                                 nullptr, &m_rtPipeline));
-    for (auto& s : stages)
+    RTRT_CHECK_VK(vkCreateRayTracingPipelinesKHR(Device, {}, {}, 1, &RayPipelineInfo,
+                                                 nullptr, &RtPipeline));
+    for (auto& S : Stages)
     {
-        vkDestroyShaderModule(m_device, s.module, nullptr);
+        vkDestroyShaderModule(Device, S.module, nullptr);
     }
 }
 
@@ -234,199 +234,198 @@ void Renderer::createRtPipeline()
 namespace
 {
 
-template <class integral>
-constexpr integral align_up(integral x, size_t a) noexcept
+template <class Integral>
+constexpr Integral AlignUp(Integral X, size_t A) noexcept
 {
-    return static_cast<integral>((x + (static_cast<integral>(a) - 1)) &
-                                 ~static_cast<integral>(a - 1));
+    return static_cast<Integral>((X + (static_cast<Integral>(A) - 1)) &
+                                 ~static_cast<Integral>(A - 1));
 }
 
 }  // namespace
 
-void Renderer::createRtShaderBindingTable()
+void Renderer::CreateRtShaderBindingTable()
 {
-    uint32_t missCount{1};
-    uint32_t hitCount{1};
+    uint32_t MissCount{1};
+    uint32_t HitCount{1};
 
-    uint32_t handleCount = 1 + missCount + hitCount;
+    uint32_t HandleCount = 1 + MissCount + HitCount;
 
     // The SBT (buffer) needs to have starting group to be aligned
     // and handles in the group to be aligned.
     // handleAlignment==32
-    uint32_t handleSizeAligned = align_up(handleSize, handleAlignment);
+    uint32_t HandleSizeAligned = AlignUp(HandleSize, HandleAlignment);
 
     // baseAlignment==64
-    m_rgenRegion.stride = align_up(handleSizeAligned, baseAlignment);
+    RgenRegion.stride = AlignUp(HandleSizeAligned, BaseAlignment);
     // The size member must be equal to its stride member
-    m_rgenRegion.size = m_rgenRegion.stride;
+    RgenRegion.size = RgenRegion.stride;
 
-    m_missRegion.stride = handleSizeAligned;
-    m_missRegion.size = align_up(missCount * handleSizeAligned, baseAlignment);
+    MissRegion.stride = HandleSizeAligned;
+    MissRegion.size = AlignUp(MissCount * HandleSizeAligned, BaseAlignment);
 
-    m_hitRegion.stride = handleSizeAligned;
-    m_hitRegion.size = align_up(hitCount * handleSizeAligned, baseAlignment);
+    HitRegion.stride = HandleSizeAligned;
+    HitRegion.size = AlignUp(HitCount * HandleSizeAligned, BaseAlignment);
 
     printf("Shader binding table:\n");
     printf("  alignments:\n");
-    printf("    handleAlignment: %d\n", handleAlignment);
-    printf("    baseAlignment:   %d\n", baseAlignment);
+    printf("    handleAlignment: %d\n", HandleAlignment);
+    printf("    baseAlignment:   %d\n", BaseAlignment);
     printf("  counts:\n");
-    printf("    miss:   %d\n", missCount);
-    printf("    hit:    %d\n", hitCount);
-    printf("    handle: %d = 1+missCount+hitCount\n", handleCount);
+    printf("    miss:   %d\n", MissCount);
+    printf("    hit:    %d\n", HitCount);
+    printf("    handle: %d = 1+missCount+hitCount\n", HandleCount);
     printf("  regions stride:size:\n");
-    printf("    rgen %2ld:%2ld\n", m_rgenRegion.stride, m_rgenRegion.size);
-    printf("    miss %2ld:%2ld\n", m_missRegion.stride, m_missRegion.size);
-    printf("    hit  %2ld:%2ld\n", m_hitRegion.stride, m_hitRegion.size);
-    printf("    call %2ld:%2ld\n", m_callRegion.stride, m_callRegion.size);
+    printf("    rgen %2ld:%2ld\n", RgenRegion.stride, RgenRegion.size);
+    printf("    miss %2ld:%2ld\n", MissRegion.stride, MissRegion.size);
+    printf("    hit  %2ld:%2ld\n", HitRegion.stride, HitRegion.size);
+    printf("    call %2ld:%2ld\n", CallRegion.stride, CallRegion.size);
 
     // Get the shader group handles.  This is a byte array retrieved
     // from the pipeline.
-    uint32_t dataSize = handleCount * handleSize;
-    std::vector<uint8_t> handles(dataSize);
-    RTRT_CHECK_VK(vkGetRayTracingShaderGroupHandlesKHR(
-        m_device, m_rtPipeline, 0, handleCount, dataSize, handles.data()));
+    uint32_t DataSize = HandleCount * HandleSize;
+    std::vector<uint8_t> Handles(DataSize);
+    RTRT_CHECK_VK(vkGetRayTracingShaderGroupHandlesKHR(Device, RtPipeline, 0, HandleCount,
+                                                       DataSize, Handles.data()));
 
     // Allocate a buffer for storing the SBT, and a staging buffer for transferring data
     // to it.
-    VkDeviceSize sbtSize =
-        m_rgenRegion.size + m_missRegion.size + m_hitRegion.size + m_callRegion.size;
+    VkDeviceSize SbtSize =
+        RgenRegion.size + MissRegion.size + HitRegion.size + CallRegion.size;
 
-    BufferWrap staging = createBufferWrap(
-        sbtSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+    BufferWrap Staging = CreateBufferWrap(
+        SbtSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    m_shaderBindingTableBW = createBufferWrap(
-        sbtSize,
+    ShaderBindingTableBw = CreateBufferWrap(
+        SbtSize,
         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
             VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     // Find the SBT addresses of each group
-    VkBufferDeviceAddressInfo info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
-    info.buffer = m_shaderBindingTableBW.Buffer;
-    VkDeviceAddress sbtAddress = vkGetBufferDeviceAddress(m_device, &info);
+    VkBufferDeviceAddressInfo Info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
+    Info.buffer = ShaderBindingTableBw.Buffer;
+    VkDeviceAddress SbtAddress = vkGetBufferDeviceAddress(Device, &Info);
 
-    m_rgenRegion.deviceAddress = sbtAddress;
-    m_missRegion.deviceAddress = sbtAddress + m_rgenRegion.size;
-    m_hitRegion.deviceAddress = sbtAddress + m_rgenRegion.size + m_missRegion.size;
+    RgenRegion.deviceAddress = SbtAddress;
+    MissRegion.deviceAddress = SbtAddress + RgenRegion.size;
+    HitRegion.deviceAddress = SbtAddress + RgenRegion.size + MissRegion.size;
 
     // Helper to retrieve the handle data
-    auto getHandle = [&](int i) { return handles.data() + i * handleSize; };
+    auto GetHandle = [&](int I) { return Handles.data() + I * HandleSize; };
 
     // Map the SBT buffer and write in the handles.
-    void* mappedMemory = nullptr;
-    RTRT_CHECK_VK(vkMapMemory(m_device, staging.Memory, 0, sbtSize, 0, &mappedMemory));
-    uint8_t* mappedMemAddress = static_cast<uint8_t*>(mappedMemory);
-    uint8_t offset = 0;
+    void* MappedMemory = nullptr;
+    RTRT_CHECK_VK(vkMapMemory(Device, Staging.Memory, 0, SbtSize, 0, &MappedMemory));
+    uint8_t* MappedMemAddress = static_cast<uint8_t*>(MappedMemory);
+    uint8_t Offset = 0;
 
     // Raygen
-    uint32_t handleIdx{0};
-    memcpy(mappedMemAddress + offset, getHandle(handleIdx++), handleSize);
+    uint32_t HandleIdx{0};
+    memcpy(MappedMemAddress + Offset, GetHandle(HandleIdx++), HandleSize);
 
     // Miss
-    offset = m_rgenRegion.size;
-    for (uint32_t c = 0; c < missCount; c++)
+    Offset = RgenRegion.size;
+    for (uint32_t C = 0; C < MissCount; C++)
     {
-        memcpy(mappedMemAddress + offset, getHandle(handleIdx++), handleSize);
-        offset += m_missRegion.stride;
+        memcpy(MappedMemAddress + Offset, GetHandle(HandleIdx++), HandleSize);
+        Offset += MissRegion.stride;
     }
 
     // Hit
-    offset = m_rgenRegion.size + m_missRegion.size;
-    for (uint32_t c = 0; c < hitCount; c++)
+    Offset = RgenRegion.size + MissRegion.size;
+    for (uint32_t C = 0; C < HitCount; C++)
     {
-        memcpy(mappedMemAddress + offset, getHandle(handleIdx++), handleSize);
-        offset += m_hitRegion.stride;
+        memcpy(MappedMemAddress + Offset, GetHandle(HandleIdx++), HandleSize);
+        Offset += HitRegion.stride;
     }
 
-    vkUnmapMemory(m_device, staging.Memory);
+    vkUnmapMemory(Device, Staging.Memory);
 
-    copyBuffer(staging.Buffer, m_shaderBindingTableBW.Buffer, sbtSize);
+    CopyBuffer(Staging.Buffer, ShaderBindingTableBw.Buffer, SbtSize);
 
-    staging.Destroy(m_device);
+    Staging.Destroy(Device);
 }
 
-void Renderer::CmdCopyImage(ImageWrap& src, ImageWrap& dst)
+void Renderer::CmdCopyImage(ImageWrap& Src, ImageWrap& Dst)
 {
-    VkImageCopy imageCopyRegion{};
-    imageCopyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    imageCopyRegion.srcSubresource.layerCount = 1;
-    imageCopyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    imageCopyRegion.dstSubresource.layerCount = 1;
-    imageCopyRegion.extent.width = windowSize.width;
-    imageCopyRegion.extent.height = windowSize.height;
-    imageCopyRegion.extent.depth = 1;
+    VkImageCopy ImageCopyRegion{};
+    ImageCopyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    ImageCopyRegion.srcSubresource.layerCount = 1;
+    ImageCopyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    ImageCopyRegion.dstSubresource.layerCount = 1;
+    ImageCopyRegion.extent.width = WindowSize.width;
+    ImageCopyRegion.extent.height = WindowSize.height;
+    ImageCopyRegion.extent.depth = 1;
 
-    imageLayoutBarrier(m_commandBuffer, src.Image, VK_IMAGE_LAYOUT_GENERAL,
+    ImageLayoutBarrier(CommandBuffer, Src.Image, VK_IMAGE_LAYOUT_GENERAL,
                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    imageLayoutBarrier(m_commandBuffer, dst.Image, VK_IMAGE_LAYOUT_GENERAL,
+    ImageLayoutBarrier(CommandBuffer, Dst.Image, VK_IMAGE_LAYOUT_GENERAL,
                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-    vkCmdCopyImage(m_commandBuffer, src.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                   dst.Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopyRegion);
+    vkCmdCopyImage(CommandBuffer, Src.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                   Dst.Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &ImageCopyRegion);
 
-    imageLayoutBarrier(m_commandBuffer, src.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+    ImageLayoutBarrier(CommandBuffer, Src.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                        VK_IMAGE_LAYOUT_GENERAL);
-    imageLayoutBarrier(m_commandBuffer, dst.Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    ImageLayoutBarrier(CommandBuffer, Dst.Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                        VK_IMAGE_LAYOUT_GENERAL);
 }
 
-void Renderer::raytrace()
+void Renderer::Raytrace()
 {
     // The push constants for the ray tracing pipeline.
     // These are temporary -- used only for ray casting step.
-    m_pcRay.AlignmentTest = 1234;
-    m_pcRay.TempLightPos = vec4(0.5f, 2.5f, 3.0f, 0.0);
-    m_pcRay.TempLightInt = vec4(2.5, 2.5, 2.5, 0.0);
-    m_pcRay.TempAmbient = vec4(0.2f);
+    PcRay.AlignmentTest = 1234;
+    PcRay.TempLightPos = vec4(0.5f, 2.5f, 3.0f, 0.0);
+    PcRay.TempLightInt = vec4(2.5, 2.5, 2.5, 0.0);
+    PcRay.TempAmbient = vec4(0.2f);
 
-    m_pcRay.FrameSeed = rand() % 32768;
-    m_pcRay.Clear = m_resetHistory;
-    m_resetHistory = false;
+    PcRay.FrameSeed = rand() % 32768;
+    PcRay.Clear = ResetHistory;
+    ResetHistory = false;
 
     // Bind the ray tracing pipeline
-    vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
-                      m_rtPipeline);
+    vkCmdBindPipeline(CommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, RtPipeline);
 
     // Bind the descriptor sets (the ray tracing specific one, and the
     // full model descriptor)
-    std::vector<VkDescriptorSet> descSets{m_rtDesc.DescSet, m_scDesc.DescSet};
-    vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
-                            m_rtPipelineLayout, 0, descSets.size(), descSets.data(), 0,
+    std::vector<VkDescriptorSet> DescSets{RtDesc.DescSet, ScDesc.DescSet};
+    vkCmdBindDescriptorSets(CommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
+                            RtPipelineLayout, 0, DescSets.size(), DescSets.data(), 0,
                             nullptr);
 
     // Push the push constants
-    vkCmdPushConstants(m_commandBuffer, m_rtPipelineLayout,
+    vkCmdPushConstants(CommandBuffer, RtPipelineLayout,
                        VK_SHADER_STAGE_RAYGEN_BIT_KHR |
                            VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR |
                            VK_SHADER_STAGE_MISS_BIT_KHR,
-                       0, sizeof(PushConstantRay), &m_pcRay);
+                       0, sizeof(PushConstantRay), &PcRay);
 
     // This dispatches the ray generation shader for each pixel on screen.
-    vkCmdTraceRaysKHR(m_commandBuffer, &m_rgenRegion, &m_missRegion, &m_hitRegion,
-                      &m_callRegion, windowSize.width, windowSize.height, 1);
-    frameCount++;
+    vkCmdTraceRaysKHR(CommandBuffer, &RgenRegion, &MissRegion, &HitRegion, &CallRegion,
+                      WindowSize.width, WindowSize.height, 1);
+    FrameCount++;
 
     // Copy the ray tracer output image to the scanline output image
     // -- because we already have the operations needed to display
     // that image on the screen.  The debug views show a G-buffer image instead.
-    if (m_viewMode == kViewAlbedo)
+    if (ViewMode == kViewAlbedo)
     {
-        CmdCopyImage(m_rtKdCurrBuffer, m_scImageBuffer);
+        CmdCopyImage(RtKdCurrBuffer, ScImageBuffer);
     }
-    else if (m_viewMode == kViewNormal || m_viewMode == kViewDepth)
+    else if (ViewMode == kViewNormal || ViewMode == kViewDepth)
     {
-        CmdCopyImage(m_rtNdCurrBuffer, m_scImageBuffer);
+        CmdCopyImage(RtNdCurrBuffer, ScImageBuffer);
     }
     else
     {
-        CmdCopyImage(m_rtColCurrBuffer, m_scImageBuffer);
+        CmdCopyImage(RtColCurrBuffer, ScImageBuffer);
     }
 
     // Save current frame buffers as history for the next frame
-    CmdCopyImage(m_rtColCurrBuffer, m_rtColPrevBuffer);
-    CmdCopyImage(m_rtKdCurrBuffer, m_rtKdPrevBuffer);
-    CmdCopyImage(m_rtNdCurrBuffer, m_rtNdPrevBuffer);
+    CmdCopyImage(RtColCurrBuffer, RtColPrevBuffer);
+    CmdCopyImage(RtKdCurrBuffer, RtKdPrevBuffer);
+    CmdCopyImage(RtNdCurrBuffer, RtNdPrevBuffer);
 }
 
 }  // namespace rtrt

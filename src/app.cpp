@@ -92,7 +92,7 @@ void DrawPerfGui(App& A)
 
 void DrawGui(Renderer& VK)
 {
-    App& A = *VK.app;
+    App& A = *VK.Application;
 
     ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(340, 700), ImGuiCond_FirstUseEver);
@@ -105,43 +105,43 @@ void DrawGui(Renderer& VK)
 
     const ImGuiIO& Io = ImGui::GetIO();
     ImGui::Text("%.1f FPS (%.2f ms)", Io.Framerate, 1000.0f / Io.Framerate);
-    ImGui::Text("Frames since reset: %d", VK.frameCount);
+    ImGui::Text("Frames since reset: %d", VK.FrameCount);
 
     // Anything that changes what a path returns makes the existing history wrong.
     bool ResetHistory = false;
 
-    if (ImGui::RadioButton("Ray tracer", VK.useRaytracer))
+    if (ImGui::RadioButton("Ray tracer", VK.UseRaytracer))
     {
-        ResetHistory |= !VK.useRaytracer;
-        VK.useRaytracer = true;
+        ResetHistory |= !VK.UseRaytracer;
+        VK.UseRaytracer = true;
     }
     ImGui::SameLine();
-    if (ImGui::RadioButton("Rasterizer", !VK.useRaytracer))
+    if (ImGui::RadioButton("Rasterizer", !VK.UseRaytracer))
     {
-        VK.useRaytracer = false;
+        VK.UseRaytracer = false;
     }
 
     const char* ViewNames[] = {"Final", "Albedo", "Normal", "Depth", "Sample count"};
-    ImGui::Combo("View", &VK.m_viewMode, ViewNames, IM_ARRAYSIZE(ViewNames));
+    ImGui::Combo("View", &VK.ViewMode, ViewNames, IM_ARRAYSIZE(ViewNames));
 
     if (ImGui::CollapsingHeader("Path tracer", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        ResetHistory |= ImGui::Checkbox("Specular", &VK.m_pcRay.FullBrdf);
+        ResetHistory |= ImGui::Checkbox("Specular", &VK.PcRay.FullBrdf);
         ResetHistory |=
-            ImGui::SliderFloat("Survival chance", &VK.m_pcRay.Rr, 0.1f, 0.95f, "%.2f");
-        ResetHistory |= ImGui::SliderInt("Max path length", &VK.m_pcRay.Depth, 1, 32);
-        ResetHistory |= ImGui::SliderFloat("Emission scale", &VK.m_pcRay.EmissionScale,
+            ImGui::SliderFloat("Survival chance", &VK.PcRay.Rr, 0.1f, 0.95f, "%.2f");
+        ResetHistory |= ImGui::SliderInt("Max path length", &VK.PcRay.Depth, 1, 32);
+        ResetHistory |= ImGui::SliderFloat("Emission scale", &VK.PcRay.EmissionScale,
                                            0.0f, 5.0f, "%.2f");
     }
 
     if (ImGui::CollapsingHeader("Temporal history", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        ImGui::Checkbox("Use history", &VK.m_pcRay.UseHistory);
-        ImGui::SliderFloat("Normal threshold", &VK.m_pcRay.NormalThreshold, 0.0f, 1.0f,
+        ImGui::Checkbox("Use history", &VK.PcRay.UseHistory);
+        ImGui::SliderFloat("Normal threshold", &VK.PcRay.NormalThreshold, 0.0f, 1.0f,
                            "%.2f");
-        ImGui::SliderFloat("Depth threshold", &VK.m_pcRay.DepthThreshold, 0.001f, 0.2f,
+        ImGui::SliderFloat("Depth threshold", &VK.PcRay.DepthThreshold, 0.001f, 0.2f,
                            "%.3f");
-        ImGui::SliderFloat("Max samples (0 = off)", &VK.m_pcRay.MaxSamples, 0.0f, 4096.0f,
+        ImGui::SliderFloat("Max samples (0 = off)", &VK.PcRay.MaxSamples, 0.0f, 4096.0f,
                            "%.0f", ImGuiSliderFlags_Logarithmic);
         if (ImGui::Button("Reset history"))
         {
@@ -151,20 +151,20 @@ void DrawGui(Renderer& VK)
 
     if (ImGui::CollapsingHeader("Denoiser", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        ImGui::Checkbox("Enabled", &VK.m_denoiseEnabled);
-        ImGui::SliderInt("Iterations", &VK.m_num_atrous_iterations, 0, 8);
-        ImGui::SliderFloat("Normal factor", &VK.m_pcDenoise.NormFactor, 0.0f, 0.1f,
-                           "%.4f", ImGuiSliderFlags_Logarithmic);
-        ImGui::SliderFloat("Depth factor", &VK.m_pcDenoise.DepthFactor, 0.0f, 0.1f,
-                           "%.4f", ImGuiSliderFlags_Logarithmic);
-        ImGui::SliderFloat("Albedo factor", &VK.m_pcDenoise.AlbedoFactor, 0.0f, 1.0f,
+        ImGui::Checkbox("Enabled", &VK.DenoiseEnabled);
+        ImGui::SliderInt("Iterations", &VK.NumAtrousIterations, 0, 8);
+        ImGui::SliderFloat("Normal factor", &VK.PcDenoise.NormFactor, 0.0f, 0.1f, "%.4f",
+                           ImGuiSliderFlags_Logarithmic);
+        ImGui::SliderFloat("Depth factor", &VK.PcDenoise.DepthFactor, 0.0f, 0.1f, "%.4f",
+                           ImGuiSliderFlags_Logarithmic);
+        ImGui::SliderFloat("Albedo factor", &VK.PcDenoise.AlbedoFactor, 0.0f, 1.0f,
                            "%.3f", ImGuiSliderFlags_Logarithmic);
     }
 
     if (ImGui::CollapsingHeader("Display", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        ImGui::SliderFloat("Exposure", &VK.m_exposure, 0.1f, 4.0f, "%.2f");
-        ImGui::SliderFloat("Gamma", &VK.m_gamma, 1.0f, 3.0f, "%.2f");
+        ImGui::SliderFloat("Exposure", &VK.Exposure, 0.1f, 4.0f, "%.2f");
+        ImGui::SliderFloat("Gamma", &VK.Gamma, 1.0f, 3.0f, "%.2f");
     }
 
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
@@ -183,14 +183,14 @@ void DrawGui(Renderer& VK)
 
     if (ImGui::CollapsingHeader("Shaders", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (ImGui::RadioButton("GLSL", !VK.m_useSlang))
+        if (ImGui::RadioButton("GLSL", !VK.UseSlang))
         {
-            VK.setShaderLanguage(false);
+            VK.SetShaderLanguage(false);
         }
         ImGui::SameLine();
-        if (ImGui::RadioButton("Slang", VK.m_useSlang))
+        if (ImGui::RadioButton("Slang", VK.UseSlang))
         {
-            VK.setShaderLanguage(true);
+            VK.SetShaderLanguage(true);
         }
     }
 
@@ -198,7 +198,7 @@ void DrawGui(Renderer& VK)
     ImGui::Checkbox("Show performance window", &A.ShowPerf);
     if (ImGui::Button("Restore default settings"))
     {
-        VK.setDefaultSettings();
+        VK.SetDefaultSettings();
     }
 
     if (ResetHistory)
@@ -416,19 +416,19 @@ int main(int Argc, char** Argv)
         }
 
         const double CpuEnd = glfwGetTime();
-        VK.drawFrame();
+        VK.DrawFrame();
 
         const double FrameEnd = glfwGetTime();
         Application.Stats.Push(static_cast<float>((FrameEnd - FrameStart) * 1000.0),
                                static_cast<float>((CpuEnd - FrameStart) * 1000.0),
-                               static_cast<float>(VK.m_recordMs),
-                               static_cast<float>(VK.m_gpuWaitMs));
+                               static_cast<float>(VK.RecordMs),
+                               static_cast<float>(VK.GpuWaitMs));
         FrameStart = FrameEnd;
     }
 
     // Cleanup
 
-    VK.destroyAllVulkanResources();
+    VK.DestroyAllVulkanResources();
 
     glfwDestroyWindow(Application.Window);
     glfwTerminate();

@@ -20,273 +20,272 @@
 namespace rtrt
 {
 
-Renderer::Renderer(App* _app) : app(_app)
+Renderer::Renderer(App* Owner) : Application(Owner)
 {
 }
 
 bool Renderer::Init()
 {
-    m_useSlang = app->UseSlang;      // -slang picks the starting shader language
-    createInstance(app->DoApiDump);  // -> m_instance
-    assert(m_instance);
-    if (!createPhysicalDevice())
+    UseSlang = Application->UseSlang;        // -slang picks the starting shader language
+    CreateInstance(Application->DoApiDump);  // -> Instance
+    assert(Instance);
+    if (!CreatePhysicalDevice())
     {
         fprintf(stderr, "No GPU supports the required ray tracing extensions.\n");
         return false;
     }
-    chooseQueueIndex();  // -> m_graphicsQueueIndex
-    createDevice();      // -> m_device
-    getCommandQueue();   // -> m_queue
+    ChooseQueueIndex();  // -> GraphicsQueueIndex
+    CreateDevice();      // -> Device
+    GetCommandQueue();   // -> Queue
 
-    loadExtensions();  // Auto generated; loads namespace of all known extensions
+    LoadExtensions();  // Auto generated; loads namespace of all known extensions
 
-    getSurface();         // -> m_surface
-    createCommandPool();  // -> m_cmdPool
+    GetSurface();         // -> Surface
+    CreateCommandPool();  // -> CmdPool
 
-    createSwapchain();         // -> m_swapchain
-    createDepthResource();     // -> m_depthImage, ...
-    createPostRenderPass();    // -> m_postRenderPass
-    createPostFrameBuffers();  // -> m_framebuffers
+    CreateSwapchain();         // -> Swapchain
+    CreateDepthResource();     // -> DepthImage, ...
+    CreatePostRenderPass();    // -> PostRenderPass
+    CreatePostFrameBuffers();  // -> Framebuffers
 
-    createScBuffer();
-    createPostDescriptor();
-    createPostPipeline();  // -> m_postPipelineLayout
+    CreateScBuffer();
+    CreatePostDescriptor();
+    CreatePostPipeline();  // -> PostPipelineLayout
 
-    initGUI();
+    InitGui();
 
-    myloadModel("models/living_room/living_room.obj", glm::mat4(1.0f));
+    MyLoadModel("models/living_room/living_room.obj", glm::mat4(1.0f));
 
-    createMatrixBuffer();
-    createObjDescriptionBuffer();
-    createScanlineRenderPass();
-    createScDescriptorSet();
-    createScPipeline();
+    CreateMatrixBuffer();
+    CreateObjDescriptionBuffer();
+    CreateScanlineRenderPass();
+    CreateScDescriptorSet();
+    CreateScPipeline();
 
     // //init ray tracing capabilities
-    createRtBuffers();
-    initRayTracing();
-    createRtAccelerationStructure();
-    createRtDescriptorSet();
-    createRtPipeline();
-    createRtShaderBindingTable();
+    CreateRtBuffers();
+    InitRayTracing();
+    CreateRtAccelerationStructure();
+    CreateRtDescriptorSet();
+    CreateRtPipeline();
+    CreateRtShaderBindingTable();
 
-    createDenoiseBuffer();
-    createDenoiseDescriptorSet();
-    createDenoiseCompPipeline();
+    CreateDenoiseBuffer();
+    CreateDenoiseDescriptorSet();
+    CreateDenoiseCompPipeline();
     return true;
 }
 
-void Renderer::drawFrame()
+void Renderer::DrawFrame()
 {
-    const double start = glfwGetTime();
-    if (!prepareFrame())
+    const double Start = glfwGetTime();
+    if (!PrepareFrame())
     {
         ImGui::EndFrame();
         return;
     }
 
-    VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    RTRT_CHECK_VK(vkBeginCommandBuffer(m_commandBuffer, &beginInfo));
+    VkCommandBufferBeginInfo BeginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    BeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    RTRT_CHECK_VK(vkBeginCommandBuffer(CommandBuffer, &BeginInfo));
     {  // Extra indent for code clarity
-        updateCameraBuffer();
+        UpdateCameraBuffer();
 
         // Draw scene
-        if (useRaytracer)
+        if (UseRaytracer)
         {
-            raytrace();
-            if (m_denoiseEnabled && m_viewMode == kViewFinal)
+            Raytrace();
+            if (DenoiseEnabled && ViewMode == kViewFinal)
             {
-                denoise();
+                Denoise();
             }
         }
         else
         {
-            rasterize();
+            Rasterize();
         }
 
-        postProcess();  //  tone mapper and output to swapchain image.
+        PostProcess();  //  tone mapper and output to swapchain image.
 
     }  // Done recording;  Execute!
 
-    RTRT_CHECK_VK(vkEndCommandBuffer(m_commandBuffer));
+    RTRT_CHECK_VK(vkEndCommandBuffer(CommandBuffer));
 
-    submitFrame();  // Submit for display
-    m_recordMs = (glfwGetTime() - start) * 1000.0 - m_gpuWaitMs;
+    SubmitFrame();  // Submit for display
+    RecordMs = (glfwGetTime() - Start) * 1000.0 - GpuWaitMs;
 }
 
-VkCommandBuffer Renderer::createTempCmdBuffer()
+VkCommandBuffer Renderer::CreateTempCmdBuffer()
 {
-    VkCommandBufferAllocateInfo allocateInfo{
+    VkCommandBufferAllocateInfo AllocateInfo{
         VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
-    allocateInfo.commandBufferCount = 1;
-    allocateInfo.commandPool = m_cmdPool;
-    allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    VkCommandBuffer cmdBuffer;
-    RTRT_CHECK_VK(vkAllocateCommandBuffers(m_device, &allocateInfo, &cmdBuffer));
+    AllocateInfo.commandBufferCount = 1;
+    AllocateInfo.commandPool = CmdPool;
+    AllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    VkCommandBuffer CmdBuffer;
+    RTRT_CHECK_VK(vkAllocateCommandBuffers(Device, &AllocateInfo, &CmdBuffer));
 
-    VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    RTRT_CHECK_VK(vkBeginCommandBuffer(cmdBuffer, &beginInfo));
-    return cmdBuffer;
+    VkCommandBufferBeginInfo BeginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    BeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    RTRT_CHECK_VK(vkBeginCommandBuffer(CmdBuffer, &BeginInfo));
+    return CmdBuffer;
 }
 
-void Renderer::submitTempCmdBuffer(VkCommandBuffer cmdBuffer)
+void Renderer::SubmitTempCmdBuffer(VkCommandBuffer CmdBuffer)
 {
-    RTRT_CHECK_VK(vkEndCommandBuffer(cmdBuffer));
+    RTRT_CHECK_VK(vkEndCommandBuffer(CmdBuffer));
 
-    VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &cmdBuffer;
-    RTRT_CHECK_VK(vkQueueSubmit(m_queue, 1, &submitInfo, {}));
-    RTRT_CHECK_VK(vkQueueWaitIdle(m_queue));
-    vkFreeCommandBuffers(m_device, m_cmdPool, 1, &cmdBuffer);
+    VkSubmitInfo SubmitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    SubmitInfo.commandBufferCount = 1;
+    SubmitInfo.pCommandBuffers = &CmdBuffer;
+    RTRT_CHECK_VK(vkQueueSubmit(Queue, 1, &SubmitInfo, {}));
+    RTRT_CHECK_VK(vkQueueWaitIdle(Queue));
+    vkFreeCommandBuffers(Device, CmdPool, 1, &CmdBuffer);
 }
 
-bool Renderer::prepareFrame()
+bool Renderer::PrepareFrame()
 {
     // Use a fence to wait until the command buffer has finished execution before using it
     // again. This must happen before the acquire, so the previous submit's wait on
-    // m_readSemaphore is done.
-    const double waitStart = glfwGetTime();
-    VkResult waitResult = VK_TIMEOUT;
-    while (waitResult == VK_TIMEOUT)
+    // ReadSemaphore is done.
+    const double WaitStart = glfwGetTime();
+    VkResult WaitResult = VK_TIMEOUT;
+    while (WaitResult == VK_TIMEOUT)
     {
-        waitResult = vkWaitForFences(m_device, 1, &m_waitFence, VK_TRUE, 1'000'000);
+        WaitResult = vkWaitForFences(Device, 1, &WaitFence, VK_TRUE, 1'000'000);
     }
-    CheckVkResult(waitResult, "vkWaitForFences", __FILE__, __LINE__);
-    m_gpuWaitMs = (glfwGetTime() - waitStart) * 1000.0;
+    CheckVkResult(WaitResult, "vkWaitForFences", __FILE__, __LINE__);
+    GpuWaitMs = (glfwGetTime() - WaitStart) * 1000.0;
 
-    if (app->FramebufferResized && !recreateSizedResources())
+    if (Application->FramebufferResized && !RecreateSizedResources())
     {
         return false;
     }
 
-    // Acquire the next image from the swap chain --> m_swapchainIndex
-    // A suboptimal acquire still signals m_readSemaphore, so that frame is drawn and
+    // Acquire the next image from the swap chain --> SwapchainIndex
+    // A suboptimal acquire still signals ReadSemaphore, so that frame is drawn and
     // the swapchain is rebuilt after its present.
-    VkResult result =
-        vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX, m_readSemaphore,
-                              VK_NULL_HANDLE, &m_swapchainIndex);
-    while (result == VK_ERROR_OUT_OF_DATE_KHR)
+    VkResult Result = vkAcquireNextImageKHR(Device, Swapchain, UINT64_MAX, ReadSemaphore,
+                                            VK_NULL_HANDLE, &SwapchainIndex);
+    while (Result == VK_ERROR_OUT_OF_DATE_KHR)
     {
-        if (!recreateSizedResources())
+        if (!RecreateSizedResources())
         {
             return false;
         }
-        result = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX, m_readSemaphore,
-                                       VK_NULL_HANDLE, &m_swapchainIndex);
+        Result = vkAcquireNextImageKHR(Device, Swapchain, UINT64_MAX, ReadSemaphore,
+                                       VK_NULL_HANDLE, &SwapchainIndex);
     }
-    CheckVkResult(result, "vkAcquireNextImageKHR", __FILE__, __LINE__);
+    CheckVkResult(Result, "vkAcquireNextImageKHR", __FILE__, __LINE__);
     return true;
 }
 
-void Renderer::submitFrame()
+void Renderer::SubmitFrame()
 {
-    RTRT_CHECK_VK(vkResetFences(m_device, 1, &m_waitFence));
+    RTRT_CHECK_VK(vkResetFences(Device, 1, &WaitFence));
 
     // Pipeline stage at which the queue submission will wait (via pWaitSemaphores)
-    const VkPipelineStageFlags waitStageMask =
+    const VkPipelineStageFlags WaitStageMask =
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
     // The submit info structure specifies a command buffer queue submission batch
-    VkSubmitInfo _si_{VK_STRUCTURE_TYPE_SUBMIT_INFO};
-    _si_.pNext = nullptr;
-    _si_.pWaitDstStageMask = &waitStageMask;  //  pipeline stages to wait for
-    _si_.waitSemaphoreCount = 1;
-    _si_.pWaitSemaphores = &m_readSemaphore;  // waited upon before execution
-    _si_.signalSemaphoreCount = 1;
+    VkSubmitInfo FrameSubmitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    FrameSubmitInfo.pNext = nullptr;
+    FrameSubmitInfo.pWaitDstStageMask = &WaitStageMask;  //  pipeline stages to wait for
+    FrameSubmitInfo.waitSemaphoreCount = 1;
+    FrameSubmitInfo.pWaitSemaphores = &ReadSemaphore;  // waited upon before execution
+    FrameSubmitInfo.signalSemaphoreCount = 1;
     // signaled when execution finishes
-    _si_.pSignalSemaphores = &m_writtenSemaphores[m_swapchainIndex];
-    _si_.commandBufferCount = 1;
-    _si_.pCommandBuffers = &m_commandBuffer;
-    RTRT_CHECK_VK(vkQueueSubmit(m_queue, 1, &_si_, m_waitFence));
+    FrameSubmitInfo.pSignalSemaphores = &WrittenSemaphores[SwapchainIndex];
+    FrameSubmitInfo.commandBufferCount = 1;
+    FrameSubmitInfo.pCommandBuffers = &CommandBuffer;
+    RTRT_CHECK_VK(vkQueueSubmit(Queue, 1, &FrameSubmitInfo, WaitFence));
 
     // Present frame
-    VkPresentInfoKHR _i_{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
-    _i_.waitSemaphoreCount = 1;
-    _i_.pWaitSemaphores = &m_writtenSemaphores[m_swapchainIndex];
-    _i_.swapchainCount = 1;
-    _i_.pSwapchains = &m_swapchain;
-    _i_.pImageIndices = &m_swapchainIndex;
-    VkResult result = vkQueuePresentKHR(m_queue, &_i_);
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+    VkPresentInfoKHR PresentInfo{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
+    PresentInfo.waitSemaphoreCount = 1;
+    PresentInfo.pWaitSemaphores = &WrittenSemaphores[SwapchainIndex];
+    PresentInfo.swapchainCount = 1;
+    PresentInfo.pSwapchains = &Swapchain;
+    PresentInfo.pImageIndices = &SwapchainIndex;
+    VkResult Result = vkQueuePresentKHR(Queue, &PresentInfo);
+    if (Result == VK_ERROR_OUT_OF_DATE_KHR || Result == VK_SUBOPTIMAL_KHR)
     {
-        app->FramebufferResized = true;
+        Application->FramebufferResized = true;
     }
     else
     {
-        CheckVkResult(result, "vkQueuePresentKHR", __FILE__, __LINE__);
+        CheckVkResult(Result, "vkQueuePresentKHR", __FILE__, __LINE__);
     }
 }
 
-VkShaderModule Renderer::createShaderModule(const std::string& code)
+VkShaderModule Renderer::CreateShaderModule(const std::string& Code)
 {
-    VkShaderModuleCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.codeSize = code.size();
-    createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+    VkShaderModuleCreateInfo CreateInfo = {};
+    CreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    CreateInfo.codeSize = Code.size();
+    CreateInfo.pCode = reinterpret_cast<const uint32_t*>(Code.data());
 
-    VkShaderModule shaderModule = VK_NULL_HANDLE;
-    RTRT_CHECK_VK(vkCreateShaderModule(m_device, &createInfo, nullptr, &shaderModule));
+    VkShaderModule ShaderModule = VK_NULL_HANDLE;
+    RTRT_CHECK_VK(vkCreateShaderModule(Device, &CreateInfo, nullptr, &ShaderModule));
 
-    return shaderModule;
+    return ShaderModule;
 }
 
-VkPipelineShaderStageCreateInfo Renderer::createShaderStageInfo(
-    const std::string& code, VkShaderStageFlagBits stage, const char* entryPoint)
+VkPipelineShaderStageCreateInfo Renderer::CreateShaderStageInfo(
+    const std::string& Code, VkShaderStageFlagBits Stage, const char* EntryPoint)
 {
-    VkPipelineShaderStageCreateInfo shaderStage{
+    VkPipelineShaderStageCreateInfo ShaderStage{
         VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
-    shaderStage.stage = stage;
-    shaderStage.module = createShaderModule(code);
-    shaderStage.pName = entryPoint;
-    return shaderStage;
+    ShaderStage.stage = Stage;
+    ShaderStage.module = CreateShaderModule(Code);
+    ShaderStage.pName = EntryPoint;
+    return ShaderStage;
 }
 
-void Renderer::initGUI()
+void Renderer::InitGui()
 {
-    uint32_t subpassID = 0;
+    uint32_t SubpassID = 0;
 
     // UI
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    io.LogFilename = nullptr;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
+    ImGuiIO& Io = ImGui::GetIO();
+    Io.LogFilename = nullptr;
+    Io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
 
-    std::vector<VkDescriptorPoolSize> poolSize{
+    std::vector<VkDescriptorPoolSize> PoolSize{
         {VK_DESCRIPTOR_TYPE_SAMPLER, 1}, {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
-    VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
-    poolInfo.maxSets = 2;
-    poolInfo.poolSizeCount = 2;
-    poolInfo.pPoolSizes = poolSize.data();
-    RTRT_CHECK_VK(vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_imguiDescPool));
+    VkDescriptorPoolCreateInfo PoolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    PoolInfo.maxSets = 2;
+    PoolInfo.poolSizeCount = 2;
+    PoolInfo.pPoolSizes = PoolSize.data();
+    RTRT_CHECK_VK(vkCreateDescriptorPool(Device, &PoolInfo, nullptr, &ImguiDescPool));
 
     // Setup Platform/Renderer back ends
-    ImGui_ImplVulkan_InitInfo init_info = {};
-    init_info.Instance = m_instance;
-    init_info.PhysicalDevice = m_physicalDevice;
-    init_info.Device = m_device;
-    init_info.QueueFamily = m_graphicsQueueIndex;
-    init_info.Queue = m_queue;
-    init_info.PipelineCache = VK_NULL_HANDLE;
-    init_info.DescriptorPool = m_imguiDescPool;
-    init_info.Subpass = subpassID;
-    init_info.MinImageCount = 2;
-    init_info.ImageCount = m_imageCount;
-    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-    init_info.CheckVkResultFn = nullptr;
-    init_info.Allocator = nullptr;
+    ImGui_ImplVulkan_InitInfo InitInfo = {};
+    InitInfo.Instance = Instance;
+    InitInfo.PhysicalDevice = PhysicalDevice;
+    InitInfo.Device = Device;
+    InitInfo.QueueFamily = GraphicsQueueIndex;
+    InitInfo.Queue = Queue;
+    InitInfo.PipelineCache = VK_NULL_HANDLE;
+    InitInfo.DescriptorPool = ImguiDescPool;
+    InitInfo.Subpass = SubpassID;
+    InitInfo.MinImageCount = 2;
+    InitInfo.ImageCount = ImageCount;
+    InitInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+    InitInfo.CheckVkResultFn = nullptr;
+    InitInfo.Allocator = nullptr;
 
-    ImGui_ImplVulkan_Init(&init_info, m_postRenderPass);
+    ImGui_ImplVulkan_Init(&InitInfo, PostRenderPass);
 
     // Upload Fonts
-    VkCommandBuffer cmdbuf = createTempCmdBuffer();
-    ImGui_ImplVulkan_CreateFontsTexture(cmdbuf);
-    submitTempCmdBuffer(cmdbuf);
+    VkCommandBuffer Cmdbuf = CreateTempCmdBuffer();
+    ImGui_ImplVulkan_CreateFontsTexture(Cmdbuf);
+    SubmitTempCmdBuffer(Cmdbuf);
     ImGui_ImplVulkan_DestroyFontUploadObjects();  // Staging buffer is no longer needed
 
-    ImGui_ImplGlfw_InitForVulkan(app->Window, true);
+    ImGui_ImplGlfw_InitForVulkan(Application->Window, true);
 }
 
 }  // namespace rtrt

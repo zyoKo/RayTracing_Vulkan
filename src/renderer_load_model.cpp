@@ -32,217 +32,217 @@ namespace
 // Local objects and procedures defined and used here:
 struct ModelData
 {
-    std::vector<Vertex> vertices;
-    std::vector<uint32_t> indicies;
-    std::vector<Material> materials;
-    std::vector<int32_t> matIndx;
-    std::vector<std::string> textures;
+    std::vector<Vertex> Vertices;
+    std::vector<uint32_t> Indicies;
+    std::vector<Material> Materials;
+    std::vector<int32_t> MatIndx;
+    std::vector<std::string> Textures;
 
-    void readAssimpFile(const std::string& path, const mat4& M);
+    void ReadAssimpFile(const std::string& Path, const mat4& M);
 };
 
-void recurseModelNodes(ModelData* meshdata, const aiScene* aiscene, const aiNode* node,
-                       const aiMatrix4x4& parentTr, const int level = 0);
+void RecurseModelNodes(ModelData* Meshdata, const aiScene* Aiscene, const aiNode* Node,
+                       const aiMatrix4x4& ParentTr, const int Level = 0);
 
 // Returns an address (as VkDeviceAddress=uint64_t) of a buffer on the GPU.
-VkDeviceAddress getBufferDeviceAddress(VkDevice device, VkBuffer buffer)
+VkDeviceAddress GetBufferDeviceAddress(VkDevice DeviceHandle, VkBuffer Buffer)
 {
-    VkBufferDeviceAddressInfo info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
-    info.buffer = buffer;
-    return vkGetBufferDeviceAddress(device, &info);
+    VkBufferDeviceAddressInfo Info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
+    Info.buffer = Buffer;
+    return vkGetBufferDeviceAddress(DeviceHandle, &Info);
 }
 
 }  // namespace
 
-void Renderer::myloadModel(const std::string& filename, const glm::mat4& transform)
+void Renderer::MyLoadModel(const std::string& Filename, const glm::mat4& Transform)
 {
-    ModelData meshdata;
-    meshdata.readAssimpFile(filename, glm::mat4(1.0f));
+    ModelData Meshdata;
+    Meshdata.ReadAssimpFile(Filename, glm::mat4(1.0f));
 
-    printf("vertices: %zd\n", meshdata.vertices.size());
-    printf("indices: %zd (%zd)\n", meshdata.indicies.size(),
-           meshdata.indicies.size() / 3);
-    printf("materials: %zd\n", meshdata.materials.size());
-    printf("matIndx: %zd\n", meshdata.matIndx.size());
-    printf("textures: %zd\n", meshdata.textures.size());
+    printf("vertices: %zd\n", Meshdata.Vertices.size());
+    printf("indices: %zd (%zd)\n", Meshdata.Indicies.size(),
+           Meshdata.Indicies.size() / 3);
+    printf("materials: %zd\n", Meshdata.Materials.size());
+    printf("matIndx: %zd\n", Meshdata.MatIndx.size());
+    printf("textures: %zd\n", Meshdata.Textures.size());
 
     // The model's emitters are too dim as authored; boost them.
-    for (auto& material : meshdata.materials)
+    for (auto& Mat : Meshdata.Materials)
     {
-        if (material.Emission != vec3(0))
+        if (Mat.Emission != vec3(0))
         {
-            material.Emission *= 2.5f;
+            Mat.Emission *= 2.5f;
         }
     }
 
     // Collect emissive geometry as a list of light-emitting triangles
-    for (int i = 0; i < meshdata.materials.size(); ++i)
+    for (int I = 0; I < Meshdata.Materials.size(); ++I)
     {
-        if (meshdata.materials[i].Emission != vec3(0.0f))
+        if (Meshdata.Materials[I].Emission != vec3(0.0f))
         {
-            Emitter emitter;
-            emitter.V0 = meshdata.vertices[meshdata.indicies[i * 3]].Pos;
-            emitter.V1 = meshdata.vertices[meshdata.indicies[3 * i + 1]].Pos;
-            emitter.V2 = meshdata.vertices[meshdata.indicies[3 * i + 2]].Pos;
-            emitter.Emission = 4.0f * meshdata.materials[i].Emission;
-            emitter.Index = i;
+            Emitter Light;
+            Light.V0 = Meshdata.Vertices[Meshdata.Indicies[I * 3]].Pos;
+            Light.V1 = Meshdata.Vertices[Meshdata.Indicies[3 * I + 1]].Pos;
+            Light.V2 = Meshdata.Vertices[Meshdata.Indicies[3 * I + 2]].Pos;
+            Light.Emission = 4.0f * Meshdata.Materials[I].Emission;
+            Light.Index = I;
 
-            lightList.push_back(emitter);
+            LightList.push_back(Light);
         }
     }
 
-    ObjData object;
-    object.nbIndices = static_cast<uint32_t>(meshdata.indicies.size());
-    object.nbVertices = static_cast<uint32_t>(meshdata.vertices.size());
+    ObjData Object;
+    Object.NbIndices = static_cast<uint32_t>(Meshdata.Indicies.size());
+    Object.NbVertices = static_cast<uint32_t>(Meshdata.Vertices.size());
 
     // Create the buffers on Device and copy vertices, indices and materials
-    VkCommandBuffer cmdBuf = createTempCmdBuffer();
+    VkCommandBuffer CmdBuf = CreateTempCmdBuffer();
 
-    VkBufferUsageFlags flag =
+    VkBufferUsageFlags Flag =
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-    VkBufferUsageFlags rtFlags =
-        flag | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    VkBufferUsageFlags RtFlags =
+        Flag | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
 
-    object.vertexBuffer = createStagedBufferWrap(
-        cmdBuf, meshdata.vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | rtFlags);
-    object.indexBuffer = createStagedBufferWrap(
-        cmdBuf, meshdata.indicies, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | rtFlags);
-    object.matColorBuffer = createStagedBufferWrap(cmdBuf, meshdata.materials, flag);
-    object.matIndexBuffer = createStagedBufferWrap(cmdBuf, meshdata.matIndx, flag);
+    Object.VertexBuffer = CreateStagedBufferWrap(
+        CmdBuf, Meshdata.Vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | RtFlags);
+    Object.IndexBuffer = CreateStagedBufferWrap(
+        CmdBuf, Meshdata.Indicies, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | RtFlags);
+    Object.MatColorBuffer = CreateStagedBufferWrap(CmdBuf, Meshdata.Materials, Flag);
+    Object.MatIndexBuffer = CreateStagedBufferWrap(CmdBuf, Meshdata.MatIndx, Flag);
 
-    submitTempCmdBuffer(cmdBuf);
+    SubmitTempCmdBuffer(CmdBuf);
 
     // Creates all textures on the GPU
     // Offset is current size
-    const auto txtOffset = static_cast<uint32_t>(m_objText.size());
-    for (const auto& texName : meshdata.textures)
+    const auto TxtOffset = static_cast<uint32_t>(ObjTextures.size());
+    for (const auto& TexName : Meshdata.Textures)
     {
-        m_objText.push_back(createTextureImage(texName));
+        ObjTextures.push_back(CreateTextureImage(TexName));
     }
 
     // Assuming one instance of an object with its supplied transform.
     // Could provide multiple transform here to make a vector of instances of this object.
-    ObjInst instance;
-    instance.transform = transform;
+    ObjInst ObjInstance;
+    ObjInstance.Transform = Transform;
     // Index of current object
-    instance.objIndex = static_cast<uint32_t>(m_objData.size());
-    m_objInst.push_back(instance);
+    ObjInstance.ObjIndex = static_cast<uint32_t>(ObjDataList.size());
+    ObjInstList.push_back(ObjInstance);
 
     // Creating information for device access
-    ObjDesc desc;
-    desc.TxtOffset = txtOffset;
-    desc.VertexAddress = getBufferDeviceAddress(m_device, object.vertexBuffer.Buffer);
-    desc.IndexAddress = getBufferDeviceAddress(m_device, object.indexBuffer.Buffer);
-    desc.MaterialAddress = getBufferDeviceAddress(m_device, object.matColorBuffer.Buffer);
-    desc.MaterialIndexAddress =
-        getBufferDeviceAddress(m_device, object.matIndexBuffer.Buffer);
+    ObjDesc Desc;
+    Desc.TxtOffset = TxtOffset;
+    Desc.VertexAddress = GetBufferDeviceAddress(Device, Object.VertexBuffer.Buffer);
+    Desc.IndexAddress = GetBufferDeviceAddress(Device, Object.IndexBuffer.Buffer);
+    Desc.MaterialAddress = GetBufferDeviceAddress(Device, Object.MatColorBuffer.Buffer);
+    Desc.MaterialIndexAddress =
+        GetBufferDeviceAddress(Device, Object.MatIndexBuffer.Buffer);
 
-    m_objData.emplace_back(object);
-    m_objDesc.emplace_back(desc);
+    ObjDataList.emplace_back(Object);
+    ObjDescList.emplace_back(Desc);
 }
 
 namespace
 {
 
-void ModelData::readAssimpFile(const std::string& path, const mat4& M)
+void ModelData::ReadAssimpFile(const std::string& Path, const mat4& M)
 {
-    printf("ReadAssimpFile File:  %s \n", path.c_str());
+    printf("ReadAssimpFile File:  %s \n", Path.c_str());
 
-    aiMatrix4x4 modelTr(M[0][0], M[1][0], M[2][0], M[3][0], M[0][1], M[1][1], M[2][1],
+    aiMatrix4x4 ModelTr(M[0][0], M[1][0], M[2][0], M[3][0], M[0][1], M[1][1], M[2][1],
                         M[3][1], M[0][2], M[1][2], M[2][2], M[3][2], M[0][3], M[1][3],
                         M[2][3], M[3][3]);
 
     // Does the file exist?
-    std::ifstream find_it(path.c_str());
-    if (find_it.fail())
+    std::ifstream FindIt(Path.c_str());
+    if (FindIt.fail())
     {
-        RTRT_FATAL("Model file not found: %s", path.c_str());
+        RTRT_FATAL("Model file not found: %s", Path.c_str());
     }
 
     // Invoke assimp to read the file.
     printf("Assimp %d.%d Reading %s\n", aiGetVersionMajor(), aiGetVersionMinor(),
-           path.c_str());
-    Assimp::Importer importer;
-    const aiScene* aiscene = importer.ReadFile(
-        path.c_str(), aiProcess_Triangulate | aiProcess_GenSmoothNormals);
+           Path.c_str());
+    Assimp::Importer Importer;
+    const aiScene* Aiscene = Importer.ReadFile(
+        Path.c_str(), aiProcess_Triangulate | aiProcess_GenSmoothNormals);
 
-    if (!aiscene)
+    if (!Aiscene)
     {
-        RTRT_FATAL("Assimp failed to read %s: %s", path.c_str(),
-                   importer.GetErrorString());
+        RTRT_FATAL("Assimp failed to read %s: %s", Path.c_str(),
+                   Importer.GetErrorString());
     }
 
-    if (!aiscene->mRootNode)
+    if (!Aiscene->mRootNode)
     {
-        RTRT_FATAL("Model %s has no root node", path.c_str());
+        RTRT_FATAL("Model %s has no root node", Path.c_str());
     }
 
-    printf("Assimp mNumMeshes: %d\n", aiscene->mNumMeshes);
-    printf("Assimp mNumMaterials: %d\n", aiscene->mNumMaterials);
-    printf("Assimp mNumTextures: %d\n", aiscene->mNumTextures);
+    printf("Assimp mNumMeshes: %d\n", Aiscene->mNumMeshes);
+    printf("Assimp mNumMaterials: %d\n", Aiscene->mNumMaterials);
+    printf("Assimp mNumTextures: %d\n", Aiscene->mNumTextures);
 
-    for (int i = 0; i < aiscene->mNumMaterials; i++)
+    for (int I = 0; I < Aiscene->mNumMaterials; I++)
     {
-        aiMaterial* mtl = aiscene->mMaterials[i];
-        aiString name;
-        mtl->Get(AI_MATKEY_NAME, name);
-        aiColor3D emit(0.f, 0.f, 0.f);
-        aiColor3D diff(0.f, 0.f, 0.f), spec(0.f, 0.f, 0.f);
-        float alpha = 20.0;
-        bool he = mtl->Get(AI_MATKEY_COLOR_EMISSIVE, emit);
-        bool hd = mtl->Get(AI_MATKEY_COLOR_DIFFUSE, diff);
-        bool hs = mtl->Get(AI_MATKEY_COLOR_SPECULAR, spec);
-        bool ha = mtl->Get(AI_MATKEY_SHININESS, &alpha, nullptr);
-        aiColor3D trans;
-        bool ht = mtl->Get(AI_MATKEY_COLOR_TRANSPARENT, trans);
+        aiMaterial* Mtl = Aiscene->mMaterials[I];
+        aiString Name;
+        Mtl->Get(AI_MATKEY_NAME, Name);
+        aiColor3D Emit(0.f, 0.f, 0.f);
+        aiColor3D Diff(0.f, 0.f, 0.f), Spec(0.f, 0.f, 0.f);
+        float Alpha = 20.0;
+        bool He = Mtl->Get(AI_MATKEY_COLOR_EMISSIVE, Emit);
+        bool Hd = Mtl->Get(AI_MATKEY_COLOR_DIFFUSE, Diff);
+        bool Hs = Mtl->Get(AI_MATKEY_COLOR_SPECULAR, Spec);
+        bool Ha = Mtl->Get(AI_MATKEY_SHININESS, &Alpha, nullptr);
+        aiColor3D Trans;
+        bool Ht = Mtl->Get(AI_MATKEY_COLOR_TRANSPARENT, Trans);
 
-        Material newmat;
+        Material Newmat;
         // An emitter
-        if (!emit.IsBlack())
+        if (!Emit.IsBlack())
         {
             // An emitter needs (1,1,1), else black screen!  WTF???
-            newmat.Diffuse = {1, 1, 1};
-            newmat.Specular = {0, 0, 0};
-            newmat.Shininess = 0.0;
-            newmat.Emission = {emit.r, emit.g, emit.b};
-            newmat.TextureId = -1;
+            Newmat.Diffuse = {1, 1, 1};
+            Newmat.Specular = {0, 0, 0};
+            Newmat.Shininess = 0.0;
+            Newmat.Emission = {Emit.r, Emit.g, Emit.b};
+            Newmat.TextureId = -1;
         }
 
         else
         {
             vec3 Kd(0.5f, 0.5f, 0.5f);
             vec3 Ks(0.03f, 0.03f, 0.03f);
-            if (AI_SUCCESS == hd)
+            if (AI_SUCCESS == Hd)
             {
-                Kd = vec3(diff.r, diff.g, diff.b);
+                Kd = vec3(Diff.r, Diff.g, Diff.b);
             }
-            if (AI_SUCCESS == hs)
+            if (AI_SUCCESS == Hs)
             {
-                Ks = vec3(spec.r, spec.g, spec.b);
+                Ks = vec3(Spec.r, Spec.g, Spec.b);
             }
-            newmat.Diffuse = {Kd[0], Kd[1], Kd[2]};
-            newmat.Specular = {Ks[0], Ks[1], Ks[2]};
+            Newmat.Diffuse = {Kd[0], Kd[1], Kd[2]};
+            Newmat.Specular = {Ks[0], Ks[1], Ks[2]};
             // Phong exponent -> GGX roughness
-            newmat.Shininess = sqrtf(2.0f / (2.0f + alpha));
-            newmat.Emission = {0, 0, 0};
-            newmat.TextureId = -1;
+            Newmat.Shininess = sqrtf(2.0f / (2.0f + Alpha));
+            Newmat.Emission = {0, 0, 0};
+            Newmat.TextureId = -1;
         }
 
-        aiString texPath;
-        if (AI_SUCCESS == mtl->GetTexture(aiTextureType_DIFFUSE, 0, &texPath))
+        aiString TexPath;
+        if (AI_SUCCESS == Mtl->GetTexture(aiTextureType_DIFFUSE, 0, &TexPath))
         {
-            fs::path fullPath = path;
-            fullPath.replace_filename(texPath.C_Str());
-            printf("Texture: %ls\n", fullPath.c_str());
-            newmat.TextureId = textures.size();
-            auto xxx = fullPath.u8string();
-            textures.push_back(std::string(xxx));
+            fs::path FullPath = Path;
+            FullPath.replace_filename(TexPath.C_Str());
+            printf("Texture: %ls\n", FullPath.c_str());
+            Newmat.TextureId = Textures.size();
+            auto Xxx = FullPath.u8string();
+            Textures.push_back(std::string(Xxx));
         }
 
-        materials.push_back(newmat);
+        Materials.push_back(Newmat);
     }
 
-    recurseModelNodes(this, aiscene, aiscene->mRootNode, modelTr);
+    RecurseModelNodes(this, Aiscene, Aiscene->mRootNode, ModelTr);
 }
 
 // Recursively traverses the assimp node hierarchy, accumulating
@@ -250,59 +250,59 @@ void ModelData::readAssimpFile(const std::string& path, const mat4& M)
 // found.  Meshes comming from assimp can have associated surface
 // properties, so each mesh *copies* the current BRDF as a starting
 // point and modifies it from the assimp data structure.
-void recurseModelNodes(ModelData* meshdata, const aiScene* aiscene, const aiNode* node,
-                       const aiMatrix4x4& parentTr, const int level)
+void RecurseModelNodes(ModelData* Meshdata, const aiScene* Aiscene, const aiNode* Node,
+                       const aiMatrix4x4& ParentTr, const int Level)
 {
     // Print line with indentation to show structure of the model node hierarchy.
 
     // Accumulating transformations while traversing down the hierarchy.
-    aiMatrix4x4 childTr = parentTr * node->mTransformation;
+    aiMatrix4x4 ChildTr = ParentTr * Node->mTransformation;
     // Really should be inverse-transpose for full generality
-    aiMatrix3x3 normalTr = aiMatrix3x3(childTr);
+    aiMatrix3x3 NormalTr = aiMatrix3x3(ChildTr);
 
     // Loop through this node's meshes
-    for (unsigned int m = 0; m < node->mNumMeshes; ++m)
+    for (unsigned int M = 0; M < Node->mNumMeshes; ++M)
     {
-        aiMesh* aimesh = aiscene->mMeshes[node->mMeshes[m]];
+        aiMesh* Aimesh = Aiscene->mMeshes[Node->mMeshes[M]];
 
         // Loop through all vertices and record the
         // vertex/normal/texture/tangent data with the node's model
         // transformation applied.
-        uint32_t faceOffset = meshdata->vertices.size();
-        for (unsigned int t = 0; t < aimesh->mNumVertices; ++t)
+        uint32_t FaceOffset = Meshdata->Vertices.size();
+        for (unsigned int T = 0; T < Aimesh->mNumVertices; ++T)
         {
-            aiVector3D aipnt = childTr * aimesh->mVertices[t];
-            aiVector3D ainrm = aimesh->HasNormals() ? normalTr * aimesh->mNormals[t]
+            aiVector3D Aipnt = ChildTr * Aimesh->mVertices[T];
+            aiVector3D Ainrm = Aimesh->HasNormals() ? NormalTr * Aimesh->mNormals[T]
                                                     : aiVector3D(0, 0, 1);
-            aiVector3D aitex = aimesh->HasTextureCoords(0) ? aimesh->mTextureCoords[0][t]
+            aiVector3D Aitex = Aimesh->HasTextureCoords(0) ? Aimesh->mTextureCoords[0][T]
                                                            : aiVector3D(0, 0, 0);
-            aiVector3D aitan = aimesh->HasTangentsAndBitangents()
-                                   ? normalTr * aimesh->mTangents[t]
+            aiVector3D Aitan = Aimesh->HasTangentsAndBitangents()
+                                   ? NormalTr * Aimesh->mTangents[T]
                                    : aiVector3D(1, 0, 0);
 
-            meshdata->vertices.push_back({{aipnt.x, aipnt.y, aipnt.z},
-                                          {ainrm.x, ainrm.y, ainrm.z},
-                                          {aitex.x, aitex.y}});
+            Meshdata->Vertices.push_back({{Aipnt.x, Aipnt.y, Aipnt.z},
+                                          {Ainrm.x, Ainrm.y, Ainrm.z},
+                                          {Aitex.x, Aitex.y}});
         }
 
         // Loop through all faces, recording indices
-        for (unsigned int t = 0; t < aimesh->mNumFaces; ++t)
+        for (unsigned int T = 0; T < Aimesh->mNumFaces; ++T)
         {
-            aiFace* aiface = &aimesh->mFaces[t];
-            for (int i = 2; i < aiface->mNumIndices; i++)
+            aiFace* Aiface = &Aimesh->mFaces[T];
+            for (int I = 2; I < Aiface->mNumIndices; I++)
             {
-                meshdata->matIndx.push_back(aimesh->mMaterialIndex);
-                meshdata->indicies.push_back(aiface->mIndices[0] + faceOffset);
-                meshdata->indicies.push_back(aiface->mIndices[i - 1] + faceOffset);
-                meshdata->indicies.push_back(aiface->mIndices[i] + faceOffset);
+                Meshdata->MatIndx.push_back(Aimesh->mMaterialIndex);
+                Meshdata->Indicies.push_back(Aiface->mIndices[0] + FaceOffset);
+                Meshdata->Indicies.push_back(Aiface->mIndices[I - 1] + FaceOffset);
+                Meshdata->Indicies.push_back(Aiface->mIndices[I] + FaceOffset);
             }
         };
     }
 
     // Recurse onto this node's children
-    for (unsigned int i = 0; i < node->mNumChildren; ++i)
+    for (unsigned int I = 0; I < Node->mNumChildren; ++I)
     {
-        recurseModelNodes(meshdata, aiscene, node->mChildren[i], childTr, level + 1);
+        RecurseModelNodes(Meshdata, Aiscene, Node->mChildren[I], ChildTr, Level + 1);
     }
 }
 

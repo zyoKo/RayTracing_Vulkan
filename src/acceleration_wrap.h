@@ -79,7 +79,7 @@ public:
 
     // Build TLAS from an array of VkAccelerationStructureInstanceKHR
     // - Use motion=true with VkAccelerationStructureMotionInstanceNV
-    // - The resulting TLAS will be stored in m_tlas
+    // - The resulting TLAS will be stored in Tlas
     // - update is to rebuild the Tlas with updated matrices, flag must have the
     // 'allow_update'
 
