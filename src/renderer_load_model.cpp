@@ -184,7 +184,7 @@ void ModelData::ReadAssimpFile(const std::string& Path, const mat4& M)
     printf("Assimp mNumMaterials: %d\n", Aiscene->mNumMaterials);
     printf("Assimp mNumTextures: %d\n", Aiscene->mNumTextures);
 
-    for (int I = 0; I < Aiscene->mNumMaterials; I++)
+    for (uint32_t I = 0; I < Aiscene->mNumMaterials; I++)
     {
         ReadMaterial(Aiscene->mMaterials[I], Path);
     }
@@ -272,7 +272,7 @@ void ModelData::ReadMaterial(const aiMaterial* Mtl, const std::string& Path)
         fs::path FullPath = Path;
         FullPath.replace_filename(TexPath.C_Str());
         printf("Texture: %ls\n", FullPath.c_str());
-        Newmat.TextureId = Textures.size();
+        Newmat.TextureId = static_cast<int>(Textures.size());
         auto Xxx = FullPath.u8string();
         Textures.push_back(std::string(Xxx));
     }
@@ -303,7 +303,7 @@ void RecurseModelNodes(ModelData* Meshdata, const aiScene* Aiscene, const aiNode
         // Loop through all vertices and record the
         // vertex/normal/texture/tangent data with the node's model
         // transformation applied.
-        uint32_t FaceOffset = Meshdata->Vertices.size();
+        uint32_t FaceOffset = static_cast<uint32_t>(Meshdata->Vertices.size());
         for (unsigned int T = 0; T < Aimesh->mNumVertices; ++T)
         {
             aiVector3D Aipnt = ChildTr * Aimesh->mVertices[T];
@@ -324,7 +324,7 @@ void RecurseModelNodes(ModelData* Meshdata, const aiScene* Aiscene, const aiNode
         for (unsigned int T = 0; T < Aimesh->mNumFaces; ++T)
         {
             aiFace* Aiface = &Aimesh->mFaces[T];
-            for (int I = 2; I < Aiface->mNumIndices; I++)
+            for (uint32_t I = 2; I < Aiface->mNumIndices; I++)
             {
                 Meshdata->MatIndx.push_back(Aimesh->mMaterialIndex);
                 Meshdata->Indicies.push_back(Aiface->mIndices[0] + FaceOffset);

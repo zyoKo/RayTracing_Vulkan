@@ -155,15 +155,6 @@ $(SlangC) %(Identity) -entry closestHitMain -o spv\raytrace.rchit.slang.spv</Com
       <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
       <BuildInParallel>true</BuildInParallel>
     </CustomBuild>
-    <CustomBuild Include="shaders\raytraceShadow.rchit">
-      <FileType>Document</FileType>
-      <LinkObjects>false</LinkObjects>
-      <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
-      <Command>cmd /C "if exist %(Identity)    %VULKAN_SDK%/Bin/glslangValidator.exe -V --target-env vulkan1.2 -o spv\%(Filename)%(Extension).spv   %(Identity)"</Command>
-      <Message>Compiling shader %(Identity)</Message>
-      <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
-      <BuildInParallel>true</BuildInParallel>
-    </CustomBuild>
     <CustomBuild Include="shaders\raytraceShadow.rmiss">
       <FileType>Document</FileType>
       <LinkObjects>false</LinkObjects>
@@ -186,7 +177,7 @@ $(SlangC) %(Identity) -entry closestHitMain -o spv\raytrace.rchit.slang.spv</Com
     <ClInclude Include="acceleration_wrap.h" />
   </ItemGroup>
   <PropertyGroup>
-    <SlangC>"$(VULKAN_SDK)\Bin\slangc.exe" -target spirv -profile spirv_1_5 -matrix-layout-column-major -I shaders -g</SlangC>
+    <SlangC>"$(VULKAN_SDK)\Bin\slangc.exe" -target spirv -profile spirv_1_5 -capability SPV_KHR_non_semantic_info+SPV_GOOGLE_user_type+spvDerivativeControl+spvImageQuery+spvImageGatherExtended+spvSparseResidency+spvMinLod+spvFragmentFullyCoveredEXT -matrix-layout-column-major -I shaders -g</SlangC>
   </PropertyGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -293,6 +284,7 @@ $(SlangC) %(Identity) -entry closestHitMain -o spv\raytrace.rchit.slang.spv</Com
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>$(VULKAN_SDK)\Lib\vulkan-1.lib;$(ProjectDir)..\libs\assimp\64\assimp.lib;$(ProjectDir)..\libs\glfw-3.3.2.bin.WIN64\lib-vc2019\glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreSpecificDefaultLibraries>MSVCRT</IgnoreSpecificDefaultLibraries>
     </Link>
     <PostBuildEvent>
       <Message>Copy assimp library to the exe file's positon.</Message>
@@ -309,7 +301,7 @@ $(SlangC) %(Identity) -entry closestHitMain -o spv\raytrace.rchit.slang.spv</Com
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)..\libs\glm;$(VULKAN_SDK)\Include;$(ProjectDir)..\libs\glfw/include;$(ProjectDir)..\libs\imgui-master;$(ProjectDir)..\libs\assimp\include;$(ProjectDir)..\libs\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

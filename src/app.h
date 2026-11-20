@@ -141,7 +141,7 @@ private:
     float MoveSpeed = 0.7f;
     Camera MainCamera;
     FrameStats Stats;
-    float LastTime = 0;
+    double LastTime = 0.0;
 };
 
 }  // namespace rtrt

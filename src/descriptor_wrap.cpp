@@ -55,7 +55,7 @@ void DescriptorWrap::SetBindings(
     VkDescriptorPoolCreateInfo DescrPoolInfo{
         VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
     DescrPoolInfo.maxSets = MaxSets;
-    DescrPoolInfo.poolSizeCount = PoolSizes.size();
+    DescrPoolInfo.poolSizeCount = static_cast<uint32_t>(PoolSizes.size());
     DescrPoolInfo.pPoolSizes = PoolSizes.data();
     DescrPoolInfo.flags = 0;
 
@@ -136,7 +136,7 @@ void DescriptorWrap::Write(VkDevice Device, uint32_t Index,
     WriteSet.dstSet = DescSet;
     WriteSet.dstBinding = Index;
     WriteSet.dstArrayElement = 0;
-    WriteSet.descriptorCount = Des.size();
+    WriteSet.descriptorCount = static_cast<uint32_t>(Des.size());
     WriteSet.descriptorType = BindingTable[Index].descriptorType;
     WriteSet.pImageInfo = Des.data();
 

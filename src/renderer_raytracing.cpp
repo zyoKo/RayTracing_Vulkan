@@ -178,7 +178,8 @@ void Renderer::CollectRtShaders(std::vector<VkPipelineShaderStageCreateInfo>& St
     Stages.push_back(Stage);
 
     Group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
-    Group.generalShader = Stages.size() - 1;  // Index of raygen shader
+    // Index of raygen shader
+    Group.generalShader = static_cast<uint32_t>(Stages.size() - 1);
     Groups.push_back(Group);
     Group.generalShader = VK_SHADER_UNUSED_KHR;
 
@@ -189,7 +190,8 @@ void Renderer::CollectRtShaders(std::vector<VkPipelineShaderStageCreateInfo>& St
     Stages.push_back(Stage);
 
     Group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
-    Group.generalShader = Stages.size() - 1;  // Index of miss shader
+    // Index of miss shader
+    Group.generalShader = static_cast<uint32_t>(Stages.size() - 1);
     Groups.push_back(Group);
     Group.generalShader = VK_SHADER_UNUSED_KHR;
 
@@ -200,7 +202,8 @@ void Renderer::CollectRtShaders(std::vector<VkPipelineShaderStageCreateInfo>& St
     Stages.push_back(Stage);
 
     Group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
-    Group.closestHitShader = Stages.size() - 1;  // Index of hit shader
+    // Index of hit shader
+    Group.closestHitShader = static_cast<uint32_t>(Stages.size() - 1);
     Groups.push_back(Group);
 }
 
@@ -241,6 +244,12 @@ constexpr Integral AlignUp(Integral X, size_t A) noexcept
 {
     return static_cast<Integral>((X + (static_cast<Integral>(A) - 1)) &
                                  ~static_cast<Integral>(A - 1));
+}
+
+void PrintSbtRegion(const char* Name, const VkStridedDeviceAddressRegionKHR& Region)
+{
+    printf("    %s %2llu:%2llu\n", Name, static_cast<unsigned long long>(Region.stride),
+           static_cast<unsigned long long>(Region.size));
 }
 
 }  // namespace
@@ -319,10 +328,10 @@ void Renderer::ComputeSbtRegions(uint32_t MissCount, uint32_t HitCount)
     printf("    hit:    %d\n", HitCount);
     printf("    handle: %d = 1+missCount+hitCount\n", HandleCount);
     printf("  regions stride:size:\n");
-    printf("    rgen %2ld:%2ld\n", RgenRegion.stride, RgenRegion.size);
-    printf("    miss %2ld:%2ld\n", MissRegion.stride, MissRegion.size);
-    printf("    hit  %2ld:%2ld\n", HitRegion.stride, HitRegion.size);
-    printf("    call %2ld:%2ld\n", CallRegion.stride, CallRegion.size);
+    PrintSbtRegion("rgen", RgenRegion);
+    PrintSbtRegion("miss", MissRegion);
+    PrintSbtRegion("hit ", HitRegion);
+    PrintSbtRegion("call", CallRegion);
 }
 
 void Renderer::WriteSbtHandles(const BufferWrap& Staging, VkDeviceSize SbtSize,
@@ -336,7 +345,7 @@ void Renderer::WriteSbtHandles(const BufferWrap& Staging, VkDeviceSize SbtSize,
     void* MappedMemory = nullptr;
     RTRT_CHECK_VK(vkMapMemory(Device, Staging.Memory, 0, SbtSize, 0, &MappedMemory));
     uint8_t* MappedMemAddress = static_cast<uint8_t*>(MappedMemory);
-    uint8_t Offset = 0;
+    VkDeviceSize Offset = 0;
 
     // Raygen
     uint32_t HandleIdx{0};
@@ -406,8 +415,8 @@ void Renderer::Raytrace()
     // full model descriptor)
     std::vector<VkDescriptorSet> DescSets{RtDesc.GetSet(), ScDesc.GetSet()};
     vkCmdBindDescriptorSets(CommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
-                            RtPipelineLayout, 0, DescSets.size(), DescSets.data(), 0,
-                            nullptr);
+                            RtPipelineLayout, 0, static_cast<uint32_t>(DescSets.size()),
+                            DescSets.data(), 0, nullptr);
 
     // Push the push constants
     vkCmdPushConstants(CommandBuffer, RtPipelineLayout,

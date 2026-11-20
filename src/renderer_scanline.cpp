@@ -123,7 +123,8 @@ ImageWrap Renderer::CreateTextureImage(const std::string& FileName)
 
     stbi_image_free(Pixels);
 
-    uint32_t MipLevels = std::floor(std::log2(std::max(TexWidth, TexHeight))) + 1;
+    uint32_t MipLevels =
+        static_cast<uint32_t>(std::floor(std::log2(std::max(TexWidth, TexHeight)))) + 1;
 
     ImageWrap MyImage =
         CreateImageWrap(TexWidth, TexHeight, VK_FORMAT_R8G8B8A8_UNORM,
@@ -498,7 +499,7 @@ void Renderer::CreateScanlineFramebuffer()
 
     VkFramebufferCreateInfo Info{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
     Info.renderPass = ScanlineRenderPass;
-    Info.attachmentCount = Attachments.size();
+    Info.attachmentCount = static_cast<uint32_t>(Attachments.size());
     Info.pAttachments = Attachments.data();
     Info.width = WindowSize.width;
     Info.height = WindowSize.height;
@@ -552,7 +553,8 @@ void Renderer::CreateScPipeline()
     VertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     VertexInputInfo.vertexBindingDescriptionCount = 1;
     VertexInputInfo.pVertexBindingDescriptions = &BindingDescription;
-    VertexInputInfo.vertexAttributeDescriptionCount = AttributeDescriptions.size();
+    VertexInputInfo.vertexAttributeDescriptionCount =
+        static_cast<uint32_t>(AttributeDescriptions.size());
     VertexInputInfo.pVertexAttributeDescriptions = AttributeDescriptions.data();
 
     const GraphicsShaders Shaders{"spv/scanline.vert.spv", "spv/scanline.vert.slang.spv",

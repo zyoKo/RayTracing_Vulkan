@@ -75,7 +75,8 @@ void App::MouseButtonCallback(GLFWwindow* Window, int Button, int Action, int Mo
 
     double X, Y;
     glfwGetCursorPos(Window, &X, &Y);
-    Application->MainCamera.SetMousePosition(X, Y);
+    Application->MainCamera.SetMousePosition(static_cast<float>(X),
+                                             static_cast<float>(Y));
 }
 
 void App::CursorPosCallback(GLFWwindow* Window, double X, double Y)
@@ -88,7 +89,7 @@ void App::CursorPosCallback(GLFWwindow* Window, double X, double Y)
 
     if (Application->MainCamera.GetLeftButtonDown())
     {
-        Application->MainCamera.MouseMove(X, Y);
+        Application->MainCamera.MouseMove(static_cast<float>(X), static_cast<float>(Y));
     }
 }
 
@@ -337,8 +338,8 @@ void App::DrawShaderSettings(Renderer& VK)
 
 void App::UpdateCamera()
 {
-    float Now = glfwGetTime();
-    float Dt = Now - LastTime;
+    const double Now = glfwGetTime();
+    const float Dt = static_cast<float>(Now - LastTime);
     LastTime = Now;
 
     float Dist = MoveSpeed * Dt;

@@ -23,7 +23,7 @@ shader_spvs = spv/post.frag.spv  spv/post.vert.spv spv/scanline.vert.spv spv/sca
 
 slang_spvs = spv/denoise.comp.slang.spv spv/post.vert.slang.spv spv/post.frag.slang.spv spv/scanline.vert.slang.spv spv/scanline.frag.slang.spv spv/raytrace.rgen.slang.spv spv/raytrace.rmiss.slang.spv spv/raytraceShadow.rmiss.slang.spv spv/raytrace.rchit.slang.spv
 
-SLANGC = slangc -target spirv -profile spirv_1_5 -matrix-layout-column-major -I shaders -g
+SLANGC = slangc -target spirv -profile spirv_1_5 -capability SPV_KHR_non_semantic_info+SPV_GOOGLE_user_type+spvDerivativeControl+spvImageQuery+spvImageGatherExtended+spvSparseResidency+spvMinLod+spvFragmentFullyCoveredEXT -matrix-layout-column-major -I shaders -g
 
 shader_src =  shaders/shared_structs.h   shaders/post.frag shaders/post.vert   shaders/scanline.vert shaders/scanline.frag shaders/raytrace.rgen shaders/raytrace.rmiss shaders/raytrace.rchit shaders/denoise.comp shaders/raytraceShadow.rmiss
 

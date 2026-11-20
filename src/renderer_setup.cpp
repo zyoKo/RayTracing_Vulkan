@@ -259,10 +259,12 @@ void Renderer::CreateInstance(bool DoApiDump)
     InstanceCreateInfo.pNext = nullptr;
     InstanceCreateInfo.pApplicationInfo = &ApplicationInfo;
 
-    InstanceCreateInfo.enabledExtensionCount = ReqInstanceExtensions.size();
+    InstanceCreateInfo.enabledExtensionCount =
+        static_cast<uint32_t>(ReqInstanceExtensions.size());
     InstanceCreateInfo.ppEnabledExtensionNames = ReqInstanceExtensions.data();
 
-    InstanceCreateInfo.enabledLayerCount = ReqInstanceLayers.size();
+    InstanceCreateInfo.enabledLayerCount =
+        static_cast<uint32_t>(ReqInstanceLayers.size());
     InstanceCreateInfo.ppEnabledLayerNames = ReqInstanceLayers.data();
 
     RTRT_CHECK_VK(vkCreateInstance(&InstanceCreateInfo, nullptr, &Instance));
