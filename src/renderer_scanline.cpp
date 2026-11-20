@@ -117,9 +117,9 @@ ImageWrap Renderer::createTextureImage(const std::string& fileName)
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     void* data;
-    RTRT_CHECK_VK(vkMapMemory(m_device, staging.memory, 0, imageSize, 0, &data));
+    RTRT_CHECK_VK(vkMapMemory(m_device, staging.Memory, 0, imageSize, 0, &data));
     memcpy(data, pixels, static_cast<size_t>(imageSize));
-    vkUnmapMemory(m_device, staging.memory);
+    vkUnmapMemory(m_device, staging.Memory);
 
     stbi_image_free(pixels);
 
@@ -131,21 +131,21 @@ ImageWrap Renderer::createTextureImage(const std::string& fileName)
                             VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, mipLevels);
 
-    transitionImageLayout(myImage.image, VK_FORMAT_R8G8B8A8_UNORM,
+    transitionImageLayout(myImage.Image, VK_FORMAT_R8G8B8A8_UNORM,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                           mipLevels);
 
-    copyBufferToImage(staging.buffer, myImage.image, static_cast<uint32_t>(texWidth),
+    copyBufferToImage(staging.Buffer, myImage.Image, static_cast<uint32_t>(texWidth),
                       static_cast<uint32_t>(texHeight));
 
-    staging.destroy(m_device);
+    staging.Destroy(m_device);
 
-    generateMipmaps(myImage.image, VK_FORMAT_R8G8B8A8_UNORM, texWidth, texHeight,
+    generateMipmaps(myImage.Image, VK_FORMAT_R8G8B8A8_UNORM, texWidth, texHeight,
                     mipLevels);
 
-    myImage.imageView = createImageView(myImage.image, VK_FORMAT_R8G8B8A8_UNORM);
-    myImage.sampler = createTextureSampler();
-    myImage.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    myImage.ImageView = createImageView(myImage.Image, VK_FORMAT_R8G8B8A8_UNORM);
+    myImage.Sampler = createTextureSampler();
+    myImage.ImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     return myImage;
 }
 
@@ -246,15 +246,15 @@ BufferWrap Renderer::createStagedBufferWrap(VkCommandBuffer cmdBuf, VkDeviceSize
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     void* dest;
-    RTRT_CHECK_VK(vkMapMemory(m_device, staging.memory, 0, size, 0, &dest));
+    RTRT_CHECK_VK(vkMapMemory(m_device, staging.Memory, 0, size, 0, &dest));
     memcpy(dest, data, size);
-    vkUnmapMemory(m_device, staging.memory);
+    vkUnmapMemory(m_device, staging.Memory);
 
     BufferWrap bw = createBufferWrap(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage,
                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    copyBuffer(staging.buffer, bw.buffer, size);
+    copyBuffer(staging.Buffer, bw.Buffer, size);
 
-    staging.destroy(m_device);
+    staging.Destroy(m_device);
 
     return bw;
 }
@@ -269,10 +269,10 @@ BufferWrap Renderer::createBufferWrap(VkDeviceSize size, VkBufferUsageFlags usag
     bufferInfo.usage = usage;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    RTRT_CHECK_VK(vkCreateBuffer(m_device, &bufferInfo, nullptr, &result.buffer));
+    RTRT_CHECK_VK(vkCreateBuffer(m_device, &bufferInfo, nullptr, &result.Buffer));
 
     VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(m_device, result.buffer, &memRequirements);
+    vkGetBufferMemoryRequirements(m_device, result.Buffer, &memRequirements);
 
     VkMemoryAllocateFlagsInfo memFlags = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
                                           nullptr, VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT,
@@ -284,9 +284,9 @@ BufferWrap Renderer::createBufferWrap(VkDeviceSize size, VkBufferUsageFlags usag
     allocInfo.memoryTypeIndex =
         findMemoryType(memRequirements.memoryTypeBits, properties);
 
-    RTRT_CHECK_VK(vkAllocateMemory(m_device, &allocInfo, nullptr, &result.memory));
+    RTRT_CHECK_VK(vkAllocateMemory(m_device, &allocInfo, nullptr, &result.Memory));
 
-    RTRT_CHECK_VK(vkBindBufferMemory(m_device, result.buffer, result.memory, 0));
+    RTRT_CHECK_VK(vkBindBufferMemory(m_device, result.Buffer, result.Memory, 0));
 
     return result;
 }
@@ -389,7 +389,7 @@ void Renderer::createScBuffer()
     m_scImageBuffer = createBufferImage(windowSize);
 
     VkCommandBuffer cmdBuf = createTempCmdBuffer();
-    imageLayoutBarrier(cmdBuf, m_scImageBuffer.image, VK_IMAGE_LAYOUT_UNDEFINED,
+    imageLayoutBarrier(cmdBuf, m_scImageBuffer.Image, VK_IMAGE_LAYOUT_UNDEFINED,
                        VK_IMAGE_LAYOUT_GENERAL);
     submitTempCmdBuffer(cmdBuf);
 }
@@ -405,9 +405,9 @@ ImageWrap Renderer::createBufferImage(VkExtent2D& size)
                             VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, mipLevels);
 
-    myImage.imageView = createImageView(myImage.image, VK_FORMAT_R32G32B32A32_SFLOAT);
-    myImage.sampler = createTextureSampler();
-    myImage.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+    myImage.ImageView = createImageView(myImage.Image, VK_FORMAT_R32G32B32A32_SFLOAT);
+    myImage.Sampler = createTextureSampler();
+    myImage.ImageLayout = VK_IMAGE_LAYOUT_GENERAL;
     return myImage;
 }
 
@@ -479,8 +479,8 @@ void Renderer::createScanlineRenderPass()
 
 void Renderer::createScanlineFramebuffer()
 {
-    std::vector<VkImageView> attachments = {m_scImageBuffer.imageView,
-                                            m_depthImage.imageView};
+    std::vector<VkImageView> attachments = {m_scImageBuffer.ImageView,
+                                            m_depthImage.ImageView};
 
     VkFramebufferCreateInfo info{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
     info.renderPass = m_scanlineRenderPass;
@@ -506,8 +506,8 @@ void Renderer::createScDescriptorSet()
          {ScBindings::kTextures, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbTxt,
           VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR}});
 
-    m_scDesc.Write(m_device, ScBindings::kMatrices, m_matrixBW.buffer);
-    m_scDesc.Write(m_device, ScBindings::kObjDescs, m_objDescriptionBW.buffer);
+    m_scDesc.Write(m_device, ScBindings::kMatrices, m_matrixBW.Buffer);
+    m_scDesc.Write(m_device, ScBindings::kObjDescs, m_objDescriptionBW.Buffer);
     m_scDesc.Write(m_device, ScBindings::kTextures, m_objText);
 }
 
@@ -713,9 +713,9 @@ void Renderer::rasterize()
         vkCmdPushConstants(m_commandBuffer, m_scanlinePipelineLayout,
                            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                            sizeof(PushConstantRaster), &pcRaster);
-        vkCmdBindVertexBuffers(m_commandBuffer, 0, 1, &object.vertexBuffer.buffer,
+        vkCmdBindVertexBuffers(m_commandBuffer, 0, 1, &object.vertexBuffer.Buffer,
                                &offset);
-        vkCmdBindIndexBuffer(m_commandBuffer, object.indexBuffer.buffer, 0,
+        vkCmdBindIndexBuffer(m_commandBuffer, object.indexBuffer.Buffer, 0,
                              VK_INDEX_TYPE_UINT32);
         vkCmdDrawIndexed(m_commandBuffer, object.nbIndices, 1, 0, 0, 0);
     }
@@ -739,7 +739,7 @@ void Renderer::updateCameraBuffer()
     hostUBO.ProjInverse = glm::inverse(proj);
 
     // UBO on the device, and what stages access it.
-    VkBuffer deviceUBO = m_matrixBW.buffer;
+    VkBuffer deviceUBO = m_matrixBW.Buffer;
     auto uboUsageStages = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
                           VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
 
@@ -756,7 +756,7 @@ void Renderer::updateCameraBuffer()
 
     // Schedule the host-to-device upload. (hostUBO is copied into the cmd
     // buffer so it is okay to deallocate when the function returns).
-    vkCmdUpdateBuffer(m_commandBuffer, m_matrixBW.buffer, 0, sizeof(MatrixUniforms),
+    vkCmdUpdateBuffer(m_commandBuffer, m_matrixBW.Buffer, 0, sizeof(MatrixUniforms),
                       &hostUBO);
 
     // Making sure the updated UBO will be visible.

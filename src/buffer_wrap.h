@@ -8,13 +8,13 @@ namespace rtrt
 
 struct BufferWrap
 {
-    VkBuffer buffer;
-    VkDeviceMemory memory;
+    VkBuffer Buffer;
+    VkDeviceMemory Memory;
 
-    void destroy(VkDevice device)
+    void Destroy(VkDevice Device)
     {
-        vkDestroyBuffer(device, buffer, nullptr);
-        vkFreeMemory(device, memory, nullptr);
+        vkDestroyBuffer(Device, Buffer, nullptr);
+        vkFreeMemory(Device, Memory, nullptr);
     }
 };
 

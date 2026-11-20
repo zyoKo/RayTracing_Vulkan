@@ -8,23 +8,23 @@ namespace rtrt
 
 struct ImageWrap
 {
-    VkImage image{};
-    VkDeviceMemory memory{};
-    VkSampler sampler{};
-    VkImageView imageView{};
-    VkImageLayout imageLayout{};
+    VkImage Image{};
+    VkDeviceMemory Memory{};
+    VkSampler Sampler{};
+    VkImageView ImageView{};
+    VkImageLayout ImageLayout{};
 
-    void destroy(VkDevice device)
+    void Destroy(VkDevice Device)
     {
-        vkDestroyImage(device, image, nullptr);
-        vkFreeMemory(device, memory, nullptr);
-        vkDestroyImageView(device, imageView, nullptr);
-        vkDestroySampler(device, sampler, nullptr);
+        vkDestroyImage(Device, Image, nullptr);
+        vkFreeMemory(Device, Memory, nullptr);
+        vkDestroyImageView(Device, ImageView, nullptr);
+        vkDestroySampler(Device, Sampler, nullptr);
     }
 
     VkDescriptorImageInfo Descriptor() const
     {
-        return VkDescriptorImageInfo({sampler, imageView, imageLayout});
+        return VkDescriptorImageInfo({Sampler, ImageView, ImageLayout});
     }
 };
 

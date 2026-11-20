@@ -131,11 +131,11 @@ void Renderer::myloadModel(const std::string& filename, const glm::mat4& transfo
     // Creating information for device access
     ObjDesc desc;
     desc.TxtOffset = txtOffset;
-    desc.VertexAddress = getBufferDeviceAddress(m_device, object.vertexBuffer.buffer);
-    desc.IndexAddress = getBufferDeviceAddress(m_device, object.indexBuffer.buffer);
-    desc.MaterialAddress = getBufferDeviceAddress(m_device, object.matColorBuffer.buffer);
+    desc.VertexAddress = getBufferDeviceAddress(m_device, object.vertexBuffer.Buffer);
+    desc.IndexAddress = getBufferDeviceAddress(m_device, object.indexBuffer.Buffer);
+    desc.MaterialAddress = getBufferDeviceAddress(m_device, object.matColorBuffer.Buffer);
     desc.MaterialIndexAddress =
-        getBufferDeviceAddress(m_device, object.matIndexBuffer.buffer);
+        getBufferDeviceAddress(m_device, object.matIndexBuffer.Buffer);
 
     m_objData.emplace_back(object);
     m_objDesc.emplace_back(desc);

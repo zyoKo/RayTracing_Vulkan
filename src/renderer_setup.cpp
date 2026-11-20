@@ -35,7 +35,7 @@ void Renderer::destroyAllVulkanResources()
     destroySwapchain();
     vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
     vkDestroyCommandPool(m_device, m_cmdPool, nullptr);
-    m_depthImage.destroy(m_device);
+    m_depthImage.Destroy(m_device);
     vkDestroyRenderPass(m_device, m_postRenderPass, nullptr);
 
     for (auto& framebuffer : m_framebuffers)
@@ -43,7 +43,7 @@ void Renderer::destroyAllVulkanResources()
         vkDestroyFramebuffer(m_device, framebuffer, nullptr);
     }
 
-    m_scImageBuffer.destroy(m_device);
+    m_scImageBuffer.Destroy(m_device);
     m_postDesc.Destroy(m_device);
 
     vkDestroyPipelineLayout(m_device, m_postPipelineLayout, nullptr);
@@ -51,19 +51,19 @@ void Renderer::destroyAllVulkanResources()
 
     for (auto t : m_objText)
     {
-        t.destroy(m_device);
+        t.Destroy(m_device);
     }
     // m_objDesc only holds device addresses; the buffers themselves live in m_objData.
     for (auto& ob : m_objData)
     {
-        ob.vertexBuffer.destroy(m_device);
-        ob.indexBuffer.destroy(m_device);
-        ob.matColorBuffer.destroy(m_device);
-        ob.matIndexBuffer.destroy(m_device);
+        ob.vertexBuffer.Destroy(m_device);
+        ob.indexBuffer.Destroy(m_device);
+        ob.matColorBuffer.Destroy(m_device);
+        ob.matIndexBuffer.Destroy(m_device);
     }
 
-    m_matrixBW.destroy(m_device);
-    m_objDescriptionBW.destroy(m_device);
+    m_matrixBW.Destroy(m_device);
+    m_objDescriptionBW.Destroy(m_device);
     vkDestroyRenderPass(m_device, m_scanlineRenderPass, nullptr);
     vkDestroyFramebuffer(m_device, m_scanlineFramebuffer, nullptr);
     m_scDesc.Destroy(m_device);
@@ -71,22 +71,22 @@ void Renderer::destroyAllVulkanResources()
     vkDestroyPipeline(m_device, m_scanlinePipeline, nullptr);
 
     // Ray tracing cleanup
-    m_rtColCurrBuffer.destroy(m_device);
+    m_rtColCurrBuffer.Destroy(m_device);
     m_rtBuilder.destroy();
     m_rtDesc.Destroy(m_device);
     vkDestroyPipelineLayout(m_device, m_rtPipelineLayout, nullptr);
     vkDestroyPipeline(m_device, m_rtPipeline, nullptr);
-    m_shaderBindingTableBW.destroy(m_device);
+    m_shaderBindingTableBW.Destroy(m_device);
 
     // History buffer cleanup
-    m_rtColPrevBuffer.destroy(m_device);
-    m_rtNdCurrBuffer.destroy(m_device);
-    m_rtNdPrevBuffer.destroy(m_device);
-    m_rtKdCurrBuffer.destroy(m_device);
-    m_rtKdPrevBuffer.destroy(m_device);
+    m_rtColPrevBuffer.Destroy(m_device);
+    m_rtNdCurrBuffer.Destroy(m_device);
+    m_rtNdPrevBuffer.Destroy(m_device);
+    m_rtKdCurrBuffer.Destroy(m_device);
+    m_rtKdPrevBuffer.Destroy(m_device);
 
     // Denoiser cleanup
-    m_denoiseBuffer.destroy(m_device);
+    m_denoiseBuffer.Destroy(m_device);
     m_denoiseDesc.Destroy(m_device);
     vkDestroyPipelineLayout(m_device, m_denoiseCompPipelineLayout, nullptr);
     vkDestroyPipeline(m_device, m_denoisePipeline, nullptr);
@@ -119,17 +119,17 @@ bool Renderer::recreateSizedResources()
     }
     m_framebuffers.clear();
     vkDestroyFramebuffer(m_device, m_scanlineFramebuffer, nullptr);
-    m_depthImage.destroy(m_device);
+    m_depthImage.Destroy(m_device);
     destroySwapchain();
 
-    m_scImageBuffer.destroy(m_device);
-    m_rtColCurrBuffer.destroy(m_device);
-    m_rtColPrevBuffer.destroy(m_device);
-    m_rtNdCurrBuffer.destroy(m_device);
-    m_rtNdPrevBuffer.destroy(m_device);
-    m_rtKdCurrBuffer.destroy(m_device);
-    m_rtKdPrevBuffer.destroy(m_device);
-    m_denoiseBuffer.destroy(m_device);
+    m_scImageBuffer.Destroy(m_device);
+    m_rtColCurrBuffer.Destroy(m_device);
+    m_rtColPrevBuffer.Destroy(m_device);
+    m_rtNdCurrBuffer.Destroy(m_device);
+    m_rtNdPrevBuffer.Destroy(m_device);
+    m_rtKdCurrBuffer.Destroy(m_device);
+    m_rtKdPrevBuffer.Destroy(m_device);
+    m_denoiseBuffer.Destroy(m_device);
 
     vkDestroyPipeline(m_device, m_postPipeline, nullptr);
     vkDestroyPipelineLayout(m_device, m_postPipelineLayout, nullptr);
@@ -615,8 +615,8 @@ void Renderer::createDepthResource()
                                    VK_FORMAT_X8_D24_UNORM_PACK32,
                                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, mipLevels);
-    m_depthImage.imageView = createImageView(
-        m_depthImage.image, VK_FORMAT_X8_D24_UNORM_PACK32, VK_IMAGE_ASPECT_DEPTH_BIT);
+    m_depthImage.ImageView = createImageView(
+        m_depthImage.Image, VK_FORMAT_X8_D24_UNORM_PACK32, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
 // Gets a list of memory types supported by the GPU, and search
@@ -670,22 +670,22 @@ ImageWrap Renderer::createImageWrap(uint32_t width, uint32_t height, VkFormat fo
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    RTRT_CHECK_VK(vkCreateImage(m_device, &imageInfo, nullptr, &myImage.image));
+    RTRT_CHECK_VK(vkCreateImage(m_device, &imageInfo, nullptr, &myImage.Image));
 
     VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(m_device, myImage.image, &memRequirements);
+    vkGetImageMemoryRequirements(m_device, myImage.Image, &memRequirements);
 
     VkMemoryAllocateInfo allocInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
     allocInfo.allocationSize = memRequirements.size;
     allocInfo.memoryTypeIndex =
         findMemoryType(memRequirements.memoryTypeBits, properties);
 
-    RTRT_CHECK_VK(vkAllocateMemory(m_device, &allocInfo, nullptr, &myImage.memory));
+    RTRT_CHECK_VK(vkAllocateMemory(m_device, &allocInfo, nullptr, &myImage.Memory));
 
-    RTRT_CHECK_VK(vkBindImageMemory(m_device, myImage.image, myImage.memory, 0));
+    RTRT_CHECK_VK(vkBindImageMemory(m_device, myImage.Image, myImage.Memory, 0));
 
-    myImage.imageView = VK_NULL_HANDLE;
-    myImage.sampler = VK_NULL_HANDLE;
+    myImage.ImageView = VK_NULL_HANDLE;
+    myImage.Sampler = VK_NULL_HANDLE;
 
     return myImage;
 }
@@ -780,7 +780,7 @@ void Renderer::createPostFrameBuffers()
     for (uint32_t i = 0; i < m_imageCount; i++)
     {
         fbattachments[0] = m_imageViews[i];  // A color attachment from the swap chain
-        fbattachments[1] = m_depthImage.imageView;  // A depth attachment
+        fbattachments[1] = m_depthImage.ImageView;  // A depth attachment
         RTRT_CHECK_VK(vkCreateFramebuffer(m_device, &_ci, nullptr, &m_framebuffers[i]));
     }
 }
@@ -956,7 +956,7 @@ void Renderer::setShaderLanguage(bool useSlang)
     createScPipeline();
 
     // The SBT holds group handles of the old pipeline, so it is rebuilt with it
-    m_shaderBindingTableBW.destroy(m_device);
+    m_shaderBindingTableBW.Destroy(m_device);
     vkDestroyPipeline(m_device, m_rtPipeline, nullptr);
     vkDestroyPipelineLayout(m_device, m_rtPipelineLayout, nullptr);
     createRtPipeline();

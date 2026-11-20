@@ -18,27 +18,27 @@ void Renderer::createRtBuffers()
 {
     // Note: This will grow to create more than the single buffer m_rtColCurrBuffer.
     m_rtColCurrBuffer = createBufferImage(windowSize);
-    transitionImageLayout(m_rtColCurrBuffer.image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    transitionImageLayout(m_rtColCurrBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 
     m_rtColPrevBuffer = createBufferImage(windowSize);
-    transitionImageLayout(m_rtColPrevBuffer.image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    transitionImageLayout(m_rtColPrevBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 
     m_rtNdCurrBuffer = createBufferImage(windowSize);
-    transitionImageLayout(m_rtNdCurrBuffer.image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    transitionImageLayout(m_rtNdCurrBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 
     m_rtNdPrevBuffer = createBufferImage(windowSize);
-    transitionImageLayout(m_rtNdPrevBuffer.image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    transitionImageLayout(m_rtNdPrevBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 
     m_rtKdCurrBuffer = createBufferImage(windowSize);
-    transitionImageLayout(m_rtKdCurrBuffer.image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    transitionImageLayout(m_rtKdCurrBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 
     m_rtKdPrevBuffer = createBufferImage(windowSize);
-    transitionImageLayout(m_rtKdPrevBuffer.image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    transitionImageLayout(m_rtKdPrevBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 }
 
@@ -303,7 +303,7 @@ void Renderer::createRtShaderBindingTable()
 
     // Find the SBT addresses of each group
     VkBufferDeviceAddressInfo info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
-    info.buffer = m_shaderBindingTableBW.buffer;
+    info.buffer = m_shaderBindingTableBW.Buffer;
     VkDeviceAddress sbtAddress = vkGetBufferDeviceAddress(m_device, &info);
 
     m_rgenRegion.deviceAddress = sbtAddress;
@@ -315,7 +315,7 @@ void Renderer::createRtShaderBindingTable()
 
     // Map the SBT buffer and write in the handles.
     void* mappedMemory = nullptr;
-    RTRT_CHECK_VK(vkMapMemory(m_device, staging.memory, 0, sbtSize, 0, &mappedMemory));
+    RTRT_CHECK_VK(vkMapMemory(m_device, staging.Memory, 0, sbtSize, 0, &mappedMemory));
     uint8_t* mappedMemAddress = static_cast<uint8_t*>(mappedMemory);
     uint8_t offset = 0;
 
@@ -339,11 +339,11 @@ void Renderer::createRtShaderBindingTable()
         offset += m_hitRegion.stride;
     }
 
-    vkUnmapMemory(m_device, staging.memory);
+    vkUnmapMemory(m_device, staging.Memory);
 
-    copyBuffer(staging.buffer, m_shaderBindingTableBW.buffer, sbtSize);
+    copyBuffer(staging.Buffer, m_shaderBindingTableBW.Buffer, sbtSize);
 
-    staging.destroy(m_device);
+    staging.Destroy(m_device);
 }
 
 void Renderer::CmdCopyImage(ImageWrap& src, ImageWrap& dst)
@@ -357,17 +357,17 @@ void Renderer::CmdCopyImage(ImageWrap& src, ImageWrap& dst)
     imageCopyRegion.extent.height = windowSize.height;
     imageCopyRegion.extent.depth = 1;
 
-    imageLayoutBarrier(m_commandBuffer, src.image, VK_IMAGE_LAYOUT_GENERAL,
+    imageLayoutBarrier(m_commandBuffer, src.Image, VK_IMAGE_LAYOUT_GENERAL,
                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    imageLayoutBarrier(m_commandBuffer, dst.image, VK_IMAGE_LAYOUT_GENERAL,
+    imageLayoutBarrier(m_commandBuffer, dst.Image, VK_IMAGE_LAYOUT_GENERAL,
                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-    vkCmdCopyImage(m_commandBuffer, src.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                   dst.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopyRegion);
+    vkCmdCopyImage(m_commandBuffer, src.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                   dst.Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopyRegion);
 
-    imageLayoutBarrier(m_commandBuffer, src.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+    imageLayoutBarrier(m_commandBuffer, src.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                        VK_IMAGE_LAYOUT_GENERAL);
-    imageLayoutBarrier(m_commandBuffer, dst.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    imageLayoutBarrier(m_commandBuffer, dst.Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                        VK_IMAGE_LAYOUT_GENERAL);
 }
 

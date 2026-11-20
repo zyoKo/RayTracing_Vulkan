@@ -30,11 +30,11 @@ void RaytracingBuilder::destroy()
 {
     for (auto& blas : m_blas)
     {
-        blas.bw.destroy(VK->m_device);
+        blas.bw.Destroy(VK->m_device);
         vkDestroyAccelerationStructureKHR(VK->m_device, blas.accel, nullptr);
     }
 
-    m_tlas.bw.destroy(VK->m_device);
+    m_tlas.bw.Destroy(VK->m_device);
     vkDestroyAccelerationStructureKHR(VK->m_device, m_tlas.accel, nullptr);
 
     m_blas.clear();
@@ -117,11 +117,11 @@ void RaytracingBuilder::buildBlas(const std::vector<BlasInput>& input,
         maxScratchSize,
         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    SetDebugName(m_device, VK->m_scratch1.buffer, VK_OBJECT_TYPE_BUFFER,
+    SetDebugName(m_device, VK->m_scratch1.Buffer, VK_OBJECT_TYPE_BUFFER,
                  "buildBlas scratch buffer");
 
     VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-                                         nullptr, VK->m_scratch1.buffer};
+                                         nullptr, VK->m_scratch1.Buffer};
     VkDeviceAddress scratchAddress = vkGetBufferDeviceAddress(m_device, &bufferInfo);
 
     // Allocate a query pool for storing the needed size for every BLAS compaction.
@@ -200,7 +200,7 @@ AccelerationStructureWrap createAcceleration(Renderer* VK,
                              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     // Create the acceleration structure
-    accel_.buffer = result.bw.buffer;
+    accel_.buffer = result.bw.Buffer;
     RTRT_CHECK_VK(
         vkCreateAccelerationStructureKHR(VK->m_device, &accel_, nullptr, &result.accel));
 
@@ -372,11 +372,11 @@ void RaytracingBuilder::cmdCreateTlas(VkCommandBuffer cmdBuf, uint32_t countInst
         sizeInfo.buildScratchSize,
         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    SetDebugName(m_device, VK->m_scratch2.buffer, VK_OBJECT_TYPE_BUFFER,
+    SetDebugName(m_device, VK->m_scratch2.Buffer, VK_OBJECT_TYPE_BUFFER,
                  "cmdCreateTlas scratch buffer");
 
     VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-                                         nullptr, VK->m_scratch2.buffer};
+                                         nullptr, VK->m_scratch2.Buffer};
     VkDeviceAddress scratchAddress = vkGetBufferDeviceAddress(m_device, &bufferInfo);
 
     // Update build information
@@ -431,7 +431,7 @@ void RaytracingBuilder::updateBlas(uint32_t blasIdx, BlasInput& blas,
         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
-    bufferInfo.buffer = scratch.buffer;
+    bufferInfo.buffer = scratch.Buffer;
     buildInfos.scratchData.deviceAddress =
         vkGetBufferDeviceAddress(m_device, &bufferInfo);
 
@@ -469,7 +469,7 @@ void RaytracingBuilder::buildTlas(
         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
             VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR);
     VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-                                         nullptr, instancesBuffer.buffer};
+                                         nullptr, instancesBuffer.Buffer};
     VkDeviceAddress instBufferAddr = vkGetBufferDeviceAddress(m_device, &bufferInfo);
 
     // Make sure the copy of the instance buffer are copied before triggering the
@@ -487,7 +487,7 @@ void RaytracingBuilder::buildTlas(
     // Finalizing and destroying temporary data
     VK->submitTempCmdBuffer(cmdBuf);
 
-    instancesBuffer.destroy(VK->m_device);
+    instancesBuffer.Destroy(VK->m_device);
 }
 
 //----------------------------------------------------------------------------------------
@@ -498,11 +498,11 @@ BlasInput Renderer::objectToVkGeometryKHR(const ObjData& model)
 {
     // BLAS builder requires raw device addresses.
     VkBufferDeviceAddressInfo _b1{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr,
-                                  model.vertexBuffer.buffer};
+                                  model.vertexBuffer.Buffer};
     VkDeviceAddress vertexAddress = vkGetBufferDeviceAddress(m_device, &_b1);
 
     VkBufferDeviceAddressInfo _b2{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr,
-                                  model.indexBuffer.buffer};
+                                  model.indexBuffer.Buffer};
     VkDeviceAddress indexAddress = vkGetBufferDeviceAddress(m_device, &_b2);
 
     uint32_t maxPrimitiveCount = model.nbIndices / 3;
@@ -576,8 +576,8 @@ void Renderer::createRtAccelerationStructure()
     m_rtBuilder.buildTlas(tlas, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR,
                           false, false);
 
-    m_scratch1.destroy(m_device);
-    m_scratch2.destroy(m_device);
+    m_scratch1.Destroy(m_device);
+    m_scratch2.Destroy(m_device);
 }
 
 }  // namespace rtrt
