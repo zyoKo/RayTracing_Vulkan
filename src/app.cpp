@@ -169,15 +169,15 @@ void drawGUI(Renderer& VK)
 
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        ImGui::Text("Position: %.2f, %.2f, %.2f", A.myCamera.eye.x, A.myCamera.eye.y,
-                    A.myCamera.eye.z);
+        ImGui::Text("Position: %.2f, %.2f, %.2f", A.myCamera.Eye.x, A.myCamera.Eye.y,
+                    A.myCamera.Eye.z);
         ImGui::SliderFloat("Move speed", &A.m_moveSpeed, 0.1f, 5.0f, "%.2f");
         if (ImGui::Button("Reset camera"))
         {
             const Camera start;
-            A.myCamera.spin = start.spin;
-            A.myCamera.tilt = start.tilt;
-            A.myCamera.eye = start.eye;
+            A.myCamera.Spin = start.Spin;
+            A.myCamera.Tilt = start.Tilt;
+            A.myCamera.Eye = start.Eye;
         }
     }
 
@@ -231,7 +231,7 @@ void mousebutton_cb(GLFWwindow* window, int button, int action, int mods)
 
     double x, y;
     glfwGetCursorPos(window, &x, &y);
-    app->myCamera.setMousePosition(x, y);
+    app->myCamera.SetMousePosition(x, y);
 }
 
 void cursorpos_cb(GLFWwindow* window, double x, double y)
@@ -242,9 +242,9 @@ void cursorpos_cb(GLFWwindow* window, double x, double y)
         return;
     }
 
-    if (app->myCamera.lmb)
+    if (app->myCamera.Lmb)
     {
-        app->myCamera.mouseMove(x, y);
+        app->myCamera.MouseMove(x, y);
     }
 }
 
@@ -280,7 +280,7 @@ void App::updateCamera()
 
     float dist = m_moveSpeed * dt;
 
-    myCamera.lmb = glfwGetMouseButton(GLFW_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+    myCamera.Lmb = glfwGetMouseButton(GLFW_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
 
     // Letters typed into a settings field (Ctrl+click on a slider) must not move the
     // camera.
@@ -291,37 +291,37 @@ void App::updateCamera()
 
     if (glfwGetKey(GLFW_window, GLFW_KEY_W) == GLFW_PRESS)
     {
-        myCamera.eyeMoveBy(dist * glm::vec3(sin(glm::radians(myCamera.spin)), 0.0,
-                                            -cos(glm::radians(myCamera.spin))));
+        myCamera.EyeMoveBy(dist * glm::vec3(sin(glm::radians(myCamera.Spin)), 0.0,
+                                            -cos(glm::radians(myCamera.Spin))));
     }
 
     if (glfwGetKey(GLFW_window, GLFW_KEY_S) == GLFW_PRESS)
     {
-        myCamera.eyeMoveBy(-dist * glm::vec3(sin(glm::radians(myCamera.spin)), 0.0,
-                                             -cos(glm::radians(myCamera.spin))));
+        myCamera.EyeMoveBy(-dist * glm::vec3(sin(glm::radians(myCamera.Spin)), 0.0,
+                                             -cos(glm::radians(myCamera.Spin))));
     }
 
     if (glfwGetKey(GLFW_window, GLFW_KEY_A) == GLFW_PRESS)
     {
-        myCamera.eyeMoveBy(-dist * glm::vec3(cos(glm::radians(myCamera.spin)), 0.0,
-                                             sin(glm::radians(myCamera.spin))));
+        myCamera.EyeMoveBy(-dist * glm::vec3(cos(glm::radians(myCamera.Spin)), 0.0,
+                                             sin(glm::radians(myCamera.Spin))));
         ;
     }
 
     if (glfwGetKey(GLFW_window, GLFW_KEY_D) == GLFW_PRESS)
     {
-        myCamera.eyeMoveBy(dist * glm::vec3(cos(glm::radians(myCamera.spin)), 0.0,
-                                            sin(glm::radians(myCamera.spin))));
+        myCamera.EyeMoveBy(dist * glm::vec3(cos(glm::radians(myCamera.Spin)), 0.0,
+                                            sin(glm::radians(myCamera.Spin))));
     }
 
     if (glfwGetKey(GLFW_window, GLFW_KEY_E) == GLFW_PRESS)
     {
-        myCamera.eyeMoveBy(dist * glm::vec3(0, 1, 0));
+        myCamera.EyeMoveBy(dist * glm::vec3(0, 1, 0));
     }
 
     if (glfwGetKey(GLFW_window, GLFW_KEY_C) == GLFW_PRESS)
     {
-        myCamera.eyeMoveBy(dist * glm::vec3(0, -1, 0));
+        myCamera.EyeMoveBy(dist * glm::vec3(0, -1, 0));
     }
 }
 

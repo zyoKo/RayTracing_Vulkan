@@ -729,8 +729,8 @@ void Renderer::updateCameraBuffer()
     const float aspectRatio = windowSize.width / static_cast<float>(windowSize.height);
     MatrixUniforms hostUBO = {};
 
-    glm::mat4 view = app->myCamera.view();
-    glm::mat4 proj = app->myCamera.perspective(aspectRatio);
+    glm::mat4 view = app->myCamera.View();
+    glm::mat4 proj = app->myCamera.Perspective(aspectRatio);
 
     hostUBO.PriorViewProj = m_priorViewProj;
     hostUBO.ViewProj = proj * view;
