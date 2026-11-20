@@ -19,20 +19,20 @@ struct InputState
 class Camera
 {
 public:
-    bool modified;
-    float ry;
-    float front;
-    float back;
+    bool modified = false;
+    float ry = 0.57f;
+    float front = 0.1f;
+    float back = 1000.0f;
 
-    float spin;
-    float tilt;
-    glm::vec3 eye;
+    float spin = -20.0f;
+    float tilt = 10.66f;
+    glm::vec3 eye{2.29f, 1.68f, 6.64f};
 
-    float startSpin;
-    float startTilt;
-    glm::vec3 startEye;
-    float startTime;
-    float endTime;
+    float startSpin = 0.0f;
+    float startTilt = 0.0f;
+    glm::vec3 startEye{0.0f};
+    float startTime = 0.0f;
+    float endTime = 0.0f;
 
     bool lmb = false;
     bool mmb = false;
@@ -41,18 +41,18 @@ public:
     bool ctrl = false;
     bool alt = false;
 
-    float posx = 0.0;
-    float posy = 0.0;
+    float posx = 0.0f;
+    float posy = 0.0f;
 
     Camera();
     void animateTo(float deltaTime, float spin, float tilt, const glm::vec3& eye);
-    glm::mat4 perspective(const float aspect);
+    glm::mat4 perspective(float aspect);
     glm::mat4 view(float time);
 
-    void mouseMove(const float x, const float y);
+    void mouseMove(float x, float y);
     void eyeMoveBy(const glm::vec3& step);
-    void setMousePosition(const float x, const float y);
-    void wheel(const int dir);
+    void setMousePosition(float x, float y);
+    void wheel(int dir);
     void viewParms();
 };
 

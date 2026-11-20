@@ -10,7 +10,7 @@ namespace rtrt
 {
 
 void DescriptorWrap::setBindings(const VkDevice device,
-                                 std::vector<VkDescriptorSetLayoutBinding> _bt)
+                                 const std::vector<VkDescriptorSetLayoutBinding>& _bt)
 {
     uint32_t maxSets = 1;  // 1 is good enough for us.  In general, may want more;
     bindingTable = _bt;
@@ -81,7 +81,7 @@ void DescriptorWrap::destroy(VkDevice device)
     vkDestroyDescriptorPool(device, descPool, nullptr);
 }
 
-void DescriptorWrap::write(VkDevice& device, uint32_t index, const VkBuffer& buffer)
+void DescriptorWrap::write(VkDevice device, uint32_t index, VkBuffer buffer)
 {
     VkDescriptorBufferInfo desBuf{buffer, 0, VK_WHOLE_SIZE};
     VkWriteDescriptorSet writeSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
@@ -102,7 +102,7 @@ void DescriptorWrap::write(VkDevice& device, uint32_t index, const VkBuffer& buf
     vkUpdateDescriptorSets(device, 1, &writeSet, 0, nullptr);
 }
 
-void DescriptorWrap::write(VkDevice& device, uint32_t index,
+void DescriptorWrap::write(VkDevice device, uint32_t index,
                            const VkDescriptorImageInfo& textureDesc)
 {
     VkWriteDescriptorSet writeSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
@@ -124,7 +124,7 @@ void DescriptorWrap::write(VkDevice& device, uint32_t index,
     vkUpdateDescriptorSets(device, 1, &writeSet, 0, nullptr);
 }
 
-void DescriptorWrap::write(VkDevice& device, uint32_t index,
+void DescriptorWrap::write(VkDevice device, uint32_t index,
                            const std::vector<ImageWrap>& textures)
 {
     std::vector<VkDescriptorImageInfo> des;
@@ -152,8 +152,8 @@ void DescriptorWrap::write(VkDevice& device, uint32_t index,
     vkUpdateDescriptorSets(device, 1, &writeSet, 0, nullptr);
 }
 
-void DescriptorWrap::write(VkDevice& device, uint32_t index,
-                           const VkAccelerationStructureKHR& tlas)
+void DescriptorWrap::write(VkDevice device, uint32_t index,
+                           VkAccelerationStructureKHR tlas)
 {
     VkWriteDescriptorSetAccelerationStructureKHR descASInfo{
         VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR};

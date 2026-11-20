@@ -7,13 +7,6 @@ namespace rtrt
 {
 
 Camera::Camera()
-    : spin(-20.0),
-      tilt(10.66),
-      ry(0.57),
-      front(0.1),
-      back(1000.0),
-      eye({2.29, 1.68, 6.64}),
-      endTime(0)
 {
     viewParms();
 }
@@ -31,7 +24,7 @@ void Camera::animateTo(float deltaTime, float endSpin, float endTilt,
     eye = endEye;
 }
 
-glm::mat4 Camera::perspective(const float aspect)
+glm::mat4 Camera::perspective(float aspect)
 {
     glm::mat4 P = glm::mat4();
 
@@ -63,8 +56,8 @@ glm::mat4 Camera::view(float time)
         currEye = (1 - t) * startEye + t * eye;
     }
 
-    glm::mat4 SPIN = glm::rotate(currSpin * 3.14159f / 180.0f, glm::vec3(0.0, 1.0, 0.0));
-    glm::mat4 TILT = glm::rotate(currTilt * 3.14159f / 180.0f, glm::vec3(1.0, 0.0, 0.0));
+    glm::mat4 SPIN = glm::rotate(glm::radians(currSpin), glm::vec3(0.0, 1.0, 0.0));
+    glm::mat4 TILT = glm::rotate(glm::radians(currTilt), glm::vec3(1.0, 0.0, 0.0));
     glm::mat4 TRAN = glm::translate(-currEye);
     return TILT * SPIN * TRAN;
 }
@@ -76,7 +69,7 @@ void Camera::eyeMoveBy(const glm::vec3& step)
     viewParms();
 }
 
-void Camera::mouseMove(const float x, const float y)
+void Camera::mouseMove(float x, float y)
 {
     float dx = x - posx;
     float dy = y - posy;
@@ -88,13 +81,13 @@ void Camera::mouseMove(const float x, const float y)
     viewParms();
 }
 
-void Camera::setMousePosition(const float x, const float y)
+void Camera::setMousePosition(float x, float y)
 {
     posx = x;
     posy = y;
 }
 
-void Camera::wheel(const int dir)
+void Camera::wheel(int dir)
 {
 }
 

@@ -14,6 +14,10 @@ namespace rtrt
 class DescriptorWrap
 {
 public:
+    DescriptorWrap() = default;
+    DescriptorWrap(const DescriptorWrap&) = delete;
+    DescriptorWrap& operator=(const DescriptorWrap&) = delete;
+
     std::vector<VkDescriptorSetLayoutBinding> bindingTable;
 
     VkDescriptorSetLayout descSetLayout;
@@ -21,16 +25,15 @@ public:
     VkDescriptorSet descSet;  // Could be  vector<VkDescriptorSet> for multiple sets;
 
     void setBindings(const VkDevice device,
-                     std::vector<VkDescriptorSetLayoutBinding> _bt);
+                     const std::vector<VkDescriptorSetLayoutBinding>& _bt);
     void destroy(VkDevice device);
 
     // Any data can be written into a descriptor set.  Apparently I need only these few
     // types:
-    void write(VkDevice& device, uint32_t index, const VkBuffer& buffer);
-    void write(VkDevice& device, uint32_t index,
-               const VkDescriptorImageInfo& textureDesc);
-    void write(VkDevice& device, uint32_t index, const std::vector<ImageWrap>& textures);
-    void write(VkDevice& device, uint32_t index, const VkAccelerationStructureKHR& tlas);
+    void write(VkDevice device, uint32_t index, VkBuffer buffer);
+    void write(VkDevice device, uint32_t index, const VkDescriptorImageInfo& textureDesc);
+    void write(VkDevice device, uint32_t index, const std::vector<ImageWrap>& textures);
+    void write(VkDevice device, uint32_t index, VkAccelerationStructureKHR tlas);
 };
 
 }  // namespace rtrt

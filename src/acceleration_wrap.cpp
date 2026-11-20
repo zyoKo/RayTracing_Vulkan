@@ -16,7 +16,7 @@ namespace rtrt
 // Initializing the allocator and querying the raytracing properties
 //
 
-void RaytracingBuilderKHR::setup(VkApp* _VK, const VkDevice& device, uint32_t queueIndex)
+void RaytracingBuilderKHR::setup(VkApp* _VK, VkDevice device, uint32_t queueIndex)
 {
     VK = _VK;
     m_device = device;
@@ -213,7 +213,7 @@ WrapAccelerationStructure createAcceleration(VkApp* VK,
 // indices limits the number of BLAS to create at once. This limits the amount of
 // memory needed when compacting the BLAS.
 void RaytracingBuilderKHR::cmdCreateBlas(VkCommandBuffer cmdBuf,
-                                         std::vector<uint32_t> indices,
+                                         const std::vector<uint32_t>& indices,
                                          std::vector<BuildAccelerationStructure>& buildAs,
                                          VkDeviceAddress scratchAddress,
                                          VkQueryPool queryPool)
@@ -270,7 +270,7 @@ void RaytracingBuilderKHR::cmdCreateBlas(VkCommandBuffer cmdBuf,
 // Create and replace a new acceleration structure and buffer based on the size retrieved
 // by the Query.
 void RaytracingBuilderKHR::cmdCompactBlas(
-    VkCommandBuffer cmdBuf, std::vector<uint32_t> indices,
+    VkCommandBuffer cmdBuf, const std::vector<uint32_t>& indices,
     std::vector<BuildAccelerationStructure>& buildAs, VkQueryPool queryPool)
 {
     uint32_t queryCtn{0};
@@ -309,7 +309,8 @@ void RaytracingBuilderKHR::cmdCompactBlas(
 // Destroy all the non-compacted acceleration structures
 //
 void RaytracingBuilderKHR::destroyNonCompacted(
-    std::vector<uint32_t> indices, std::vector<BuildAccelerationStructure>& buildAs)
+    const std::vector<uint32_t>& indices,
+    std::vector<BuildAccelerationStructure>& buildAs)
 {
     for (auto& i : indices)
     {

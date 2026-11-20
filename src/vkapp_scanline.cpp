@@ -95,7 +95,7 @@ void VkApp::imageLayoutBarrier(VkCommandBuffer cmdbuffer, VkImage image,
                          nullptr, 1, &imageMemoryBarrier);
 }
 
-ImageWrap VkApp::createTextureImage(std::string fileName)
+ImageWrap VkApp::createTextureImage(const std::string& fileName)
 {
     // VkImage& textureImage, VkDeviceMemory& textureImageMemory
     int texWidth, texHeight, texChannels;
@@ -237,9 +237,8 @@ void VkApp::generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidt
     submitTempCmdBuffer(commandBuffer);
 }
 
-BufferWrap VkApp::createStagedBufferWrap(const VkCommandBuffer& cmdBuf,
-                                         const VkDeviceSize& size, const void* data,
-                                         VkBufferUsageFlags usage)
+BufferWrap VkApp::createStagedBufferWrap(VkCommandBuffer cmdBuf, VkDeviceSize size,
+                                         const void* data, VkBufferUsageFlags usage)
 {
     BufferWrap staging = createBufferWrap(
         size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,

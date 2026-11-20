@@ -18,7 +18,7 @@ namespace rtrt
 class VkApp;
 
 // Convert a Mat4x4 to the matrix required by acceleration structures
-inline VkTransformMatrixKHR toTransformMatrixKHR(glm::mat4 matrix)
+inline VkTransformMatrixKHR toTransformMatrixKHR(const glm::mat4& matrix)
 {
     // VkTransformMatrixKHR uses a row-major layout, while glm::mat4
     // uses a column-major layout. So we transpose the matrix to
@@ -51,9 +51,13 @@ struct BlasInput
 class RaytracingBuilderKHR
 {
 public:
+    RaytracingBuilderKHR() = default;
+    RaytracingBuilderKHR(const RaytracingBuilderKHR&) = delete;
+    RaytracingBuilderKHR& operator=(const RaytracingBuilderKHR&) = delete;
+
     VkApp* VK;
     // Initializing the allocator and querying the raytracing properties
-    void setup(VkApp* _VK, const VkDevice& device, uint32_t queueIndex);
+    void setup(VkApp* _VK, VkDevice device, uint32_t queueIndex);
 
     // Destroying all allocations
     void destroy();
@@ -112,13 +116,13 @@ protected:
         VkAccelerationStructureKHR cleanupAS;
     };
 
-    void cmdCreateBlas(VkCommandBuffer cmdBuf, std::vector<uint32_t> indices,
+    void cmdCreateBlas(VkCommandBuffer cmdBuf, const std::vector<uint32_t>& indices,
                        std::vector<BuildAccelerationStructure>& buildAs,
                        VkDeviceAddress scratchAddress, VkQueryPool queryPool);
-    void cmdCompactBlas(VkCommandBuffer cmdBuf, std::vector<uint32_t> indices,
+    void cmdCompactBlas(VkCommandBuffer cmdBuf, const std::vector<uint32_t>& indices,
                         std::vector<BuildAccelerationStructure>& buildAs,
                         VkQueryPool queryPool);
-    void destroyNonCompacted(std::vector<uint32_t> indices,
+    void destroyNonCompacted(const std::vector<uint32_t>& indices,
                              std::vector<BuildAccelerationStructure>& buildAs);
     bool hasFlag(VkFlags item, VkFlags flag)
     {

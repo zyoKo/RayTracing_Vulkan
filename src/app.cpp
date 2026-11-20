@@ -4,7 +4,6 @@
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
 #include <string>
 #include <thread>
 
@@ -314,8 +313,6 @@ void App::updateCamera()
 
     float dist = m_moveSpeed * dt;
 
-    float rad = 3.14159 / 180;
-
     myCamera.lmb = glfwGetMouseButton(GLFW_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
 
 // Letters typed into a settings field (Ctrl+click on a slider) must not move the camera.
@@ -328,27 +325,27 @@ void App::updateCamera()
 
     if (glfwGetKey(GLFW_window, GLFW_KEY_W) == GLFW_PRESS)
     {
-        myCamera.eyeMoveBy(
-            dist * glm::vec3(sin(myCamera.spin * rad), 0.0, -cos(myCamera.spin * rad)));
+        myCamera.eyeMoveBy(dist * glm::vec3(sin(glm::radians(myCamera.spin)), 0.0,
+                                            -cos(glm::radians(myCamera.spin))));
     }
 
     if (glfwGetKey(GLFW_window, GLFW_KEY_S) == GLFW_PRESS)
     {
-        myCamera.eyeMoveBy(
-            -dist * glm::vec3(sin(myCamera.spin * rad), 0.0, -cos(myCamera.spin * rad)));
+        myCamera.eyeMoveBy(-dist * glm::vec3(sin(glm::radians(myCamera.spin)), 0.0,
+                                             -cos(glm::radians(myCamera.spin))));
     }
 
     if (glfwGetKey(GLFW_window, GLFW_KEY_A) == GLFW_PRESS)
     {
-        myCamera.eyeMoveBy(
-            -dist * glm::vec3(cos(myCamera.spin * rad), 0.0, sin(myCamera.spin * rad)));
+        myCamera.eyeMoveBy(-dist * glm::vec3(cos(glm::radians(myCamera.spin)), 0.0,
+                                             sin(glm::radians(myCamera.spin))));
         ;
     }
 
     if (glfwGetKey(GLFW_window, GLFW_KEY_D) == GLFW_PRESS)
     {
-        myCamera.eyeMoveBy(
-            dist * glm::vec3(cos(myCamera.spin * rad), 0.0, sin(myCamera.spin * rad)));
+        myCamera.eyeMoveBy(dist * glm::vec3(cos(glm::radians(myCamera.spin)), 0.0,
+                                            sin(glm::radians(myCamera.spin))));
     }
 
     if (glfwGetKey(GLFW_window, GLFW_KEY_E) == GLFW_PRESS)
@@ -362,11 +359,8 @@ void App::updateCamera()
     }
 }
 
-App::App(int argc, char** argv)
+bool App::Init(int argc, char** argv)
 {
-    doApiDump = false;
-    useSlang = false;
-
     int argi = 1;
     while (argi < argc)
     {
@@ -381,8 +375,8 @@ App::App(int argc, char** argv)
         }
         else
         {
-            printf("Unknown argument: %s\n", arg.c_str());
-            exit(-1);
+            fprintf(stderr, "Unknown argument: %s\n", arg.c_str());
+            return false;
         }
     }
 
@@ -390,17 +384,22 @@ App::App(int argc, char** argv)
 
     if (!glfwInit())
     {
-        printf("Could not initialize GLFW.");
-        exit(1);
+        fprintf(stderr, "Could not initialize GLFW.\n");
+        return false;
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     GLFW_window = glfwCreateWindow(WIDTH, HEIGHT, PROJECT, nullptr, nullptr);
+    if (GLFW_window == nullptr)
+    {
+        fprintf(stderr, "Could not create the window.\n");
+        return false;
+    }
 
     if (!glfwVulkanSupported())
     {
-        printf("GLFW: Vulkan Not Supported\n");
-        exit(1);
+        fprintf(stderr, "GLFW: Vulkan Not Supported\n");
+        return false;
     }
 
     glfwSetWindowUserPointer(GLFW_window, this);
@@ -410,6 +409,7 @@ App::App(int argc, char** argv)
     glfwSetMouseButtonCallback(GLFW_window, &mousebutton_cb);
     glfwSetScrollCallback(GLFW_window, &scroll_cb);
     glfwSetFramebufferSizeCallback(GLFW_window, &framebuffersize_cb);
+    return true;
 }
 
 }  // namespace rtrt
@@ -417,29 +417,39 @@ App::App(int argc, char** argv)
 //----------------------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
-    // Constructs the glfw window and sets UI callbacks
-    rtrt::App* app = new rtrt::App(argc, argv);
+    rtrt::App app;
+    if (!app.Init(argc, argv))
+    {
+        glfwTerminate();
+        return 1;
+    }
 
-    rtrt::VkApp VK(app);  // Creates and manages all things Vulkan.
+    rtrt::VkApp VK(&app);
+    if (!VK.Init())
+    {
+        glfwDestroyWindow(app.GLFW_window);
+        glfwTerminate();
+        return 1;
+    }
 
     // The draw loop
     printf("looping =======================================\n");
     double frameStart = glfwGetTime();
-    while (!glfwWindowShouldClose(app->GLFW_window))
+    while (!glfwWindowShouldClose(app.GLFW_window))
     {
         glfwPollEvents();
-        app->updateCamera();
+        app.updateCamera();
 
 #ifdef GUI
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        if (app->m_show_gui)
+        if (app.m_show_gui)
         {
             rtrt::drawGUI(VK);
         }
-        if (app->m_show_perf)
+        if (app.m_show_perf)
         {
-            rtrt::drawPerfGUI(*app);
+            rtrt::drawPerfGUI(app);
         }
 #endif
 
@@ -447,10 +457,10 @@ int main(int argc, char** argv)
         VK.drawFrame();
 
         const double frameEnd = glfwGetTime();
-        app->m_frameStats.push(static_cast<float>((frameEnd - frameStart) * 1000.0),
-                               static_cast<float>((cpuEnd - frameStart) * 1000.0),
-                               static_cast<float>(VK.m_recordMs),
-                               static_cast<float>(VK.m_gpuWaitMs));
+        app.m_frameStats.push(static_cast<float>((frameEnd - frameStart) * 1000.0),
+                              static_cast<float>((cpuEnd - frameStart) * 1000.0),
+                              static_cast<float>(VK.m_recordMs),
+                              static_cast<float>(VK.m_gpuWaitMs));
         frameStart = frameEnd;
     }
 
@@ -458,6 +468,7 @@ int main(int argc, char** argv)
 
     VK.destroyAllVulkanResources();
 
-    glfwDestroyWindow(app->GLFW_window);
+    glfwDestroyWindow(app.GLFW_window);
     glfwTerminate();
+    return 0;
 }

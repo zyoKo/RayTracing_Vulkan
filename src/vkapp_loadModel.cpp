@@ -54,7 +54,7 @@ VkDeviceAddress getBufferDeviceAddress(VkDevice device, VkBuffer buffer)
 
 }  // namespace
 
-void VkApp::myloadModel(const std::string& filename, glm::mat4 transform)
+void VkApp::myloadModel(const std::string& filename, const glm::mat4& transform)
 {
     ModelData meshdata;
     meshdata.readAssimpFile(filename, glm::mat4(1.0f));

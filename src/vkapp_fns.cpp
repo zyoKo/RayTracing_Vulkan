@@ -229,7 +229,7 @@ void VkApp::createInstance(bool doApiDump)
     RTRT_CHECK_VK(vkCreateInstance(&instanceCreateInfo, nullptr, &m_instance));
 }
 
-void VkApp::createPhysicalDevice()
+bool VkApp::createPhysicalDevice()
 {
     uint32_t physicalDevicesCount;
     RTRT_CHECK_VK(vkEnumeratePhysicalDevices(m_instance, &physicalDevicesCount, nullptr));
@@ -288,9 +288,10 @@ void VkApp::createPhysicalDevice()
         if (count == reqDeviceExtensions.size())
         {
             m_physicalDevice = physicalDevice;
-            return;
+            return true;
         }
     }
+    return false;
 }
 
 void VkApp::chooseQueueIndex()

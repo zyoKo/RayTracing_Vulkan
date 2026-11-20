@@ -68,7 +68,10 @@ public:
         VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
 
     App* app;
-    VkApp(App* _app);
+    explicit VkApp(App* _app);
+    VkApp(const VkApp&) = delete;
+    VkApp& operator=(const VkApp&) = delete;
+    bool Init();  // False if no GPU supports the required extensions
 
     // Variables managed by ImGui
     int frameCount = 0;  // Frames rendered since the history was last reset
@@ -93,7 +96,7 @@ public:
     bool recreateSizedResources();  // False if the window closed while minimized
     VkCommandBuffer createTempCmdBuffer();
     void submitTempCmdBuffer(VkCommandBuffer cmdBuffer);
-    VkShaderModule createShaderModule(std::string code);
+    VkShaderModule createShaderModule(const std::string& code);
     VkPipelineShaderStageCreateInfo createShaderStageInfo(
         const std::string& code, VkShaderStageFlagBits stage,
         const char* entryPoint = "main");
@@ -103,7 +106,7 @@ public:
     void createInstance(bool doApiDump);
 
     VkPhysicalDevice m_physicalDevice{};
-    void createPhysicalDevice();
+    bool createPhysicalDevice();
 
     uint32_t m_graphicsQueueIndex{VK_QUEUE_FAMILY_IGNORED};
     void chooseQueueIndex();
@@ -185,7 +188,7 @@ public:
     std::vector<ImageWrap> m_objText{};  // All textures of the scene
     std::vector<ObjInst> m_objInst{};    // Instances paring an object and a transform
     BufferWrap m_lightBuff{};            // Buffer of light list
-    void myloadModel(const std::string& filename, glm::mat4 transform);
+    void myloadModel(const std::string& filename, const glm::mat4& transform);
 
     BufferWrap m_objDescriptionBW{};  // Device buffer of the OBJ descriptions
     void createObjDescriptionBuffer();
@@ -266,12 +269,10 @@ public:
     std::string loadFile(const std::string& filename);
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
-    BufferWrap createStagedBufferWrap(const VkCommandBuffer& cmdBuf,
-                                      const VkDeviceSize& size, const void* data,
-                                      VkBufferUsageFlags usage);
+    BufferWrap createStagedBufferWrap(VkCommandBuffer cmdBuf, VkDeviceSize size,
+                                      const void* data, VkBufferUsageFlags usage);
     template <typename T>
-    BufferWrap createStagedBufferWrap(const VkCommandBuffer& cmdBuf,
-                                      const std::vector<T>& data,
+    BufferWrap createStagedBufferWrap(VkCommandBuffer cmdBuf, const std::vector<T>& data,
                                       VkBufferUsageFlags usage)
     {
         return createStagedBufferWrap(cmdBuf, sizeof(T) * data.size(), data.data(),
@@ -288,7 +289,7 @@ public:
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
                            uint32_t height);
 
-    ImageWrap createTextureImage(std::string fileName);
+    ImageWrap createTextureImage(const std::string& fileName);
     ImageWrap createBufferImage(VkExtent2D& size);
 
     ImageWrap createImageWrap(uint32_t width, uint32_t height, VkFormat format,

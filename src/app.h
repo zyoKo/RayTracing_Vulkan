@@ -53,10 +53,14 @@ struct FrameStats
 class App
 {
 public:
-    GLFWwindow* GLFW_window;
-    App(int argc, char** argv);
-    bool doApiDump;
-    bool useSlang;  // -slang: start with the Slang shaders
+    App() = default;
+    App(const App&) = delete;
+    App& operator=(const App&) = delete;
+    bool Init(int argc, char** argv);
+
+    GLFWwindow* GLFW_window = nullptr;
+    bool doApiDump = false;
+    bool useSlang = false;  // -slang: start with the Slang shaders
 
     bool m_show_gui = true;
     bool m_show_perf = false;

@@ -22,13 +22,21 @@ namespace rtrt
 
 VkApp::VkApp(App* _app) : app(_app)
 {
+}
+
+bool VkApp::Init()
+{
     m_useSlang = app->useSlang;      // -slang picks the starting shader language
     createInstance(app->doApiDump);  // -> m_instance
     assert(m_instance);
-    createPhysicalDevice();  // -> m_physicalDevice i.e. the GPU
-    chooseQueueIndex();      // -> m_graphicsQueueIndex
-    createDevice();          // -> m_device
-    getCommandQueue();       // -> m_queue
+    if (!createPhysicalDevice())
+    {
+        fprintf(stderr, "No GPU supports the required ray tracing extensions.\n");
+        return false;
+    }
+    chooseQueueIndex();  // -> m_graphicsQueueIndex
+    createDevice();      // -> m_device
+    getCommandQueue();   // -> m_queue
 
     loadExtensions();  // Auto generated; loads namespace of all known extensions
 
@@ -67,6 +75,7 @@ VkApp::VkApp(App* _app) : app(_app)
     createDenoiseBuffer();
     createDenoiseDescriptorSet();
     createDenoiseCompPipeline();
+    return true;
 }
 
 void VkApp::drawFrame()
@@ -215,7 +224,7 @@ void VkApp::submitFrame()
     }
 }
 
-VkShaderModule VkApp::createShaderModule(std::string code)
+VkShaderModule VkApp::createShaderModule(const std::string& code)
 {
     VkShaderModuleCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
