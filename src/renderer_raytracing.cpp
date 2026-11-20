@@ -100,7 +100,7 @@ void Renderer::initRayTracing()
 //
 void Renderer::createRtDescriptorSet()
 {
-    m_rtDesc.setBindings(
+    m_rtDesc.SetBindings(
         m_device,
         {{0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1,  // TLAS
           VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR},
@@ -114,13 +114,13 @@ void Renderer::createRtDescriptorSet()
 
     // Note: This will grow to include more buffers.
 
-    m_rtDesc.write(m_device, 0, m_rtBuilder.getAccelerationStructure());
-    m_rtDesc.write(m_device, 1, m_rtColCurrBuffer.Descriptor());
-    m_rtDesc.write(m_device, 2, m_rtColPrevBuffer.Descriptor());
-    m_rtDesc.write(m_device, 3, m_rtNdCurrBuffer.Descriptor());
-    m_rtDesc.write(m_device, 4, m_rtNdPrevBuffer.Descriptor());
-    m_rtDesc.write(m_device, 5, m_rtKdCurrBuffer.Descriptor());
-    m_rtDesc.write(m_device, 6, m_rtKdPrevBuffer.Descriptor());
+    m_rtDesc.Write(m_device, 0, m_rtBuilder.getAccelerationStructure());
+    m_rtDesc.Write(m_device, 1, m_rtColCurrBuffer.Descriptor());
+    m_rtDesc.Write(m_device, 2, m_rtColPrevBuffer.Descriptor());
+    m_rtDesc.Write(m_device, 3, m_rtNdCurrBuffer.Descriptor());
+    m_rtDesc.Write(m_device, 4, m_rtNdPrevBuffer.Descriptor());
+    m_rtDesc.Write(m_device, 5, m_rtKdCurrBuffer.Descriptor());
+    m_rtDesc.Write(m_device, 6, m_rtKdPrevBuffer.Descriptor());
 }
 
 // Pipeline for the ray tracer: all shaders, raygen, chit, miss
@@ -195,8 +195,8 @@ void Renderer::createRtPipeline()
 
     // Descriptor sets: one specific to ray tracing, and one shared with the rasterization
     // pipeline
-    std::vector<VkDescriptorSetLayout> rtDescSetLayouts = {m_rtDesc.descSetLayout,
-                                                           m_scDesc.descSetLayout};
+    std::vector<VkDescriptorSetLayout> rtDescSetLayouts = {m_rtDesc.DescSetLayout,
+                                                           m_scDesc.DescSetLayout};
     pipelineLayoutCreateInfo.setLayoutCount =
         static_cast<uint32_t>(rtDescSetLayouts.size());
     pipelineLayoutCreateInfo.pSetLayouts = rtDescSetLayouts.data();
@@ -390,7 +390,7 @@ void Renderer::raytrace()
 
     // Bind the descriptor sets (the ray tracing specific one, and the
     // full model descriptor)
-    std::vector<VkDescriptorSet> descSets{m_rtDesc.descSet, m_scDesc.descSet};
+    std::vector<VkDescriptorSet> descSets{m_rtDesc.DescSet, m_scDesc.DescSet};
     vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
                             m_rtPipelineLayout, 0, descSets.size(), descSets.data(), 0,
                             nullptr);

@@ -379,9 +379,9 @@ VkSampler Renderer::createTextureSampler()
 
 void Renderer::createPostDescriptor()
 {
-    m_postDesc.setBindings(m_device, {{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+    m_postDesc.SetBindings(m_device, {{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
                                        VK_SHADER_STAGE_FRAGMENT_BIT}});
-    m_postDesc.write(m_device, 0, m_scImageBuffer.Descriptor());
+    m_postDesc.Write(m_device, 0, m_scImageBuffer.Descriptor());
 }
 
 void Renderer::createScBuffer()
@@ -496,7 +496,7 @@ void Renderer::createScDescriptorSet()
 {
     auto nbTxt = static_cast<uint32_t>(m_objText.size());
 
-    m_scDesc.setBindings(
+    m_scDesc.SetBindings(
         m_device,
         {{ScBindings::kMatrices, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
           VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR},
@@ -506,9 +506,9 @@ void Renderer::createScDescriptorSet()
          {ScBindings::kTextures, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbTxt,
           VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR}});
 
-    m_scDesc.write(m_device, ScBindings::kMatrices, m_matrixBW.buffer);
-    m_scDesc.write(m_device, ScBindings::kObjDescs, m_objDescriptionBW.buffer);
-    m_scDesc.write(m_device, ScBindings::kTextures, m_objText);
+    m_scDesc.Write(m_device, ScBindings::kMatrices, m_matrixBW.buffer);
+    m_scDesc.Write(m_device, ScBindings::kObjDescs, m_objDescriptionBW.buffer);
+    m_scDesc.Write(m_device, ScBindings::kTextures, m_objText);
 }
 
 void Renderer::createScPipeline()
@@ -520,7 +520,7 @@ void Renderer::createScPipeline()
     // Creating the Pipeline Layout
     VkPipelineLayoutCreateInfo createInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     createInfo.setLayoutCount = 1;
-    createInfo.pSetLayouts = &m_scDesc.descSetLayout;
+    createInfo.pSetLayouts = &m_scDesc.DescSetLayout;
     createInfo.pushConstantRangeCount = 1;
     createInfo.pPushConstantRanges = &pushConstantRanges;
     RTRT_CHECK_VK(vkCreatePipelineLayout(m_device, &createInfo, nullptr,
@@ -692,7 +692,7 @@ void Renderer::rasterize()
     vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                       m_scanlinePipeline);
     vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            m_scanlinePipelineLayout, 0, 1, &m_scDesc.descSet, 0,
+                            m_scanlinePipelineLayout, 0, 1, &m_scDesc.DescSet, 0,
                             nullptr);
 
     for (const ObjInst& inst : m_objInst)

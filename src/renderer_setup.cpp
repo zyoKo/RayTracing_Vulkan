@@ -44,7 +44,7 @@ void Renderer::destroyAllVulkanResources()
     }
 
     m_scImageBuffer.destroy(m_device);
-    m_postDesc.destroy(m_device);
+    m_postDesc.Destroy(m_device);
 
     vkDestroyPipelineLayout(m_device, m_postPipelineLayout, nullptr);
     vkDestroyPipeline(m_device, m_postPipeline, nullptr);
@@ -66,14 +66,14 @@ void Renderer::destroyAllVulkanResources()
     m_objDescriptionBW.destroy(m_device);
     vkDestroyRenderPass(m_device, m_scanlineRenderPass, nullptr);
     vkDestroyFramebuffer(m_device, m_scanlineFramebuffer, nullptr);
-    m_scDesc.destroy(m_device);
+    m_scDesc.Destroy(m_device);
     vkDestroyPipelineLayout(m_device, m_scanlinePipelineLayout, nullptr);
     vkDestroyPipeline(m_device, m_scanlinePipeline, nullptr);
 
     // Ray tracing cleanup
     m_rtColCurrBuffer.destroy(m_device);
     m_rtBuilder.destroy();
-    m_rtDesc.destroy(m_device);
+    m_rtDesc.Destroy(m_device);
     vkDestroyPipelineLayout(m_device, m_rtPipelineLayout, nullptr);
     vkDestroyPipeline(m_device, m_rtPipeline, nullptr);
     m_shaderBindingTableBW.destroy(m_device);
@@ -87,7 +87,7 @@ void Renderer::destroyAllVulkanResources()
 
     // Denoiser cleanup
     m_denoiseBuffer.destroy(m_device);
-    m_denoiseDesc.destroy(m_device);
+    m_denoiseDesc.Destroy(m_device);
     vkDestroyPipelineLayout(m_device, m_denoiseCompPipelineLayout, nullptr);
     vkDestroyPipeline(m_device, m_denoisePipeline, nullptr);
 
@@ -144,19 +144,19 @@ bool Renderer::recreateSizedResources()
     createRtBuffers();
     createDenoiseBuffer();
 
-    m_postDesc.write(m_device, 0, m_scImageBuffer.Descriptor());
+    m_postDesc.Write(m_device, 0, m_scImageBuffer.Descriptor());
 
-    m_rtDesc.write(m_device, 1, m_rtColCurrBuffer.Descriptor());
-    m_rtDesc.write(m_device, 2, m_rtColPrevBuffer.Descriptor());
-    m_rtDesc.write(m_device, 3, m_rtNdCurrBuffer.Descriptor());
-    m_rtDesc.write(m_device, 4, m_rtNdPrevBuffer.Descriptor());
-    m_rtDesc.write(m_device, 5, m_rtKdCurrBuffer.Descriptor());
-    m_rtDesc.write(m_device, 6, m_rtKdPrevBuffer.Descriptor());
+    m_rtDesc.Write(m_device, 1, m_rtColCurrBuffer.Descriptor());
+    m_rtDesc.Write(m_device, 2, m_rtColPrevBuffer.Descriptor());
+    m_rtDesc.Write(m_device, 3, m_rtNdCurrBuffer.Descriptor());
+    m_rtDesc.Write(m_device, 4, m_rtNdPrevBuffer.Descriptor());
+    m_rtDesc.Write(m_device, 5, m_rtKdCurrBuffer.Descriptor());
+    m_rtDesc.Write(m_device, 6, m_rtKdPrevBuffer.Descriptor());
 
-    m_denoiseDesc.write(m_device, 0, m_scImageBuffer.Descriptor());
-    m_denoiseDesc.write(m_device, 1, m_denoiseBuffer.Descriptor());
-    m_denoiseDesc.write(m_device, 2, m_rtKdCurrBuffer.Descriptor());
-    m_denoiseDesc.write(m_device, 3, m_rtNdCurrBuffer.Descriptor());
+    m_denoiseDesc.Write(m_device, 0, m_scImageBuffer.Descriptor());
+    m_denoiseDesc.Write(m_device, 1, m_denoiseBuffer.Descriptor());
+    m_denoiseDesc.Write(m_device, 2, m_rtKdCurrBuffer.Descriptor());
+    m_denoiseDesc.Write(m_device, 3, m_rtNdCurrBuffer.Descriptor());
 
     // Both graphics pipelines bake in the viewport size
     createPostPipeline();
@@ -790,7 +790,7 @@ void Renderer::createPostPipeline()
     // Creating the pipeline layout
     VkPipelineLayoutCreateInfo createInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     createInfo.setLayoutCount = 1;
-    createInfo.pSetLayouts = &m_postDesc.descSetLayout;
+    createInfo.pSetLayouts = &m_postDesc.DescSetLayout;
 
     VkPushConstantRange pushConstant{VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                                      sizeof(PushConstantPost)};
@@ -1010,7 +1010,7 @@ void Renderer::postProcess()
         vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                           m_postPipeline);
         vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                m_postPipelineLayout, 0, 1, &m_postDesc.descSet, 0,
+                                m_postPipelineLayout, 0, 1, &m_postDesc.DescSet, 0,
                                 nullptr);
 
         // The rasterizer has no G-buffer images, so the debug views only apply to the ray

@@ -22,18 +22,18 @@ void Renderer::createDenoiseBuffer()
 
 void Renderer::createDenoiseDescriptorSet()
 {
-    m_denoiseDesc.setBindings(
+    m_denoiseDesc.SetBindings(
         m_device,
         {{0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT},
          {1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT},
          {2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT},
          {3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT}});
 
-    m_denoiseDesc.write(m_device, 0, m_scImageBuffer.Descriptor());   // The input image
-    m_denoiseDesc.write(m_device, 1, m_denoiseBuffer.Descriptor());   // The output image
-    m_denoiseDesc.write(m_device, 2, m_rtKdCurrBuffer.Descriptor());  // The color buffer
+    m_denoiseDesc.Write(m_device, 0, m_scImageBuffer.Descriptor());   // The input image
+    m_denoiseDesc.Write(m_device, 1, m_denoiseBuffer.Descriptor());   // The output image
+    m_denoiseDesc.Write(m_device, 2, m_rtKdCurrBuffer.Descriptor());  // The color buffer
     // The normal:depth buffer
-    m_denoiseDesc.write(m_device, 3, m_rtNdCurrBuffer.Descriptor());
+    m_denoiseDesc.Write(m_device, 3, m_rtNdCurrBuffer.Descriptor());
 }
 
 void Renderer::createDenoiseCompPipeline()
@@ -43,7 +43,7 @@ void Renderer::createDenoiseCompPipeline()
     VkPipelineLayoutCreateInfo plCreateInfo{
         VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     plCreateInfo.setLayoutCount = 1;
-    plCreateInfo.pSetLayouts = &m_denoiseDesc.descSetLayout;
+    plCreateInfo.pSetLayouts = &m_denoiseDesc.DescSetLayout;
     plCreateInfo.pushConstantRangeCount = 1;
     plCreateInfo.pPushConstantRanges = &pc_info;
     RTRT_CHECK_VK(vkCreatePipelineLayout(m_device, &plCreateInfo, nullptr,
@@ -90,7 +90,7 @@ void Renderer::denoise()
         vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
                           m_denoisePipeline);
         vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-                                m_denoiseCompPipelineLayout, 0, 1, &m_denoiseDesc.descSet,
+                                m_denoiseCompPipelineLayout, 0, 1, &m_denoiseDesc.DescSet,
                                 0, nullptr);
         vkCmdPushConstants(m_commandBuffer, m_denoiseCompPipelineLayout,
                            VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantDenoise),

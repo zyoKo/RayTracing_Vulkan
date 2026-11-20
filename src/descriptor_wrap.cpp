@@ -9,170 +9,170 @@
 namespace rtrt
 {
 
-void DescriptorWrap::setBindings(const VkDevice device,
-                                 const std::vector<VkDescriptorSetLayoutBinding>& _bt)
+void DescriptorWrap::SetBindings(
+    const VkDevice Device, const std::vector<VkDescriptorSetLayoutBinding>& Bindings)
 {
-    uint32_t maxSets = 1;  // 1 is good enough for us.  In general, may want more;
-    bindingTable = _bt;
+    uint32_t MaxSets = 1;  // 1 is good enough for us.  In general, may want more;
+    BindingTable = Bindings;
 
     // Build descSetLayout
-    VkDescriptorSetLayoutCreateInfo createInfo{
+    VkDescriptorSetLayoutCreateInfo CreateInfo{
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-    createInfo.bindingCount = static_cast<uint32_t>(bindingTable.size());
-    createInfo.pBindings = bindingTable.data();
-    createInfo.flags = 0;
-    createInfo.pNext = nullptr;
+    CreateInfo.bindingCount = static_cast<uint32_t>(BindingTable.size());
+    CreateInfo.pBindings = BindingTable.data();
+    CreateInfo.flags = 0;
+    CreateInfo.pNext = nullptr;
 
-    VkDescriptorSetLayout descriptorSetLayout;
+    VkDescriptorSetLayout DescriptorSetLayout;
     RTRT_CHECK_VK(
-        vkCreateDescriptorSetLayout(device, &createInfo, nullptr, &descSetLayout));
+        vkCreateDescriptorSetLayout(Device, &CreateInfo, nullptr, &DescSetLayout));
 
     // Collect the size required for each descriptorType into a vector of poolSizes
-    std::vector<VkDescriptorPoolSize> poolSizes;
+    std::vector<VkDescriptorPoolSize> PoolSizes;
 
-    for (auto it = bindingTable.cbegin(); it != bindingTable.cend(); ++it)
+    for (auto It = BindingTable.cbegin(); It != BindingTable.cend(); ++It)
     {
-        bool found = false;
-        for (auto itpool = poolSizes.begin(); itpool != poolSizes.end(); ++itpool)
+        bool Found = false;
+        for (auto ItPool = PoolSizes.begin(); ItPool != PoolSizes.end(); ++ItPool)
         {
-            if (itpool->type == it->descriptorType)
+            if (ItPool->type == It->descriptorType)
             {
-                itpool->descriptorCount += it->descriptorCount * maxSets;
-                found = true;
+                ItPool->descriptorCount += It->descriptorCount * MaxSets;
+                Found = true;
                 break;
             }
         }
 
-        if (!found)
+        if (!Found)
         {
-            VkDescriptorPoolSize poolSize;
-            poolSize.type = it->descriptorType;
-            poolSize.descriptorCount = it->descriptorCount * maxSets;
-            poolSizes.push_back(poolSize);
+            VkDescriptorPoolSize PoolSize;
+            PoolSize.type = It->descriptorType;
+            PoolSize.descriptorCount = It->descriptorCount * MaxSets;
+            PoolSizes.push_back(PoolSize);
         }
     }
 
     // Build descPool
-    VkDescriptorPoolCreateInfo descrPoolInfo{
+    VkDescriptorPoolCreateInfo DescrPoolInfo{
         VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
-    descrPoolInfo.maxSets = maxSets;
-    descrPoolInfo.poolSizeCount = poolSizes.size();
-    descrPoolInfo.pPoolSizes = poolSizes.data();
-    descrPoolInfo.flags = 0;
+    DescrPoolInfo.maxSets = MaxSets;
+    DescrPoolInfo.poolSizeCount = PoolSizes.size();
+    DescrPoolInfo.pPoolSizes = PoolSizes.data();
+    DescrPoolInfo.flags = 0;
 
-    RTRT_CHECK_VK(vkCreateDescriptorPool(device, &descrPoolInfo, nullptr, &descPool));
+    RTRT_CHECK_VK(vkCreateDescriptorPool(Device, &DescrPoolInfo, nullptr, &DescPool));
 
     // Allocate DescriptorSet
-    VkDescriptorSetAllocateInfo allocInfo = {
+    VkDescriptorSetAllocateInfo AllocInfo = {
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
-    allocInfo.descriptorPool = descPool;
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &descSetLayout;
+    AllocInfo.descriptorPool = DescPool;
+    AllocInfo.descriptorSetCount = 1;
+    AllocInfo.pSetLayouts = &DescSetLayout;
 
     // Warning: The next line creates a single descriptor set from the
     // above pool since that's all our program needs.  This is too
     // restrictive in general, but fine for this program.
-    RTRT_CHECK_VK(vkAllocateDescriptorSets(device, &allocInfo, &descSet));
+    RTRT_CHECK_VK(vkAllocateDescriptorSets(Device, &AllocInfo, &DescSet));
 }
 
-void DescriptorWrap::destroy(VkDevice device)
+void DescriptorWrap::Destroy(VkDevice Device)
 {
-    vkDestroyDescriptorSetLayout(device, descSetLayout, nullptr);
-    vkDestroyDescriptorPool(device, descPool, nullptr);
+    vkDestroyDescriptorSetLayout(Device, DescSetLayout, nullptr);
+    vkDestroyDescriptorPool(Device, DescPool, nullptr);
 }
 
-void DescriptorWrap::write(VkDevice device, uint32_t index, VkBuffer buffer)
+void DescriptorWrap::Write(VkDevice Device, uint32_t Index, VkBuffer Buffer)
 {
-    VkDescriptorBufferInfo desBuf{buffer, 0, VK_WHOLE_SIZE};
-    VkWriteDescriptorSet writeSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-    writeSet.dstSet = descSet;
-    writeSet.dstBinding = index;
-    writeSet.dstArrayElement = 0;
-    writeSet.descriptorCount = 1;
-    writeSet.descriptorType = bindingTable[index].descriptorType;
-    writeSet.pBufferInfo = &desBuf;
+    VkDescriptorBufferInfo DesBuf{Buffer, 0, VK_WHOLE_SIZE};
+    VkWriteDescriptorSet WriteSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    WriteSet.dstSet = DescSet;
+    WriteSet.dstBinding = Index;
+    WriteSet.dstArrayElement = 0;
+    WriteSet.descriptorCount = 1;
+    WriteSet.descriptorType = BindingTable[Index].descriptorType;
+    WriteSet.pBufferInfo = &DesBuf;
 
-    assert(bindingTable[index].binding == index);
+    assert(BindingTable[Index].binding == Index);
 
-    assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER ||
-           writeSet.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC ||
-           writeSet.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
-           writeSet.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC);
+    assert(WriteSet.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER ||
+           WriteSet.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC ||
+           WriteSet.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
+           WriteSet.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC);
 
-    vkUpdateDescriptorSets(device, 1, &writeSet, 0, nullptr);
+    vkUpdateDescriptorSets(Device, 1, &WriteSet, 0, nullptr);
 }
 
-void DescriptorWrap::write(VkDevice device, uint32_t index,
-                           const VkDescriptorImageInfo& textureDesc)
+void DescriptorWrap::Write(VkDevice Device, uint32_t Index,
+                           const VkDescriptorImageInfo& TextureDesc)
 {
-    VkWriteDescriptorSet writeSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-    writeSet.dstSet = descSet;
-    writeSet.dstBinding = index;
-    writeSet.dstArrayElement = 0;
-    writeSet.descriptorCount = 1;
-    writeSet.descriptorType = bindingTable[index].descriptorType;
-    writeSet.pImageInfo = &textureDesc;
+    VkWriteDescriptorSet WriteSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    WriteSet.dstSet = DescSet;
+    WriteSet.dstBinding = Index;
+    WriteSet.dstArrayElement = 0;
+    WriteSet.descriptorCount = 1;
+    WriteSet.descriptorType = BindingTable[Index].descriptorType;
+    WriteSet.pImageInfo = &TextureDesc;
 
-    assert(bindingTable[index].binding == index);
+    assert(BindingTable[Index].binding == Index);
 
-    assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER ||
-           writeSet.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
-           writeSet.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE ||
-           writeSet.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE ||
-           writeSet.descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
+    assert(WriteSet.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER ||
+           WriteSet.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
+           WriteSet.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE ||
+           WriteSet.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE ||
+           WriteSet.descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
 
-    vkUpdateDescriptorSets(device, 1, &writeSet, 0, nullptr);
+    vkUpdateDescriptorSets(Device, 1, &WriteSet, 0, nullptr);
 }
 
-void DescriptorWrap::write(VkDevice device, uint32_t index,
-                           const std::vector<ImageWrap>& textures)
+void DescriptorWrap::Write(VkDevice Device, uint32_t Index,
+                           const std::vector<ImageWrap>& Textures)
 {
-    std::vector<VkDescriptorImageInfo> des;
-    for (auto& texture : textures)
+    std::vector<VkDescriptorImageInfo> Des;
+    for (auto& Texture : Textures)
     {
-        des.emplace_back(texture.Descriptor());
+        Des.emplace_back(Texture.Descriptor());
     }
 
-    VkWriteDescriptorSet writeSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-    writeSet.dstSet = descSet;
-    writeSet.dstBinding = index;
-    writeSet.dstArrayElement = 0;
-    writeSet.descriptorCount = des.size();
-    writeSet.descriptorType = bindingTable[index].descriptorType;
-    writeSet.pImageInfo = des.data();
+    VkWriteDescriptorSet WriteSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    WriteSet.dstSet = DescSet;
+    WriteSet.dstBinding = Index;
+    WriteSet.dstArrayElement = 0;
+    WriteSet.descriptorCount = Des.size();
+    WriteSet.descriptorType = BindingTable[Index].descriptorType;
+    WriteSet.pImageInfo = Des.data();
 
-    assert(bindingTable[index].binding == index);
+    assert(BindingTable[Index].binding == Index);
 
-    assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER ||
-           writeSet.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
-           writeSet.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE ||
-           writeSet.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE ||
-           writeSet.descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
+    assert(WriteSet.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER ||
+           WriteSet.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
+           WriteSet.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE ||
+           WriteSet.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE ||
+           WriteSet.descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
 
-    vkUpdateDescriptorSets(device, 1, &writeSet, 0, nullptr);
+    vkUpdateDescriptorSets(Device, 1, &WriteSet, 0, nullptr);
 }
 
-void DescriptorWrap::write(VkDevice device, uint32_t index,
-                           VkAccelerationStructureKHR tlas)
+void DescriptorWrap::Write(VkDevice Device, uint32_t Index,
+                           VkAccelerationStructureKHR Tlas)
 {
-    VkWriteDescriptorSetAccelerationStructureKHR descASInfo{
+    VkWriteDescriptorSetAccelerationStructureKHR DescAsInfo{
         VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR};
-    descASInfo.accelerationStructureCount = 1;
-    descASInfo.pAccelerationStructures = &tlas;
+    DescAsInfo.accelerationStructureCount = 1;
+    DescAsInfo.pAccelerationStructures = &Tlas;
 
-    VkWriteDescriptorSet writeSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-    writeSet.dstSet = descSet;
-    writeSet.dstBinding = index;
-    writeSet.dstArrayElement = 0;
-    writeSet.descriptorCount = 1;
-    writeSet.descriptorType = bindingTable[index].descriptorType;
-    writeSet.pNext = &descASInfo;
+    VkWriteDescriptorSet WriteSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    WriteSet.dstSet = DescSet;
+    WriteSet.dstBinding = Index;
+    WriteSet.dstArrayElement = 0;
+    WriteSet.descriptorCount = 1;
+    WriteSet.descriptorType = BindingTable[Index].descriptorType;
+    WriteSet.pNext = &DescAsInfo;
 
-    assert(bindingTable[index].binding == index);
+    assert(BindingTable[Index].binding == Index);
 
-    assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);
+    assert(WriteSet.descriptorType == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);
 
-    vkUpdateDescriptorSets(device, 1, &writeSet, 0, nullptr);
+    vkUpdateDescriptorSets(Device, 1, &WriteSet, 0, nullptr);
 }
 
 }  // namespace rtrt
