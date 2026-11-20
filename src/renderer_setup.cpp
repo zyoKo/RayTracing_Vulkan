@@ -119,13 +119,13 @@ void Renderer::DestroyDenoiseResources()
 
 bool Renderer::RecreateSizedResources()
 {
-    if (!WaitWhileMinimized())
+    if (!Application->GetWindow().WaitWhileMinimized())
     {
         return false;
     }
 
     RTRT_CHECK_VK(vkDeviceWaitIdle(Device));
-    Application->SetFramebufferResized(false);
+    Application->GetWindow().SetFramebufferResized(false);
 
     DestroySizedResources();
 
@@ -144,23 +144,6 @@ bool Renderer::RecreateSizedResources()
     CreateScPipeline();
 
     ResetRtAccumulation();
-    return true;
-}
-
-bool Renderer::WaitWhileMinimized()
-{
-    // A minimized window has a zero-sized framebuffer, which can't back a swapchain.
-    int Width = 0, Height = 0;
-    glfwGetFramebufferSize(Application->GetWindow(), &Width, &Height);
-    while (Width == 0 || Height == 0)
-    {
-        if (glfwWindowShouldClose(Application->GetWindow()))
-        {
-            return false;
-        }
-        glfwWaitEvents();
-        glfwGetFramebufferSize(Application->GetWindow(), &Width, &Height);
-    }
     return true;
 }
 
@@ -417,8 +400,8 @@ void Renderer::GetSurface()
 {
     VkBool32 IsSupported;  // Supports drawing(presenting) on a screen
 
-    RTRT_CHECK_VK(
-        glfwCreateWindowSurface(Instance, Application->GetWindow(), nullptr, &Surface));
+    RTRT_CHECK_VK(glfwCreateWindowSurface(Instance, Application->GetWindow().GetHandle(),
+                                          nullptr, &Surface));
 
     RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceSupportKHR(PhysicalDevice, GraphicsQueueIndex,
                                                        Surface, &IsSupported));
@@ -544,11 +527,7 @@ VkExtent2D Renderer::ChooseSwapchainExtent(const VkSurfaceCapabilitiesKHR& Capab
     }
 
     // Does this case ever happen?
-    int Width, Height;
-    glfwGetFramebufferSize(Application->GetWindow(), &Width, &Height);
-
-    VkExtent2D SwapchainExtent{static_cast<uint32_t>(Width),
-                               static_cast<uint32_t>(Height)};
+    VkExtent2D SwapchainExtent = Application->GetWindow().GetFramebufferSize();
     SwapchainExtent.width =
         std::clamp(SwapchainExtent.width, Capabilities.minImageExtent.width,
                    Capabilities.maxImageExtent.width);

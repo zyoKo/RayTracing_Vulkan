@@ -181,8 +181,6 @@ private:
 
     // False if the window closed while minimized
     bool RecreateSizedResources();
-    // Blocks while the framebuffer has zero size. False if the window was closed.
-    bool WaitWhileMinimized();
     // Everything that depends on the window size.
     void DestroySizedResources();
     void WriteSizedDescriptors();

@@ -157,7 +157,7 @@ bool Renderer::PrepareFrame()
     CheckVkResult(WaitResult, "vkWaitForFences", __FILE__, __LINE__);
     GpuWaitMs = (glfwGetTime() - WaitStart) * 1000.0;
 
-    if (Application->GetFramebufferResized() && !RecreateSizedResources())
+    if (Application->GetWindow().GetFramebufferResized() && !RecreateSizedResources())
     {
         return false;
     }
@@ -211,7 +211,7 @@ void Renderer::SubmitFrame()
     VkResult Result = vkQueuePresentKHR(Queue, &PresentInfo);
     if (Result == VK_ERROR_OUT_OF_DATE_KHR || Result == VK_SUBOPTIMAL_KHR)
     {
-        Application->SetFramebufferResized(true);
+        Application->GetWindow().SetFramebufferResized(true);
     }
     else
     {
@@ -285,7 +285,7 @@ void Renderer::InitGui()
     SubmitTempCmdBuffer(Cmdbuf);
     ImGui_ImplVulkan_DestroyFontUploadObjects();  // Staging buffer is no longer needed
 
-    ImGui_ImplGlfw_InitForVulkan(Application->GetWindow(), true);
+    ImGui_ImplGlfw_InitForVulkan(Application->GetWindow().GetHandle(), true);
 }
 
 }  // namespace rtrt

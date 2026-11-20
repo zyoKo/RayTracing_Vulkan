@@ -7,6 +7,9 @@
     <ClCompile Include="camera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="core\window.cpp">
+      <Filter>Source Files\core</Filter>
+    </ClCompile>
     <ClCompile Include="descriptor_wrap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -53,6 +56,12 @@
     <Filter Include="Header Files">
       <UniqueIdentifier>{bcd75b93-652d-4fad-ae1a-645dd93008eb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\core">
+      <UniqueIdentifier>{79606e1c-6096-4c26-9d71-a7571cfba156}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\core">
+      <UniqueIdentifier>{dd4d76b2-b01c-4c82-87fe-42c433457776}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Shader Files">
       <UniqueIdentifier>{26802777-62b4-47ec-a051-4ee8e4be1a67}</UniqueIdentifier>
     </Filter>
@@ -69,6 +78,9 @@
     </ClInclude>
     <ClInclude Include="camera.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="core\window.h">
+      <Filter>Header Files\core</Filter>
     </ClInclude>
     <ClInclude Include="descriptor_wrap.h">
       <Filter>Header Files</Filter>

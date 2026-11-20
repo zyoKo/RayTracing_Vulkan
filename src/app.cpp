@@ -25,11 +25,6 @@ constexpr int kWidth = 10 * 128;
 constexpr int kHeight = 6 * 128;
 constexpr char kProject[] = "rtrt";
 
-void OnErrorCallback(int Error, const char* Description)
-{
-    fprintf(stderr, "GLFW Error %d: %s\n", Error, Description);
-}
-
 void StatRow(const FrameStats& Stats, const char* Label, const float* Values)
 {
     const FrameStats::Summary Range = Stats.Summarize(Values);
@@ -59,59 +54,43 @@ bool ImGuiWantsMouse()
 
 }  // namespace
 
-void App::FramebufferSizeCallback(GLFWwindow* Window, int Width, int Height)
+void App::OnMouseButton(double X, double Y)
 {
-    App* Application = static_cast<App*>(glfwGetWindowUserPointer(Window));
-    Application->FramebufferResized = true;
-}
-
-void App::MouseButtonCallback(GLFWwindow* Window, int Button, int Action, int Mods)
-{
-    App* Application = static_cast<App*>(glfwGetWindowUserPointer(Window));
     if (ImGuiWantsMouse())
     {
         return;
     }
-
-    double X, Y;
-    glfwGetCursorPos(Window, &X, &Y);
-    Application->MainCamera.SetMousePosition(static_cast<float>(X),
-                                             static_cast<float>(Y));
+    MainCamera.SetMousePosition(static_cast<float>(X), static_cast<float>(Y));
 }
 
-void App::CursorPosCallback(GLFWwindow* Window, double X, double Y)
+void App::OnCursorPos(double X, double Y)
 {
-    App* Application = static_cast<App*>(glfwGetWindowUserPointer(Window));
     if (ImGuiWantsMouse())
     {
         return;
     }
-
-    if (Application->MainCamera.GetLeftButtonDown())
+    if (MainCamera.GetLeftButtonDown())
     {
-        Application->MainCamera.MouseMove(static_cast<float>(X), static_cast<float>(Y));
+        MainCamera.MouseMove(static_cast<float>(X), static_cast<float>(Y));
     }
 }
 
-void App::KeyCallback(GLFWwindow* Window, int Key, int Scancode, int Action, int Mods)
+void App::OnKey(int Key, int Action)
 {
-    App* Application = static_cast<App*>(glfwGetWindowUserPointer(Window));
-    const bool Pressed = Action != GLFW_RELEASE;
-
     // Keys typed into a settings field (Ctrl+click on a slider) belong to that field.
     if (ImGuiWantsTextInput())
     {
         return;
     }
 
-    if (Pressed && Key == GLFW_KEY_ESCAPE)
+    if (Action != GLFW_RELEASE && Key == GLFW_KEY_ESCAPE)
     {
-        glfwSetWindowShouldClose(Window, 1);
+        MainWindow.Close();
     }
 
     if (Action == GLFW_PRESS && Key == GLFW_KEY_F1)
     {
-        Application->ShowGui = !Application->ShowGui;
+        ShowGui = !ShowGui;
     }
 }
 
@@ -344,8 +323,7 @@ void App::UpdateCamera()
 
     float Dist = MoveSpeed * Dt;
 
-    MainCamera.SetLeftButtonDown(glfwGetMouseButton(Window, GLFW_MOUSE_BUTTON_LEFT) ==
-                                 GLFW_PRESS);
+    MainCamera.SetLeftButtonDown(MainWindow.IsMouseButtonDown(GLFW_MOUSE_BUTTON_LEFT));
 
     // Letters typed into a settings field (Ctrl+click on a slider) must not move the
     // camera.
@@ -358,32 +336,32 @@ void App::UpdateCamera()
     const glm::vec3 Forward(sin(Spin), 0.0, -cos(Spin));
     const glm::vec3 Right(cos(Spin), 0.0, sin(Spin));
 
-    if (glfwGetKey(Window, GLFW_KEY_W) == GLFW_PRESS)
+    if (MainWindow.IsKeyDown(GLFW_KEY_W))
     {
         MainCamera.EyeMoveBy(Dist * Forward);
     }
 
-    if (glfwGetKey(Window, GLFW_KEY_S) == GLFW_PRESS)
+    if (MainWindow.IsKeyDown(GLFW_KEY_S))
     {
         MainCamera.EyeMoveBy(-Dist * Forward);
     }
 
-    if (glfwGetKey(Window, GLFW_KEY_A) == GLFW_PRESS)
+    if (MainWindow.IsKeyDown(GLFW_KEY_A))
     {
         MainCamera.EyeMoveBy(-Dist * Right);
     }
 
-    if (glfwGetKey(Window, GLFW_KEY_D) == GLFW_PRESS)
+    if (MainWindow.IsKeyDown(GLFW_KEY_D))
     {
         MainCamera.EyeMoveBy(Dist * Right);
     }
 
-    if (glfwGetKey(Window, GLFW_KEY_E) == GLFW_PRESS)
+    if (MainWindow.IsKeyDown(GLFW_KEY_E))
     {
         MainCamera.EyeMoveBy(Dist * glm::vec3(0, 1, 0));
     }
 
-    if (glfwGetKey(Window, GLFW_KEY_C) == GLFW_PRESS)
+    if (MainWindow.IsKeyDown(GLFW_KEY_C))
     {
         MainCamera.EyeMoveBy(Dist * glm::vec3(0, -1, 0));
     }
@@ -410,33 +388,15 @@ bool App::Init(int Argc, char** Argv)
         }
     }
 
-    glfwSetErrorCallback(OnErrorCallback);
-
-    if (!glfwInit())
+    if (!MainWindow.Init(kWidth, kHeight, kProject))
     {
-        fprintf(stderr, "Could not initialize GLFW.\n");
         return false;
     }
 
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    Window = glfwCreateWindow(kWidth, kHeight, kProject, nullptr, nullptr);
-    if (Window == nullptr)
-    {
-        fprintf(stderr, "Could not create the window.\n");
-        return false;
-    }
-
-    if (!glfwVulkanSupported())
-    {
-        fprintf(stderr, "GLFW: Vulkan Not Supported\n");
-        return false;
-    }
-
-    glfwSetWindowUserPointer(Window, this);
-    glfwSetKeyCallback(Window, &KeyCallback);
-    glfwSetCursorPosCallback(Window, &CursorPosCallback);
-    glfwSetMouseButtonCallback(Window, &MouseButtonCallback);
-    glfwSetFramebufferSizeCallback(Window, &FramebufferSizeCallback);
+    MainWindow.SetKeyHandler([this](int Key, int Action) { OnKey(Key, Action); });
+    MainWindow.SetMouseButtonHandler([this](int, int, double X, double Y)
+                                     { OnMouseButton(X, Y); });
+    MainWindow.SetCursorPosHandler([this](double X, double Y) { OnCursorPos(X, Y); });
     return true;
 }
 
@@ -448,24 +408,21 @@ int main(int Argc, char** Argv)
     rtrt::App Application;
     if (!Application.Init(Argc, Argv))
     {
-        glfwTerminate();
         return 1;
     }
 
     rtrt::Renderer VK(&Application);
     if (!VK.Init())
     {
-        glfwDestroyWindow(Application.GetWindow());
-        glfwTerminate();
         return 1;
     }
 
     // The draw loop
     printf("looping =======================================\n");
     double FrameStart = glfwGetTime();
-    while (!glfwWindowShouldClose(Application.GetWindow()))
+    while (!Application.GetWindow().ShouldClose())
     {
-        glfwPollEvents();
+        Application.GetWindow().PollEvents();
         Application.UpdateCamera();
 
         ImGui_ImplGlfw_NewFrame();
@@ -486,8 +443,5 @@ int main(int Argc, char** Argv)
     // Cleanup
 
     VK.DestroyAllVulkanResources();
-
-    glfwDestroyWindow(Application.GetWindow());
-    glfwTerminate();
     return 0;
 }

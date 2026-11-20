@@ -4,9 +4,8 @@
 #include <algorithm>
 #include <cfloat>
 
-#include <GLFW/glfw3.h>
-
 #include "camera.h"
+#include "core/window.h"
 #include "renderer.h"
 
 namespace rtrt
@@ -80,9 +79,9 @@ public:
     // Adds one frame's timings, in milliseconds, to the performance history.
     void RecordFrameTimes(float FrameMs, float CpuMs, float DrawMs, float GpuWaitMs);
 
-    GLFWwindow* GetWindow() const
+    Window& GetWindow()
     {
-        return Window;
+        return MainWindow;
     }
 
     const Camera& GetCamera() const
@@ -100,22 +99,10 @@ public:
         return UseSlang;
     }
 
-    bool GetFramebufferResized() const
-    {
-        return FramebufferResized;
-    }
-
-    void SetFramebufferResized(bool Resized)
-    {
-        FramebufferResized = Resized;
-    }
-
 private:
-    static void FramebufferSizeCallback(GLFWwindow* Window, int Width, int Height);
-    static void MouseButtonCallback(GLFWwindow* Window, int Button, int Action, int Mods);
-    static void CursorPosCallback(GLFWwindow* Window, double X, double Y);
-    static void KeyCallback(GLFWwindow* Window, int Key, int Scancode, int Action,
-                            int Mods);
+    void OnKey(int Key, int Action);
+    void OnMouseButton(double X, double Y);
+    void OnCursorPos(double X, double Y);
 
     void DrawSettingsWindow(Renderer& VK);
     void DrawPerfWindow();
@@ -130,14 +117,13 @@ private:
     void DrawCameraSettings();
     void DrawShaderSettings(Renderer& VK);
 
-    GLFWwindow* Window = nullptr;
+    Window MainWindow;
     bool DoApiDump = false;
     // -slang: start with the Slang shaders
     bool UseSlang = false;
 
     bool ShowGui = true;
     bool ShowPerf = false;
-    bool FramebufferResized = false;
     float MoveSpeed = 0.7f;
     Camera MainCamera;
     FrameStats Stats;

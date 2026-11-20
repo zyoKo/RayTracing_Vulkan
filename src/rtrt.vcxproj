@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="app.cpp" />
+    <ClCompile Include="core\window.cpp" />
     <ClCompile Include="descriptor_wrap.cpp" />
     <ClCompile Include="acceleration_wrap.cpp" />
     <ClCompile Include="renderer.cpp" />
@@ -169,6 +170,7 @@ $(SlangC) %(Identity) -entry closestHitMain -o spv\raytrace.rchit.slang.spv</Com
     <ClInclude Include="app.h" />
     <ClInclude Include="buffer_wrap.h" />
     <ClInclude Include="camera.h" />
+    <ClInclude Include="core\window.h" />
     <ClInclude Include="descriptor_wrap.h" />
     <ClInclude Include="extensions_vk.hpp" />
     <ClInclude Include="image_wrap.h" />
@@ -277,7 +279,7 @@ $(SlangC) %(Identity) -entry closestHitMain -o spv\raytrace.rchit.slang.spv</Com
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN64;_DEBUG;_CONSOLE;GLM_FORCE_RADIANS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\libs\glm;$(VULKAN_SDK)\Include;$(ProjectDir)..\libs\glfw/include;$(ProjectDir)..\libs\imgui-master;$(ProjectDir)..\libs\assimp\include;$(ProjectDir)..\libs\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\libs\glm;$(VULKAN_SDK)\Include;$(ProjectDir)..\libs\glfw/include;$(ProjectDir)..\libs\imgui-master;$(ProjectDir)..\libs\assimp\include;$(ProjectDir)..\libs\</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -299,7 +301,7 @@ $(SlangC) %(Identity) -entry closestHitMain -o spv\raytrace.rchit.slang.spv</Com
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN64;NDEBUG;_CONSOLE;GLM_FORCE_RADIANS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\libs\glm;$(VULKAN_SDK)\Include;$(ProjectDir)..\libs\glfw/include;$(ProjectDir)..\libs\imgui-master;$(ProjectDir)..\libs\assimp\include;$(ProjectDir)..\libs\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\libs\glm;$(VULKAN_SDK)\Include;$(ProjectDir)..\libs\glfw/include;$(ProjectDir)..\libs\imgui-master;$(ProjectDir)..\libs\assimp\include;$(ProjectDir)..\libs\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
