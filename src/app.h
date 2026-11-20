@@ -31,22 +31,29 @@ struct FrameStats
         Count = std::min(Count + 1, kFrameCount);
     }
 
-    void Range(const float* Values, float& Avg, float& Lo, float& Hi) const
+    struct Summary
     {
-        Avg = 0.0f;
-        Lo = FLT_MAX;
-        Hi = 0.0f;
+        float Avg = 0.0f;
+        float Lo = 0.0f;
+        float Hi = 0.0f;
+    };
+
+    Summary Summarize(const float* Values) const
+    {
+        Summary Result;
+        if (Count == 0)
+        {
+            return Result;
+        }
+        Result.Lo = FLT_MAX;
         for (int I = 0; I < Count; I++)
         {
-            Avg += Values[I];
-            Lo = std::min(Lo, Values[I]);
-            Hi = std::max(Hi, Values[I]);
+            Result.Avg += Values[I];
+            Result.Lo = std::min(Result.Lo, Values[I]);
+            Result.Hi = std::max(Result.Hi, Values[I]);
         }
-        Avg = Count ? Avg / Count : 0.0f;
-        if (!Count)
-        {
-            Lo = 0.0f;
-        }
+        Result.Avg /= Count;
+        return Result;
     }
 };
 

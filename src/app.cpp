@@ -29,19 +29,18 @@ void OnErrorCallback(int Error, const char* Description)
 
 void StatRow(const FrameStats& Stats, const char* Label, const float* Values)
 {
-    float Avg, Lo, Hi;
-    Stats.Range(Values, Avg, Lo, Hi);
+    const FrameStats::Summary Range = Stats.Summarize(Values);
     ImGui::TextUnformatted(Label);
     ImGui::NextColumn();
     ImGui::Text(
         "%.2f",
         Values[(Stats.Next + FrameStats::kFrameCount - 1) % FrameStats::kFrameCount]);
     ImGui::NextColumn();
-    ImGui::Text("%.2f", Avg);
+    ImGui::Text("%.2f", Range.Avg);
     ImGui::NextColumn();
-    ImGui::Text("%.2f", Lo);
+    ImGui::Text("%.2f", Range.Lo);
     ImGui::NextColumn();
-    ImGui::Text("%.2f", Hi);
+    ImGui::Text("%.2f", Range.Hi);
     ImGui::NextColumn();
 }
 
@@ -56,15 +55,15 @@ void DrawPerfGui(App& A)
         return;
     }
 
-    float AvgFrame, Lo, Hi;
-    Stats.Range(Stats.FrameMs, AvgFrame, Lo, Hi);
+    const FrameStats::Summary Frame = Stats.Summarize(Stats.FrameMs);
+    const float AvgFrame = Frame.Avg;
     ImGui::Text("FPS: %.1f   Frame latency: %.2f ms",
                 AvgFrame > 0.0f ? 1000.0f / AvgFrame : 0.0f, AvgFrame);
 
     char Overlay[32];
     snprintf(Overlay, sizeof(Overlay), "%.2f ms", AvgFrame);
     ImGui::PlotLines("##frame", Stats.FrameMs, FrameStats::kFrameCount, Stats.Next,
-                     Overlay, 0.0f, std::max(Hi * 1.2f, 1.0f),
+                     Overlay, 0.0f, std::max(Frame.Hi * 1.2f, 1.0f),
                      ImVec2(ImGui::GetContentRegionAvail().x, 70));
 
     ImGui::Columns(5, "timings");

@@ -23,7 +23,6 @@ void DescriptorWrap::SetBindings(
     CreateInfo.flags = 0;
     CreateInfo.pNext = nullptr;
 
-    VkDescriptorSetLayout DescriptorSetLayout;
     RTRT_CHECK_VK(
         vkCreateDescriptorSetLayout(Device, &CreateInfo, nullptr, &DescSetLayout));
 
