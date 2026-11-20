@@ -9,7 +9,7 @@ namespace rtrt
 namespace
 {
 
-constexpr uint32_t GROUP_SIZE = 128;
+constexpr uint32_t kGroupSize = 128;
 
 }  // namespace
 
@@ -94,9 +94,9 @@ void Renderer::Denoise()
                            VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantDenoise),
                            &PcDenoise);
 
-        // One 128x1 workgroup per row segment; GROUP_SIZE must match
+        // One 128x1 workgroup per row segment; kGroupSize must match
         // local_size_x in denoise.comp.
-        vkCmdDispatch(CommandBuffer, (WindowSize.width + GROUP_SIZE - 1) / GROUP_SIZE,
+        vkCmdDispatch(CommandBuffer, (WindowSize.width + kGroupSize - 1) / kGroupSize,
                       WindowSize.height, 1);
 
         // Wait until denoise shader is done writing to DenoiseBuffer

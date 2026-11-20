@@ -2,7 +2,7 @@
 
 #include "shared_structs.h"
 
-static const int GROUP_SIZE = 128;  // Must match GROUP_SIZE in renderer_denoise.cpp
+static const int kGroupSize = 128;  // Must match kGroupSize in renderer_denoise.cpp
 
 [[vk::binding(0, 0)]] [[vk::image_format("rgba32f")]] RWTexture2D<float4> inImage;
 [[vk::binding(1, 0)]] [[vk::image_format("rgba32f")]] RWTexture2D<float4> outImage;
@@ -14,7 +14,7 @@ static const int GROUP_SIZE = 128;  // Must match GROUP_SIZE in renderer_denoise
 static const float gaussian[5] = { 1.0 / 16.0, 4.0 / 16.0, 6.0 / 16.0, 4.0 / 16.0, 1.0 / 16.0 };
 
 [shader("compute")]
-[numthreads(GROUP_SIZE, 1, 1)]
+[numthreads(kGroupSize, 1, 1)]
 void main(uint3 dispatchId : SV_DispatchThreadID)
 {
     int2 gpos = int2(dispatchId.xy);  // Index of central pixel being denoised

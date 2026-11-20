@@ -13,11 +13,11 @@ namespace rtrt
 
 struct FrameStats
 {
-    static constexpr int N = 240;
-    float FrameMs[N] = {};
-    float CpuMs[N] = {};
-    float DrawMs[N] = {};
-    float GpuWaitMs[N] = {};
+    static constexpr int kFrameCount = 240;
+    float FrameMs[kFrameCount] = {};
+    float CpuMs[kFrameCount] = {};
+    float DrawMs[kFrameCount] = {};
+    float GpuWaitMs[kFrameCount] = {};
     int Next = 0;
     int Count = 0;
 
@@ -27,8 +27,8 @@ struct FrameStats
         CpuMs[Next] = Cpu;
         DrawMs[Next] = Draw;
         GpuWaitMs[Next] = GpuWait;
-        Next = (Next + 1) % N;
-        Count = std::min(Count + 1, N);
+        Next = (Next + 1) % kFrameCount;
+        Count = std::min(Count + 1, kFrameCount);
     }
 
     void Range(const float* Values, float& Avg, float& Lo, float& Hi) const

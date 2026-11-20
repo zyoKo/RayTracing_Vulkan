@@ -33,7 +33,9 @@ void StatRow(const FrameStats& Stats, const char* Label, const float* Values)
     Stats.Range(Values, Avg, Lo, Hi);
     ImGui::TextUnformatted(Label);
     ImGui::NextColumn();
-    ImGui::Text("%.2f", Values[(Stats.Next + FrameStats::N - 1) % FrameStats::N]);
+    ImGui::Text(
+        "%.2f",
+        Values[(Stats.Next + FrameStats::kFrameCount - 1) % FrameStats::kFrameCount]);
     ImGui::NextColumn();
     ImGui::Text("%.2f", Avg);
     ImGui::NextColumn();
@@ -61,8 +63,8 @@ void DrawPerfGui(App& A)
 
     char Overlay[32];
     snprintf(Overlay, sizeof(Overlay), "%.2f ms", AvgFrame);
-    ImGui::PlotLines("##frame", Stats.FrameMs, FrameStats::N, Stats.Next, Overlay, 0.0f,
-                     std::max(Hi * 1.2f, 1.0f),
+    ImGui::PlotLines("##frame", Stats.FrameMs, FrameStats::kFrameCount, Stats.Next,
+                     Overlay, 0.0f, std::max(Hi * 1.2f, 1.0f),
                      ImVec2(ImGui::GetContentRegionAvail().x, 70));
 
     ImGui::Columns(5, "timings");
@@ -211,9 +213,9 @@ void DrawGui(Renderer& VK)
 }
 
 //////////////////////////////////////////////////////////////////////////
-constexpr int WIDTH = 10 * 128;
-constexpr int HEIGHT = 6 * 128;
-constexpr char PROJECT[] = "rtrt";
+constexpr int kWidth = 10 * 128;
+constexpr int kHeight = 6 * 128;
+constexpr char kProject[] = "rtrt";
 
 void FramebufferSizeCallback(GLFWwindow* Window, int Width, int Height)
 {
@@ -355,7 +357,7 @@ bool App::Init(int Argc, char** Argv)
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    Window = glfwCreateWindow(WIDTH, HEIGHT, PROJECT, nullptr, nullptr);
+    Window = glfwCreateWindow(kWidth, kHeight, kProject, nullptr, nullptr);
     if (Window == nullptr)
     {
         fprintf(stderr, "Could not create the window.\n");
