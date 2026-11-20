@@ -22,7 +22,7 @@
 namespace rtrt
 {
 
-void VkApp::destroyAllVulkanResources()
+void Renderer::destroyAllVulkanResources()
 {
     RTRT_CHECK_VK(vkDeviceWaitIdle(m_device));
 
@@ -95,7 +95,7 @@ void VkApp::destroyAllVulkanResources()
     vkDestroyInstance(m_instance, nullptr);
 }
 
-bool VkApp::recreateSizedResources()
+bool Renderer::recreateSizedResources()
 {
     // A minimized window has a zero-sized framebuffer, which can't back a swapchain.
     int width = 0, height = 0;
@@ -166,7 +166,7 @@ bool VkApp::recreateSizedResources()
     return true;
 }
 
-void VkApp::createInstance(bool doApiDump)
+void Renderer::createInstance(bool doApiDump)
 {
     uint32_t countGLFWextensions{0};
     const char** reqGLFWextensions =
@@ -227,7 +227,7 @@ void VkApp::createInstance(bool doApiDump)
     RTRT_CHECK_VK(vkCreateInstance(&instanceCreateInfo, nullptr, &m_instance));
 }
 
-bool VkApp::createPhysicalDevice()
+bool Renderer::createPhysicalDevice()
 {
     uint32_t physicalDevicesCount;
     RTRT_CHECK_VK(vkEnumeratePhysicalDevices(m_instance, &physicalDevicesCount, nullptr));
@@ -292,7 +292,7 @@ bool VkApp::createPhysicalDevice()
     return false;
 }
 
-void VkApp::chooseQueueIndex()
+void Renderer::chooseQueueIndex()
 {
     VkQueueFlags requiredQueueFlags =
         VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT;
@@ -307,7 +307,7 @@ void VkApp::chooseQueueIndex()
     m_graphicsQueueIndex = 0;
 }
 
-void VkApp::createDevice()
+void Renderer::createDevice()
 {
     // pNext chain of feature structures:
     //   features2->features11->features12->features13->accelFeature->rtPipelineFeature->NULL
@@ -356,7 +356,7 @@ void VkApp::createDevice()
         vkCreateDevice(m_physicalDevice, &deviceCreateInfo, nullptr, &m_device));
 }
 
-void VkApp::getCommandQueue()
+void Renderer::getCommandQueue()
 {
     vkGetDeviceQueue(m_device, m_graphicsQueueIndex, 0, &m_queue);
     // The queue is owned by the device; nothing to destroy.
@@ -364,14 +364,14 @@ void VkApp::getCommandQueue()
 
 // Loads function pointers for all registered extensions via
 // extensions_vk.cpp, which NVIDIA generates from the Vulkan spec.
-void VkApp::loadExtensions()
+void Renderer::loadExtensions()
 {
     load_VK_EXTENSIONS(m_instance, vkGetInstanceProcAddr, m_device, vkGetDeviceProcAddr);
 }
 
 //  VkSurface is Vulkan's name for the screen.  Since GLFW creates and
 //  manages the window, it creates the VkSurface at our request.
-void VkApp::getSurface()
+void Renderer::getSurface()
 {
     VkBool32 isSupported;  // Supports drawing(presenting) on a screen
 
@@ -392,7 +392,7 @@ void VkApp::getSurface()
 // makes it possible to reuse command buffers.  The queue index
 // determines which queue the command buffers can be submitted to.
 // Use the command pool to also create a command buffer.
-void VkApp::createCommandPool()
+void Renderer::createCommandPool()
 {
     VkCommandPoolCreateInfo poolCreateInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     poolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
@@ -409,7 +409,7 @@ void VkApp::createCommandPool()
     // Nothing to destroy -- the pool owns the command buffer.
 }
 
-void VkApp::createSwapchain()
+void Renderer::createSwapchain()
 {
     VkSwapchainKHR oldSwapchain = m_swapchain;
 
@@ -581,7 +581,7 @@ void VkApp::createSwapchain()
     windowSize = swapchainExtent;
 }
 
-void VkApp::destroySwapchain()
+void Renderer::destroySwapchain()
 {
     RTRT_CHECK_VK(vkDeviceWaitIdle(m_device));
 
@@ -606,7 +606,7 @@ void VkApp::destroySwapchain()
     m_barriers.clear();
 }
 
-void VkApp::createDepthResource()
+void Renderer::createDepthResource()
 {
     uint32_t mipLevels = 1;
 
@@ -629,7 +629,7 @@ void VkApp::createDepthResource()
 //
 // (2) VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT:
 // for memory visible to the CPU  for CPU to GPU copy operations.
-uint32_t VkApp::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+uint32_t Renderer::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
 {
     VkPhysicalDeviceMemoryProperties memProperties;
     vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
@@ -651,9 +651,9 @@ uint32_t VkApp::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags proper
 // creates and binds an associated VkDeviceMemory object.  The
 // VkImageView and VkSampler are left empty to be created elsewhere as
 // needed.
-ImageWrap VkApp::createImageWrap(uint32_t width, uint32_t height, VkFormat format,
-                                 VkImageUsageFlags usage,
-                                 VkMemoryPropertyFlags properties, uint32_t mipLevels)
+ImageWrap Renderer::createImageWrap(uint32_t width, uint32_t height, VkFormat format,
+                                    VkImageUsageFlags usage,
+                                    VkMemoryPropertyFlags properties, uint32_t mipLevels)
 {
     ImageWrap myImage;
 
@@ -691,8 +691,8 @@ ImageWrap VkApp::createImageWrap(uint32_t width, uint32_t height, VkFormat forma
     return myImage;
 }
 
-VkImageView VkApp::createImageView(VkImage image, VkFormat format,
-                                   VkImageAspectFlagBits aspect)
+VkImageView Renderer::createImageView(VkImage image, VkFormat format,
+                                      VkImageAspectFlagBits aspect)
 {
     VkImageViewCreateInfo viewInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
     viewInfo.image = image;
@@ -709,7 +709,7 @@ VkImageView VkApp::createImageView(VkImage image, VkFormat format,
     return imageView;
 }
 
-void VkApp::createPostRenderPass()
+void Renderer::createPostRenderPass()
 {
     std::array<VkAttachmentDescription, 2> attachments{};
     // Color attachment
@@ -762,7 +762,7 @@ void VkApp::createPostRenderPass()
 
 // A VkFrameBuffer wraps several images into a render target --
 // usually a color buffer and a depth buffer.
-void VkApp::createPostFrameBuffers()
+void Renderer::createPostFrameBuffers()
 {
     std::array<VkImageView, 2> fbattachments{};
 
@@ -786,7 +786,7 @@ void VkApp::createPostFrameBuffers()
     }
 }
 
-void VkApp::createPostPipeline()
+void Renderer::createPostPipeline()
 {
     // Creating the pipeline layout
     VkPipelineLayoutCreateInfo createInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
@@ -923,7 +923,7 @@ void VkApp::createPostPipeline()
     vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
 }
 
-std::string VkApp::loadShader(const char* glslSpv, const char* slangSpv)
+std::string Renderer::loadShader(const char* glslSpv, const char* slangSpv)
 {
     if (m_useSlang)
     {
@@ -937,7 +937,7 @@ std::string VkApp::loadShader(const char* glslSpv, const char* slangSpv)
     return loadFile(glslSpv);
 }
 
-void VkApp::setShaderLanguage(bool useSlang)
+void Renderer::setShaderLanguage(bool useSlang)
 {
     if (useSlang == m_useSlang)
     {
@@ -968,7 +968,7 @@ void VkApp::setShaderLanguage(bool useSlang)
     createDenoiseCompPipeline();
 }
 
-std::string VkApp::loadFile(const std::string& filename)
+std::string Renderer::loadFile(const std::string& filename)
 {
     std::string result;
     // ate: Open at file end
@@ -990,7 +990,7 @@ std::string VkApp::loadFile(const std::string& filename)
 
 //----------------------------------------------------------------------------------------
 // Post processing pass: tone mapper, UI
-void VkApp::postProcess()
+void Renderer::postProcess()
 {
     std::array<VkClearValue, 2> clearValues{};
     clearValues[0].color = {{1, 1, 1, 1}};

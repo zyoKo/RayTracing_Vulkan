@@ -13,14 +13,14 @@ constexpr uint32_t GROUP_SIZE = 128;
 
 }  // namespace
 
-void VkApp::createDenoiseBuffer()
+void Renderer::createDenoiseBuffer()
 {
     m_denoiseBuffer = createBufferImage(windowSize);
     transitionImageLayout(m_denoiseBuffer.image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 }
 
-void VkApp::createDenoiseDescriptorSet()
+void Renderer::createDenoiseDescriptorSet()
 {
     m_denoiseDesc.setBindings(
         m_device,
@@ -36,7 +36,7 @@ void VkApp::createDenoiseDescriptorSet()
     m_denoiseDesc.write(m_device, 3, m_rtNdCurrBuffer.Descriptor());
 }
 
-void VkApp::createDenoiseCompPipeline()
+void Renderer::createDenoiseCompPipeline()
 {
     VkPushConstantRange pc_info = {VK_SHADER_STAGE_COMPUTE_BIT, 0,
                                    sizeof(PushConstantDenoise)};
@@ -61,7 +61,7 @@ void VkApp::createDenoiseCompPipeline()
     vkDestroyShaderModule(m_device, cpCreateInfo.stage.module, nullptr);
 }
 
-void VkApp::denoise()
+void Renderer::denoise()
 {
     // Wait for RT to finish
     VkImageSubresourceRange range{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};

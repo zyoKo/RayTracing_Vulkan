@@ -90,7 +90,7 @@ void drawPerfGUI(App& A)
     ImGui::End();
 }
 
-void drawGUI(VkApp& VK)
+void drawGUI(Renderer& VK)
 {
     App& A = *VK.app;
 
@@ -388,7 +388,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    rtrt::VkApp VK(&app);
+    rtrt::Renderer VK(&app);
     if (!VK.Init())
     {
         glfwDestroyWindow(app.GLFW_window);

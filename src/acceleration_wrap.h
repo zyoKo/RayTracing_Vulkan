@@ -15,7 +15,7 @@
 namespace rtrt
 {
 
-class VkApp;
+class Renderer;
 
 // Convert a Mat4x4 to the matrix required by acceleration structures
 inline VkTransformMatrixKHR toTransformMatrixKHR(const glm::mat4& matrix)
@@ -29,7 +29,7 @@ inline VkTransformMatrixKHR toTransformMatrixKHR(const glm::mat4& matrix)
     return out_matrix;
 }
 
-struct WrapAccelerationStructure
+struct AccelerationStructureWrap
 {
     VkAccelerationStructureKHR accel;
     BufferWrap bw;
@@ -48,16 +48,16 @@ struct BlasInput
 };
 
 // Ray tracing BLAS and TLAS builder
-class RaytracingBuilderKHR
+class RaytracingBuilder
 {
 public:
-    RaytracingBuilderKHR() = default;
-    RaytracingBuilderKHR(const RaytracingBuilderKHR&) = delete;
-    RaytracingBuilderKHR& operator=(const RaytracingBuilderKHR&) = delete;
+    RaytracingBuilder() = default;
+    RaytracingBuilder(const RaytracingBuilder&) = delete;
+    RaytracingBuilder& operator=(const RaytracingBuilder&) = delete;
 
-    VkApp* VK;
+    Renderer* VK;
     // Initializing the allocator and querying the raytracing properties
-    void setup(VkApp* _VK, VkDevice device, uint32_t queueIndex);
+    void setup(Renderer* _VK, VkDevice device, uint32_t queueIndex);
 
     // Destroying all allocations
     void destroy();
@@ -98,8 +98,8 @@ public:
     );
 
 protected:
-    std::vector<WrapAccelerationStructure> m_blas;  // Bottom-level acceleration structure
-    WrapAccelerationStructure m_tlas;               // Top-level acceleration structure
+    std::vector<AccelerationStructureWrap> m_blas;  // Bottom-level acceleration structure
+    AccelerationStructureWrap m_tlas;               // Top-level acceleration structure
 
     // Setup
     VkDevice m_device{VK_NULL_HANDLE};
@@ -112,7 +112,7 @@ protected:
         VkAccelerationStructureBuildSizesInfoKHR sizeInfo{
             VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
         const VkAccelerationStructureBuildRangeInfoKHR* rangeInfo;
-        WrapAccelerationStructure as;  // result acceleration structure
+        AccelerationStructureWrap as;  // result acceleration structure
         VkAccelerationStructureKHR cleanupAS;
     };
 

@@ -14,7 +14,7 @@
 namespace rtrt
 {
 
-void VkApp::createRtBuffers()
+void Renderer::createRtBuffers()
 {
     // Note: This will grow to create more than the single buffer m_rtColCurrBuffer.
     m_rtColCurrBuffer = createBufferImage(windowSize);
@@ -43,7 +43,7 @@ void VkApp::createRtBuffers()
 }
 
 // The values of everything adjustable in the settings panel
-void VkApp::setDefaultSettings()
+void Renderer::setDefaultSettings()
 {
     // Russian roulette survival chance, tested per bounce in the shader
     m_pcRay.rr = 0.7f;
@@ -69,14 +69,14 @@ void VkApp::setDefaultSettings()
 }
 
 // Makes the next frame discard all temporal history
-void VkApp::ResetRtAccumulation()
+void Renderer::ResetRtAccumulation()
 {
     m_resetHistory = true;
     frameCount = 0;
 }
 
 // Initialize ray tracing
-void VkApp::initRayTracing()
+void Renderer::initRayTracing()
 {
     // Requesting ray tracing properties
     VkPhysicalDeviceProperties2 prop2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
@@ -98,7 +98,7 @@ void VkApp::initRayTracing()
 //----------------------------------------------------------------------------------------
 // This descriptor set holds the Acceleration structure and the output image
 //
-void VkApp::createRtDescriptorSet()
+void Renderer::createRtDescriptorSet()
 {
     m_rtDesc.setBindings(
         m_device,
@@ -125,7 +125,7 @@ void VkApp::createRtDescriptorSet()
 
 // Pipeline for the ray tracer: all shaders, raygen, chit, miss
 //
-void VkApp::createRtPipeline()
+void Renderer::createRtPipeline()
 {
     //////////////////////////////////////////////////////////////////////////////////////
     // stages: Array of shaders: 1 raygen, 1 miss, 1 closest-hit
@@ -243,7 +243,7 @@ constexpr integral align_up(integral x, size_t a) noexcept
 
 }  // namespace
 
-void VkApp::createRtShaderBindingTable()
+void Renderer::createRtShaderBindingTable()
 {
     uint32_t missCount{1};
     uint32_t hitCount{1};
@@ -346,7 +346,7 @@ void VkApp::createRtShaderBindingTable()
     staging.destroy(m_device);
 }
 
-void VkApp::CmdCopyImage(ImageWrap& src, ImageWrap& dst)
+void Renderer::CmdCopyImage(ImageWrap& src, ImageWrap& dst)
 {
     VkImageCopy imageCopyRegion{};
     imageCopyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -371,7 +371,7 @@ void VkApp::CmdCopyImage(ImageWrap& src, ImageWrap& dst)
                        VK_IMAGE_LAYOUT_GENERAL);
 }
 
-void VkApp::raytrace()
+void Renderer::raytrace()
 {
     // The push constants for the ray tracing pipeline.
     // These are temporary -- used only for ray casting step.

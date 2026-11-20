@@ -20,11 +20,11 @@
 namespace rtrt
 {
 
-VkApp::VkApp(App* _app) : app(_app)
+Renderer::Renderer(App* _app) : app(_app)
 {
 }
 
-bool VkApp::Init()
+bool Renderer::Init()
 {
     m_useSlang = app->useSlang;      // -slang picks the starting shader language
     createInstance(app->doApiDump);  // -> m_instance
@@ -76,7 +76,7 @@ bool VkApp::Init()
     return true;
 }
 
-void VkApp::drawFrame()
+void Renderer::drawFrame()
 {
     const double start = glfwGetTime();
     if (!prepareFrame())
@@ -115,7 +115,7 @@ void VkApp::drawFrame()
     m_recordMs = (glfwGetTime() - start) * 1000.0 - m_gpuWaitMs;
 }
 
-VkCommandBuffer VkApp::createTempCmdBuffer()
+VkCommandBuffer Renderer::createTempCmdBuffer()
 {
     VkCommandBufferAllocateInfo allocateInfo{
         VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
@@ -131,7 +131,7 @@ VkCommandBuffer VkApp::createTempCmdBuffer()
     return cmdBuffer;
 }
 
-void VkApp::submitTempCmdBuffer(VkCommandBuffer cmdBuffer)
+void Renderer::submitTempCmdBuffer(VkCommandBuffer cmdBuffer)
 {
     RTRT_CHECK_VK(vkEndCommandBuffer(cmdBuffer));
 
@@ -143,7 +143,7 @@ void VkApp::submitTempCmdBuffer(VkCommandBuffer cmdBuffer)
     vkFreeCommandBuffers(m_device, m_cmdPool, 1, &cmdBuffer);
 }
 
-bool VkApp::prepareFrame()
+bool Renderer::prepareFrame()
 {
     // Use a fence to wait until the command buffer has finished execution before using it
     // again. This must happen before the acquire, so the previous submit's wait on
@@ -181,7 +181,7 @@ bool VkApp::prepareFrame()
     return true;
 }
 
-void VkApp::submitFrame()
+void Renderer::submitFrame()
 {
     RTRT_CHECK_VK(vkResetFences(m_device, 1, &m_waitFence));
 
@@ -220,7 +220,7 @@ void VkApp::submitFrame()
     }
 }
 
-VkShaderModule VkApp::createShaderModule(const std::string& code)
+VkShaderModule Renderer::createShaderModule(const std::string& code)
 {
     VkShaderModuleCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -233,9 +233,8 @@ VkShaderModule VkApp::createShaderModule(const std::string& code)
     return shaderModule;
 }
 
-VkPipelineShaderStageCreateInfo VkApp::createShaderStageInfo(const std::string& code,
-                                                             VkShaderStageFlagBits stage,
-                                                             const char* entryPoint)
+VkPipelineShaderStageCreateInfo Renderer::createShaderStageInfo(
+    const std::string& code, VkShaderStageFlagBits stage, const char* entryPoint)
 {
     VkPipelineShaderStageCreateInfo shaderStage{
         VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
@@ -245,7 +244,7 @@ VkPipelineShaderStageCreateInfo VkApp::createShaderStageInfo(const std::string& 
     return shaderStage;
 }
 
-void VkApp::initGUI()
+void Renderer::initGUI()
 {
     uint32_t subpassID = 0;
 

@@ -68,9 +68,10 @@ VkPipelineStageFlags pipelineStageForLayout(VkImageLayout layout)
 
 }  // namespace
 
-void VkApp::imageLayoutBarrier(VkCommandBuffer cmdbuffer, VkImage image,
-                               VkImageLayout oldImageLayout, VkImageLayout newImageLayout,
-                               VkImageAspectFlags aspectMask)
+void Renderer::imageLayoutBarrier(VkCommandBuffer cmdbuffer, VkImage image,
+                                  VkImageLayout oldImageLayout,
+                                  VkImageLayout newImageLayout,
+                                  VkImageAspectFlags aspectMask)
 {
     VkImageSubresourceRange subresourceRange;
     subresourceRange.aspectMask = aspectMask;
@@ -95,7 +96,7 @@ void VkApp::imageLayoutBarrier(VkCommandBuffer cmdbuffer, VkImage image,
                          nullptr, 1, &imageMemoryBarrier);
 }
 
-ImageWrap VkApp::createTextureImage(const std::string& fileName)
+ImageWrap Renderer::createTextureImage(const std::string& fileName)
 {
     // VkImage& textureImage, VkDeviceMemory& textureImageMemory
     int texWidth, texHeight, texChannels;
@@ -148,8 +149,8 @@ ImageWrap VkApp::createTextureImage(const std::string& fileName)
     return myImage;
 }
 
-void VkApp::generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth,
-                            int32_t texHeight, uint32_t mipLevels)
+void Renderer::generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth,
+                               int32_t texHeight, uint32_t mipLevels)
 {
     // Check if image format supports linear blitting
     VkFormatProperties formatProperties;
@@ -237,8 +238,8 @@ void VkApp::generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidt
     submitTempCmdBuffer(commandBuffer);
 }
 
-BufferWrap VkApp::createStagedBufferWrap(VkCommandBuffer cmdBuf, VkDeviceSize size,
-                                         const void* data, VkBufferUsageFlags usage)
+BufferWrap Renderer::createStagedBufferWrap(VkCommandBuffer cmdBuf, VkDeviceSize size,
+                                            const void* data, VkBufferUsageFlags usage)
 {
     BufferWrap staging = createBufferWrap(
         size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -258,8 +259,8 @@ BufferWrap VkApp::createStagedBufferWrap(VkCommandBuffer cmdBuf, VkDeviceSize si
     return bw;
 }
 
-BufferWrap VkApp::createBufferWrap(VkDeviceSize size, VkBufferUsageFlags usage,
-                                   VkMemoryPropertyFlags properties)
+BufferWrap Renderer::createBufferWrap(VkDeviceSize size, VkBufferUsageFlags usage,
+                                      VkMemoryPropertyFlags properties)
 {
     BufferWrap result;
 
@@ -290,7 +291,7 @@ BufferWrap VkApp::createBufferWrap(VkDeviceSize size, VkBufferUsageFlags usage,
     return result;
 }
 
-void VkApp::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+void Renderer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
 {
     VkCommandBuffer commandBuffer = createTempCmdBuffer();
 
@@ -301,8 +302,8 @@ void VkApp::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size
     submitTempCmdBuffer(commandBuffer);
 }
 
-void VkApp::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
-                              uint32_t height)
+void Renderer::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
+                                 uint32_t height)
 {
     VkCommandBuffer commandBuffer = createTempCmdBuffer();
 
@@ -323,8 +324,9 @@ void VkApp::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
     submitTempCmdBuffer(commandBuffer);
 }
 
-void VkApp::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout,
-                                  VkImageLayout newLayout, uint32_t mipLevels)
+void Renderer::transitionImageLayout(VkImage image, VkFormat format,
+                                     VkImageLayout oldLayout, VkImageLayout newLayout,
+                                     uint32_t mipLevels)
 {
     VkCommandBuffer commandBuffer = createTempCmdBuffer();
 
@@ -351,7 +353,7 @@ void VkApp::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout 
     submitTempCmdBuffer(commandBuffer);
 }
 
-VkSampler VkApp::createTextureSampler()
+VkSampler Renderer::createTextureSampler()
 {
     VkPhysicalDeviceProperties properties{};
     vkGetPhysicalDeviceProperties(m_physicalDevice, &properties);
@@ -375,14 +377,14 @@ VkSampler VkApp::createTextureSampler()
     return textureSampler;
 }
 
-void VkApp::createPostDescriptor()
+void Renderer::createPostDescriptor()
 {
     m_postDesc.setBindings(m_device, {{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
                                        VK_SHADER_STAGE_FRAGMENT_BIT}});
     m_postDesc.write(m_device, 0, m_scImageBuffer.Descriptor());
 }
 
-void VkApp::createScBuffer()
+void Renderer::createScBuffer()
 {
     m_scImageBuffer = createBufferImage(windowSize);
 
@@ -392,7 +394,7 @@ void VkApp::createScBuffer()
     submitTempCmdBuffer(cmdBuf);
 }
 
-ImageWrap VkApp::createBufferImage(VkExtent2D& size)
+ImageWrap Renderer::createBufferImage(VkExtent2D& size)
 {
     uint32_t mipLevels = 1;
 
@@ -411,7 +413,7 @@ ImageWrap VkApp::createBufferImage(VkExtent2D& size)
 
 // The scanline renderpass outputs to m_scImageBuffer (as wrapped by
 // m_scanlineFramebuffer)
-void VkApp::createScanlineRenderPass()
+void Renderer::createScanlineRenderPass()
 {
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = VK_FORMAT_R32G32B32A32_SFLOAT;
@@ -475,7 +477,7 @@ void VkApp::createScanlineRenderPass()
     createScanlineFramebuffer();
 }
 
-void VkApp::createScanlineFramebuffer()
+void Renderer::createScanlineFramebuffer()
 {
     std::vector<VkImageView> attachments = {m_scImageBuffer.imageView,
                                             m_depthImage.imageView};
@@ -490,7 +492,7 @@ void VkApp::createScanlineFramebuffer()
     RTRT_CHECK_VK(vkCreateFramebuffer(m_device, &info, nullptr, &m_scanlineFramebuffer));
 }
 
-void VkApp::createScDescriptorSet()
+void Renderer::createScDescriptorSet()
 {
     auto nbTxt = static_cast<uint32_t>(m_objText.size());
 
@@ -509,7 +511,7 @@ void VkApp::createScDescriptorSet()
     m_scDesc.write(m_device, ScBindings::eTextures, m_objText);
 }
 
-void VkApp::createScPipeline()
+void Renderer::createScPipeline()
 {
     VkPushConstantRange pushConstantRanges = {
         VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
@@ -652,7 +654,7 @@ void VkApp::createScPipeline()
 
 // Create a Vulkan buffer to hold the camera matrices, products and inverses.
 // Will be included in a descriptor set for use in shaders.
-void VkApp::createMatrixBuffer()
+void Renderer::createMatrixBuffer()
 {
     m_matrixBW = createBufferWrap(
         sizeof(MatrixUniforms),
@@ -663,7 +665,7 @@ void VkApp::createMatrixBuffer()
 // Create a Vulkan buffer containing pointers to all object buffers
 // (vertex, triangle indices, materials, and material indices. Will be
 // included in a descriptor set for use in shaders.
-void VkApp::createObjDescriptionBuffer()
+void Renderer::createObjDescriptionBuffer()
 {
     VkCommandBuffer cmdBuf = createTempCmdBuffer();
     m_objDescriptionBW =
@@ -671,7 +673,7 @@ void VkApp::createObjDescriptionBuffer()
     submitTempCmdBuffer(cmdBuf);
 }
 
-void VkApp::rasterize()
+void Renderer::rasterize()
 {
     VkDeviceSize offset{0};
 
@@ -721,7 +723,7 @@ void VkApp::rasterize()
     vkCmdEndRenderPass(m_commandBuffer);
 }
 
-void VkApp::updateCameraBuffer()
+void Renderer::updateCameraBuffer()
 {
     // Prepare new UBO contents on host.
     const float aspectRatio = windowSize.width / static_cast<float>(windowSize.height);

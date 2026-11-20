@@ -49,7 +49,7 @@ struct ObjInst
 
 class App;
 
-class VkApp
+class Renderer
 {
 public:
     std::vector<const char*> reqInstanceExtensions = {  // GLFW will add to this
@@ -68,9 +68,9 @@ public:
         VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
 
     App* app;
-    explicit VkApp(App* _app);
-    VkApp(const VkApp&) = delete;
-    VkApp& operator=(const VkApp&) = delete;
+    explicit Renderer(App* _app);
+    Renderer(const Renderer&) = delete;
+    Renderer& operator=(const Renderer&) = delete;
     bool Init();  // False if no GPU supports the required extensions
 
     // Variables managed by ImGui
@@ -201,7 +201,7 @@ public:
     BufferWrap m_matrixBW{};  // Device-Host of the camera matrices
     void createMatrixBuffer();
 
-    RaytracingBuilderKHR m_rtBuilder{};
+    RaytracingBuilder m_rtBuilder{};
     float m_maxAnis = 0;
     std::vector<Emitter> lightList;
     PushConstantRay m_pcRay{};  // Push constant for ray tracer
