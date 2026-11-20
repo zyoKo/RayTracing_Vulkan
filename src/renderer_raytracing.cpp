@@ -92,7 +92,7 @@ void Renderer::initRayTracing()
     baseAlignment = rtProps.shaderGroupBaseAlignment;
 
     // This initializes the acceleration structure helper class
-    m_rtBuilder.setup(this, m_device, m_graphicsQueueIndex);
+    m_rtBuilder.Setup(this, m_device, m_graphicsQueueIndex);
 }
 
 //----------------------------------------------------------------------------------------
@@ -114,7 +114,7 @@ void Renderer::createRtDescriptorSet()
 
     // Note: This will grow to include more buffers.
 
-    m_rtDesc.Write(m_device, 0, m_rtBuilder.getAccelerationStructure());
+    m_rtDesc.Write(m_device, 0, m_rtBuilder.GetAccelerationStructure());
     m_rtDesc.Write(m_device, 1, m_rtColCurrBuffer.Descriptor());
     m_rtDesc.Write(m_device, 2, m_rtColPrevBuffer.Descriptor());
     m_rtDesc.Write(m_device, 3, m_rtNdCurrBuffer.Descriptor());

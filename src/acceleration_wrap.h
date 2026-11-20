@@ -18,21 +18,21 @@ namespace rtrt
 class Renderer;
 
 // Convert a Mat4x4 to the matrix required by acceleration structures
-inline VkTransformMatrixKHR toTransformMatrixKHR(const glm::mat4& matrix)
+inline VkTransformMatrixKHR ToTransformMatrixKhr(const glm::mat4& Matrix)
 {
     // VkTransformMatrixKHR uses a row-major layout, while glm::mat4
     // uses a column-major layout. So we transpose the matrix to
     // memcpy its data directly.
-    glm::mat4 temp = glm::transpose(matrix);
-    VkTransformMatrixKHR out_matrix;
-    memcpy(&out_matrix, &temp, sizeof(VkTransformMatrixKHR));
-    return out_matrix;
+    glm::mat4 Temp = glm::transpose(Matrix);
+    VkTransformMatrixKHR OutMatrix;
+    memcpy(&OutMatrix, &Temp, sizeof(VkTransformMatrixKHR));
+    return OutMatrix;
 }
 
 struct AccelerationStructureWrap
 {
-    VkAccelerationStructureKHR accel;
-    BufferWrap bw;
+    VkAccelerationStructureKHR Accel;
+    BufferWrap Bw;
 };
 
 // Inputs used to build Bottom-level acceleration structure.
@@ -42,9 +42,9 @@ struct AccelerationStructureWrap
 struct BlasInput
 {
     // Data used to build acceleration structure geometry
-    std::vector<VkAccelerationStructureGeometryKHR> asGeometry;
-    std::vector<VkAccelerationStructureBuildRangeInfoKHR> asBuildOffsetInfo;
-    VkBuildAccelerationStructureFlagsKHR flags{0};
+    std::vector<VkAccelerationStructureGeometryKHR> AsGeometry;
+    std::vector<VkAccelerationStructureBuildRangeInfoKHR> AsBuildOffsetInfo;
+    VkBuildAccelerationStructureFlagsKHR Flags{0};
 };
 
 // Ray tracing BLAS and TLAS builder
@@ -57,25 +57,25 @@ public:
 
     Renderer* VK;
     // Initializing the allocator and querying the raytracing properties
-    void setup(Renderer* _VK, VkDevice device, uint32_t queueIndex);
+    void Setup(Renderer* Owner, VkDevice DeviceHandle, uint32_t GraphicsQueueIndex);
 
     // Destroying all allocations
-    void destroy();
+    void Destroy();
 
     // Returning the constructed top-level acceleration structure
-    VkAccelerationStructureKHR getAccelerationStructure() const;
+    VkAccelerationStructureKHR GetAccelerationStructure() const;
 
     // Return the Acceleration Structure Device Address of a BLAS Id
-    VkDeviceAddress getBlasDeviceAddress(uint32_t blasId);
+    VkDeviceAddress GetBlasDeviceAddress(uint32_t BlasId);
 
     // Create all the BLAS from the vector of BlasInput
-    void buildBlas(const std::vector<BlasInput>& input,
-                   VkBuildAccelerationStructureFlagsKHR flags =
+    void BuildBlas(const std::vector<BlasInput>& Input,
+                   VkBuildAccelerationStructureFlagsKHR Flags =
                        VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
 
     // Refit BLAS number blasIdx from updated buffer contents.
-    void updateBlas(uint32_t blasIdx, BlasInput& blas,
-                    VkBuildAccelerationStructureFlagsKHR flags);
+    void UpdateBlas(uint32_t BlasIdx, BlasInput& Blas,
+                    VkBuildAccelerationStructureFlagsKHR Flags);
 
     // Build TLAS from an array of VkAccelerationStructureInstanceKHR
     // - Use motion=true with VkAccelerationStructureMotionInstanceNV
@@ -83,50 +83,51 @@ public:
     // - update is to rebuild the Tlas with updated matrices, flag must have the
     // 'allow_update'
 
-    void buildTlas(const std::vector<VkAccelerationStructureInstanceKHR>& instances,
-                   VkBuildAccelerationStructureFlagsKHR flags =
+    void BuildTlas(const std::vector<VkAccelerationStructureInstanceKHR>& Instances,
+                   VkBuildAccelerationStructureFlagsKHR Flags =
                        VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR,
-                   bool update = false, bool motion = false);
+                   bool Update = false, bool Motion = false);
 
     // Creating the TLAS, called by buildTlas
-    void cmdCreateTlas(VkCommandBuffer cmdBuf,          // Command buffer
-                       uint32_t countInstance,          // number of instances
-                       VkDeviceAddress instBufferAddr,  // Buffer address of instances
-                       VkBuildAccelerationStructureFlagsKHR flags,  // Build creation flag
-                       bool update,                                 // Update == animation
-                       bool motion                                  // Motion Blur
+    void CmdCreateTlas(VkCommandBuffer CmdBuf,          // Command buffer
+                       uint32_t CountInstance,          // number of instances
+                       VkDeviceAddress InstBufferAddr,  // Buffer address of instances
+                       VkBuildAccelerationStructureFlagsKHR Flags,  // Build creation flag
+                       bool Update,                                 // Update == animation
+                       bool Motion                                  // Motion Blur
     );
 
 protected:
-    std::vector<AccelerationStructureWrap> m_blas;  // Bottom-level acceleration structure
-    AccelerationStructureWrap m_tlas;               // Top-level acceleration structure
+    // Bottom-level acceleration structure
+    std::vector<AccelerationStructureWrap> BlasList;
+    AccelerationStructureWrap Tlas;  // Top-level acceleration structure
 
     // Setup
-    VkDevice m_device{VK_NULL_HANDLE};
-    uint32_t m_queueIndex{0};
+    VkDevice Device{VK_NULL_HANDLE};
+    uint32_t QueueIndex{0};
 
     struct BuildAccelerationStructure
     {
-        VkAccelerationStructureBuildGeometryInfoKHR buildInfo{
+        VkAccelerationStructureBuildGeometryInfoKHR BuildInfo{
             VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR};
-        VkAccelerationStructureBuildSizesInfoKHR sizeInfo{
+        VkAccelerationStructureBuildSizesInfoKHR SizeInfo{
             VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
-        const VkAccelerationStructureBuildRangeInfoKHR* rangeInfo;
-        AccelerationStructureWrap as;  // result acceleration structure
-        VkAccelerationStructureKHR cleanupAS;
+        const VkAccelerationStructureBuildRangeInfoKHR* RangeInfo;
+        AccelerationStructureWrap As;  // result acceleration structure
+        VkAccelerationStructureKHR CleanupAs;
     };
 
-    void cmdCreateBlas(VkCommandBuffer cmdBuf, const std::vector<uint32_t>& indices,
-                       std::vector<BuildAccelerationStructure>& buildAs,
-                       VkDeviceAddress scratchAddress, VkQueryPool queryPool);
-    void cmdCompactBlas(VkCommandBuffer cmdBuf, const std::vector<uint32_t>& indices,
-                        std::vector<BuildAccelerationStructure>& buildAs,
-                        VkQueryPool queryPool);
-    void destroyNonCompacted(const std::vector<uint32_t>& indices,
-                             std::vector<BuildAccelerationStructure>& buildAs);
-    bool hasFlag(VkFlags item, VkFlags flag)
+    void CmdCreateBlas(VkCommandBuffer CmdBuf, const std::vector<uint32_t>& Indices,
+                       std::vector<BuildAccelerationStructure>& BuildAs,
+                       VkDeviceAddress ScratchAddress, VkQueryPool QueryPool);
+    void CmdCompactBlas(VkCommandBuffer CmdBuf, const std::vector<uint32_t>& Indices,
+                        std::vector<BuildAccelerationStructure>& BuildAs,
+                        VkQueryPool QueryPool);
+    void DestroyNonCompacted(const std::vector<uint32_t>& Indices,
+                             std::vector<BuildAccelerationStructure>& BuildAs);
+    bool HasFlag(VkFlags Item, VkFlags Flag)
     {
-        return (item & flag) == flag;
+        return (Item & Flag) == Flag;
     }
 };
 

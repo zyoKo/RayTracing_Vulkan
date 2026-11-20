@@ -72,7 +72,7 @@ void Renderer::destroyAllVulkanResources()
 
     // Ray tracing cleanup
     m_rtColCurrBuffer.Destroy(m_device);
-    m_rtBuilder.destroy();
+    m_rtBuilder.Destroy();
     m_rtDesc.Destroy(m_device);
     vkDestroyPipelineLayout(m_device, m_rtPipelineLayout, nullptr);
     vkDestroyPipeline(m_device, m_rtPipeline, nullptr);
