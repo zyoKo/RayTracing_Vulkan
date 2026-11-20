@@ -13,16 +13,16 @@
     <ClCompile Include="extensions_vk.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="vkapp.cpp">
+    <ClCompile Include="renderer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="vkapp_fns.cpp">
+    <ClCompile Include="renderer_setup.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="vkapp_loadModel.cpp">
+    <ClCompile Include="renderer_load_model.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="vkapp_scanline.cpp">
+    <ClCompile Include="renderer_scanline.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\libs\imgui-master\imgui_widgets.cpp">
@@ -41,8 +41,8 @@
       <Filter>ImGui Files</Filter>
     </ClCompile>
     <ClCompile Include="acceleration_wrap.cpp" />
-    <ClCompile Include="vkapp_raytracing.cpp" />
-    <ClCompile Include="vkapp_denoise.cpp">
+    <ClCompile Include="renderer_raytracing.cpp" />
+    <ClCompile Include="renderer_denoise.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -82,7 +82,7 @@
     <ClInclude Include="vk_check.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="vkapp.h">
+    <ClInclude Include="renderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="acceleration_wrap.h" />

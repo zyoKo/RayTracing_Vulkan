@@ -13,7 +13,7 @@
 #include <imgui.h>
 
 #include "camera.h"
-#include "vkapp.h"
+#include "renderer.h"
 
 namespace rtrt
 {

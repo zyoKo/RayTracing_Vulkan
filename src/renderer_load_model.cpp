@@ -3,7 +3,7 @@
 // into a structure suitable for the raytracer.
 ////////////////////////////////////////////////////////////////////////
 
-#include "vkapp.h"
+#include "renderer.h"
 
 #include <cmath>
 #include <cstdio>

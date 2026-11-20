@@ -1,5 +1,5 @@
-#ifndef RTRT_SRC_VKAPP_H_
-#define RTRT_SRC_VKAPP_H_
+#ifndef RTRT_SRC_RENDERER_H_
+#define RTRT_SRC_RENDERER_H_
 
 #include <string>
 #include <vector>
@@ -304,4 +304,4 @@ public:
 
 }  // namespace rtrt
 
-#endif  // RTRT_SRC_VKAPP_H_
+#endif  // RTRT_SRC_RENDERER_H_

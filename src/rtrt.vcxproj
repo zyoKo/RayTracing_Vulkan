@@ -22,14 +22,14 @@
     <ClCompile Include="app.cpp" />
     <ClCompile Include="descriptor_wrap.cpp" />
     <ClCompile Include="acceleration_wrap.cpp" />
-    <ClCompile Include="vkapp.cpp" />
+    <ClCompile Include="renderer.cpp" />
     <ClCompile Include="camera.cpp" />
     <ClCompile Include="extensions_vk.cpp" />
-    <ClCompile Include="vkapp_denoise.cpp" />
-    <ClCompile Include="vkapp_fns.cpp" />
-    <ClCompile Include="vkapp_loadModel.cpp" />
-    <ClCompile Include="vkapp_raytracing.cpp" />
-    <ClCompile Include="vkapp_scanline.cpp" />
+    <ClCompile Include="renderer_denoise.cpp" />
+    <ClCompile Include="renderer_setup.cpp" />
+    <ClCompile Include="renderer_load_model.cpp" />
+    <ClCompile Include="renderer_raytracing.cpp" />
+    <ClCompile Include="renderer_scanline.cpp" />
     <ClCompile Include="..\libs\imgui-master\backends\imgui_impl_glfw.cpp" />
     <ClCompile Include="..\libs\imgui-master\backends\imgui_impl_vulkan.cpp" />
     <ClCompile Include="..\libs\imgui-master\imgui.cpp" />
@@ -182,7 +182,7 @@ $(SlangC) %(Identity) -entry closestHitMain -o spv\raytrace.rchit.slang.spv</Com
     <ClInclude Include="extensions_vk.hpp" />
     <ClInclude Include="image_wrap.h" />
     <ClInclude Include="vk_check.h" />
-    <ClInclude Include="vkapp.h" />
+    <ClInclude Include="renderer.h" />
     <ClInclude Include="acceleration_wrap.h" />
   </ItemGroup>
   <PropertyGroup>

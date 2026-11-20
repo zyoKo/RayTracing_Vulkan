@@ -6,8 +6,8 @@
 #include <numeric>
 #include <vector>
 
+#include "renderer.h"
 #include "vk_check.h"
-#include "vkapp.h"
 
 namespace rtrt
 {
