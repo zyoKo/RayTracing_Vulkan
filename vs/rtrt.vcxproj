@@ -71,7 +71,7 @@
       <AdditionalInputs>..\src\shaders\shared_structs.h;..\src\compile_shaders.bat</AdditionalInputs>
       <Command>cd /d "$(ProjectDir)..\src" &amp;&amp; call .\compile_shaders.bat %(Filename)%(Extension)</Command>
       <Message>Compiling Slang shader %(Identity)</Message>
-      <Outputs>..\src\spv\denoise.comp.slang.spv;..\src\spv\denoise.comp.spv</Outputs>
+      <Outputs>..\src\spv\denoise.comp.slang.spv</Outputs>
     </CustomBuild>
     <CustomBuild Include="..\src\shaders\post.slang">
       <FileType>Document</FileType>
@@ -79,7 +79,7 @@
       <AdditionalInputs>..\src\shaders\shared_structs.h;..\src\compile_shaders.bat</AdditionalInputs>
       <Command>cd /d "$(ProjectDir)..\src" &amp;&amp; call .\compile_shaders.bat %(Filename)%(Extension)</Command>
       <Message>Compiling Slang shader %(Identity)</Message>
-      <Outputs>..\src\spv\post.vert.slang.spv;..\src\spv\post.vert.spv;..\src\spv\post.frag.slang.spv;..\src\spv\post.frag.spv</Outputs>
+      <Outputs>..\src\spv\post.vert.slang.spv;..\src\spv\post.frag.slang.spv</Outputs>
     </CustomBuild>
     <CustomBuild Include="..\src\shaders\scanline.slang">
       <FileType>Document</FileType>
@@ -87,7 +87,7 @@
       <AdditionalInputs>..\src\shaders\shared_structs.h;..\src\compile_shaders.bat</AdditionalInputs>
       <Command>cd /d "$(ProjectDir)..\src" &amp;&amp; call .\compile_shaders.bat %(Filename)%(Extension)</Command>
       <Message>Compiling Slang shader %(Identity)</Message>
-      <Outputs>..\src\spv\scanline.vert.slang.spv;..\src\spv\scanline.vert.spv;..\src\spv\scanline.frag.slang.spv;..\src\spv\scanline.frag.spv</Outputs>
+      <Outputs>..\src\spv\scanline.vert.slang.spv;..\src\spv\scanline.frag.slang.spv</Outputs>
     </CustomBuild>
     <CustomBuild Include="..\src\shaders\raytrace.slang">
       <FileType>Document</FileType>
@@ -95,7 +95,7 @@
       <AdditionalInputs>..\src\shaders\shared_structs.h;..\src\shaders\rng.slang;..\src\compile_shaders.bat</AdditionalInputs>
       <Command>cd /d "$(ProjectDir)..\src" &amp;&amp; call .\compile_shaders.bat %(Filename)%(Extension)</Command>
       <Message>Compiling Slang shader %(Identity)</Message>
-      <Outputs>..\src\spv\raytrace.rgen.slang.spv;..\src\spv\raytrace.rgen.spv;..\src\spv\raytrace.rmiss.slang.spv;..\src\spv\raytrace.rmiss.spv;..\src\spv\raytraceShadow.rmiss.slang.spv;..\src\spv\raytraceShadow.rmiss.spv;..\src\spv\raytrace.rchit.slang.spv;..\src\spv\raytrace.rchit.spv</Outputs>
+      <Outputs>..\src\spv\raytrace.rgen.slang.spv;..\src\spv\raytrace.rmiss.slang.spv;..\src\spv\raytraceShadow.rmiss.slang.spv;..\src\spv\raytrace.rchit.slang.spv</Outputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

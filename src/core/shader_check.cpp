@@ -17,20 +17,20 @@ constexpr const char* kShaderNames[] = {
     "denoise.comp",  "raytrace.rgen", "raytrace.rmiss", "raytraceShadow.rmiss",
     "raytrace.rchit"};
 
-std::vector<std::string> MissingShaders(bool IncludeGlsl)
+std::vector<std::string> MissingShaders(bool Slang, bool Glsl)
 {
     std::vector<std::string> Missing;
     for (const char* Name : kShaderNames)
     {
-        const std::string Glsl = std::string("spv/") + Name + ".spv";
-        const std::string Slang = std::string("spv/") + Name + ".slang.spv";
-        if (!std::filesystem::exists(Slang))
+        const std::string SlangSpv = std::string("spv/") + Name + ".slang.spv";
+        const std::string GlslSpv = std::string("spv/") + Name + ".spv";
+        if (Slang && !std::filesystem::exists(SlangSpv))
         {
-            Missing.push_back(Slang);
+            Missing.push_back(SlangSpv);
         }
-        if (IncludeGlsl && !std::filesystem::exists(Glsl))
+        if (Glsl && !std::filesystem::exists(GlslSpv))
         {
-            Missing.push_back(Glsl);
+            Missing.push_back(GlslSpv);
         }
     }
     return Missing;
@@ -38,9 +38,26 @@ std::vector<std::string> MissingShaders(bool IncludeGlsl)
 
 }  // namespace
 
-bool EnsureShaders()
+bool GlslShadersBuilt()
 {
-    const std::vector<std::string> Missing = MissingShaders(true);
+    return MissingShaders(false, true).empty();
+}
+
+bool CompileShaders(bool WithGlsl)
+{
+    fflush(stdout);
+#ifdef _WIN32
+    return std::system(WithGlsl ? ".\\compile_shaders.bat glsl"
+                                : ".\\compile_shaders.bat") == 0;
+#else
+    fprintf(stderr, "Run make to compile the shaders\n");
+    return false;
+#endif
+}
+
+bool EnsureShaders(bool WithGlsl)
+{
+    const std::vector<std::string> Missing = MissingShaders(true, WithGlsl);
     if (Missing.empty())
     {
         return true;
@@ -48,14 +65,9 @@ bool EnsureShaders()
 
     printf("%zu compiled shaders are missing from spv/, compiling them\n",
            Missing.size());
-    fflush(stdout);
-#ifdef _WIN32
-    std::system(".\\compile_shaders.bat");
-#else
-    fprintf(stderr, "Run make to compile the shaders\n");
-#endif
+    CompileShaders(WithGlsl);
 
-    const std::vector<std::string> StillMissing = MissingShaders(false);
+    const std::vector<std::string> StillMissing = MissingShaders(true, false);
     for (const std::string& Path : StillMissing)
     {
         fprintf(stderr, "Missing shader: %s\n", Path.c_str());

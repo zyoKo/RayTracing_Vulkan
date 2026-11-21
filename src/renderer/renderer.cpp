@@ -271,7 +271,11 @@ void Renderer::SetShaderLanguage(bool UseSlangShaders)
     }
     UseSlang = UseSlangShaders;
     PassCtx.UseSlang = UseSlang;
+    ReloadShaders();
+}
 
+void Renderer::ReloadShaders()
+{
     // The last frame may still be using the old pipelines
     RTRT_CHECK_VK(vkDeviceWaitIdle(GpuDevice->GetHandle()));
 

@@ -1,7 +1,9 @@
 #include "ui/gui.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
+#include <future>
 #include <thread>
 
 #include <backends/imgui_impl_glfw.h>
@@ -9,6 +11,7 @@
 #include <glm/glm.hpp>
 #include <imgui.h>
 
+#include "core/shader_check.h"
 #include "vk/command_pool.h"
 #include "vk_check.h"
 
@@ -324,20 +327,74 @@ void Gui::DrawCameraSettings(Camera& View, CameraController& Controller)
 
 void Gui::DrawShaderSettings(Renderer& VK)
 {
-    if (!ImGui::CollapsingHeader("Shaders", ImGuiTreeNodeFlags_DefaultOpen))
+    if (!ImGui::CollapsingHeader("Supported shader types",
+                                 ImGuiTreeNodeFlags_DefaultOpen))
     {
         return;
     }
 
-    if (ImGui::RadioButton("Slang", VK.GetUseSlang()))
+    // A finished build switches to GLSL, or reloads it when it's already in use
+    if (GlslBuild.valid() &&
+        GlslBuild.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
     {
+        GlslBuildFailed = !GlslBuild.get() || !GlslShadersBuilt();
+        if (!GlslBuildFailed)
+        {
+            WantGlsl = false;
+            if (VK.GetUseSlang())
+            {
+                VK.SetShaderLanguage(false);
+            }
+            else
+            {
+                VK.ReloadShaders();
+            }
+        }
+    }
+
+    const bool Building = GlslBuild.valid();
+    const bool GlslBuilt = GlslShadersBuilt();
+    if (ImGui::RadioButton("Slang (default)", VK.GetUseSlang() && !WantGlsl))
+    {
+        WantGlsl = false;
         VK.SetShaderLanguage(true);
     }
-    ImGui::SameLine();
-    if (ImGui::RadioButton("GLSL (generated)", !VK.GetUseSlang()))
+    if (ImGui::RadioButton("GLSL (generated)", !VK.GetUseSlang() || WantGlsl))
     {
-        VK.SetShaderLanguage(false);
+        if (GlslBuilt)
+        {
+            VK.SetShaderLanguage(false);
+        }
+        else
+        {
+            WantGlsl = true;
+        }
     }
+
+    ImGui::Indent();
+    if (Building)
+    {
+        ImGui::TextUnformatted("Building GLSL shaders...");
+    }
+    else if (WantGlsl || !VK.GetUseSlang())
+    {
+        if (!GlslBuilt)
+        {
+            ImGui::TextUnformatted("The GLSL shaders aren't built yet.");
+        }
+        if (ImGui::Button(GlslBuilt ? "Rebuild GLSL shaders" : "Build GLSL shaders"))
+        {
+            GlslBuildFailed = false;
+            GlslBuild =
+                std::async(std::launch::async, [] { return CompileShaders(true); });
+        }
+    }
+    if (GlslBuildFailed)
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
+                           "GLSL build failed, see the console");
+    }
+    ImGui::Unindent();
 }
 
 }  // namespace rtrt

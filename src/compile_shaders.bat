@@ -1,8 +1,9 @@
 @echo off
-rem Compiles the Slang shaders in shaders\ to SPIR-V in spv\ (<name>.slang.spv). Each
-rem entry point is also translated to GLSL in shaders\glsl\ and compiled from there to
-rem spv\<name>.spv, for viewing and testing the GLSL version.
-rem Pass a .slang file name to build only that file. Needs the Vulkan SDK (VULKAN_SDK).
+rem Compiles the Slang shaders in shaders\ to SPIR-V in spv\ (<name>.slang.spv).
+rem   glsl          also translate each entry point to GLSL in shaders\glsl\ and compile
+rem                 that to spv\<name>.spv, for viewing and testing the GLSL version
+rem   <file>.slang  build only that file
+rem Needs the Vulkan SDK (VULKAN_SDK).
 setlocal
 cd /d "%~dp0"
 
@@ -15,10 +16,18 @@ set SLANGC="%VULKAN_SDK%\Bin\slangc.exe" -matrix-layout-column-major -I shaders
 set TO_SPIRV=-target spirv -profile spirv_1_5 -capability SPV_KHR_non_semantic_info+SPV_GOOGLE_user_type+spvDerivativeControl+spvImageQuery+spvImageGatherExtended+spvSparseResidency+spvMinLod+spvFragmentFullyCoveredEXT -g
 set TO_GLSL=-target glsl -profile glsl_460 -warnings-disable 41012
 set GLSLANG="%VULKAN_SDK%\Bin\glslangValidator.exe" -V --target-env vulkan1.2
-set ONLY=%~1
+
+set ONLY=
+set WITH_GLSL=0
+:Args
+if "%~1"=="" goto ArgsDone
+if /i "%~1"=="glsl" (set WITH_GLSL=1) else (set ONLY=%~1)
+shift
+goto Args
+:ArgsDone
 
 if not exist spv mkdir spv
-if not exist shaders\glsl mkdir shaders\glsl
+if %WITH_GLSL%==1 if not exist shaders\glsl mkdir shaders\glsl
 set FAILED=0
 
 call :Shader denoise.slang main denoise.comp
@@ -35,7 +44,11 @@ if %FAILED%==1 (
     echo Some shaders failed to compile.
     exit /b 1
 )
-echo Shaders compiled to spv\, generated GLSL in shaders\glsl\
+if %WITH_GLSL%==1 (
+    echo Shaders compiled to spv\, generated GLSL in shaders\glsl\
+) else (
+    echo Shaders compiled to spv\
+)
 exit /b 0
 
 :Shader
@@ -46,6 +59,7 @@ echo %1 (%2)
     set FAILED=1
     exit /b 0
 )
+if %WITH_GLSL%==0 exit /b 0
 %SLANGC% shaders\%1 -entry %2 %TO_GLSL% -o shaders\glsl\%3 || (
     echo   failed: Slang to GLSL
     set FAILED=1

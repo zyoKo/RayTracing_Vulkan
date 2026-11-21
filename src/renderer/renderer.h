@@ -64,6 +64,9 @@ public:
     // Switches between the Slang and generated-GLSL SPIR-V and rebuilds every pipeline.
     void SetShaderLanguage(bool UseSlangShaders);
 
+    // Reloads every shader from spv/ and rebuilds the pipelines, after a rebuild.
+    void ReloadShaders();
+
     // Throws away the accumulated path-tracing history.
     void ResetRtAccumulation();
 

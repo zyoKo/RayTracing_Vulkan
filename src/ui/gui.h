@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <cstdint>
+#include <future>
 
 #include <vulkan/vulkan_core.h>
 
@@ -116,6 +117,10 @@ private:
 
     VkDevice DeviceHandle = VK_NULL_HANDLE;
     DescriptorPool ImguiDescPool;
+    // GLSL was picked before its shaders were built
+    bool WantGlsl = false;
+    std::future<bool> GlslBuild;
+    bool GlslBuildFailed = false;
     bool ShowGui = true;
     bool ShowPerf = false;
     FrameStats Stats;

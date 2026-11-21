@@ -4,10 +4,17 @@
 namespace rtrt
 {
 
-// Makes sure the compiled shaders are in spv/, running compile_shaders.bat when any
-// are missing. False when the Slang shaders are still missing afterwards; the
-// generated-GLSL ones are optional.
-bool EnsureShaders();
+// True when every SPIR-V file built from Slang's generated GLSL is in spv/.
+bool GlslShadersBuilt();
+
+// Runs compile_shaders.bat, adding the generated-GLSL shaders when WithGlsl is set.
+// Blocks until it finishes; true when it succeeded.
+bool CompileShaders(bool WithGlsl);
+
+// Makes sure the Slang shaders are in spv/, and the generated-GLSL ones too when
+// WithGlsl is set, compiling them when any are missing. False when the Slang shaders
+// are still missing afterwards.
+bool EnsureShaders(bool WithGlsl);
 
 }  // namespace rtrt
 

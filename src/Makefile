@@ -21,7 +21,8 @@ src = core/window.cpp scene/camera.cpp scene/camera_controller.cpp extensions_vk
 
 names = denoise.comp post.vert post.frag scanline.vert scanline.frag raytrace.rgen raytrace.rmiss raytraceShadow.rmiss raytrace.rchit
 
-shader_spvs = $(patsubst %,spv/%.slang.spv,$(names)) $(patsubst %,spv/%.spv,$(names))
+shader_spvs = $(patsubst %,spv/%.slang.spv,$(names))
+glsl_spvs = $(patsubst %,spv/%.spv,$(names))
 
 SLANG_FLAGS = -matrix-layout-column-major -I shaders
 SLANGC_SPIRV = slangc $(SLANG_FLAGS) -target spirv -profile spirv_1_5 -capability SPV_KHR_non_semantic_info+SPV_GOOGLE_user_type+spvDerivativeControl+spvImageQuery+spvImageGatherExtended+spvSparseResidency+spvMinLod+spvFragmentFullyCoveredEXT -g
@@ -35,8 +36,9 @@ objects = $(patsubst %.cpp,%.o,$(src)) $(patsubst %.cpp,%.o,$(imgui_src))
 $(target): $(objects) $(shader_spvs)
 	g++  $(CXXFLAGS) -o $@  $(objects) $(LIBS)
 
-# Slang is the shader source. Each entry point is compiled to spv/<name>.slang.spv, and
-# also translated to GLSL in shaders/glsl/ and compiled from there to spv/<name>.spv.
+# Slang is the shader source. Each entry point is compiled to spv/<name>.slang.spv. On
+# request (make glsl) it is also translated to GLSL in shaders/glsl/ and compiled from
+# there to spv/<name>.spv.
 # Slang writes buffer pointers as std430 in GLSL; the C++ data is scalar, so sed fixes it.
 # $(1): output name, $(2): Slang file, $(3): entry point
 define shader_rules
@@ -61,6 +63,10 @@ $(eval $(call shader_rules,raytrace.rgen,raytrace.slang,rayGenMain))
 $(eval $(call shader_rules,raytrace.rmiss,raytrace.slang,missMain))
 $(eval $(call shader_rules,raytraceShadow.rmiss,raytrace.slang,shadowMissMain))
 $(eval $(call shader_rules,raytrace.rchit,raytrace.slang,closestHitMain))
+
+# The generated-GLSL shaders, built only on request: make glsl
+.PHONY: glsl
+glsl: $(glsl_spvs)
 
 test:
 	ls -1 spv

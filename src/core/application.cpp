@@ -85,7 +85,7 @@ bool Application::Init(int Argc, char** Argv)
         }
     }
 
-    if (!EnsureShaders())
+    if (!EnsureShaders(!UseSlang))
     {
         return false;
     }

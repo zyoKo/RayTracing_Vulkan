@@ -20,12 +20,13 @@ A real-time path tracer written in C++ on Vulkan's hardware ray tracing pipeline
 
 ### Slang and generated GLSL
 - Every shader is written once, in [Slang](https://shader-slang.org/): path tracer, rasterizer, post-processing and denoiser.
-- Each entry point is compiled two ways:
-  - Straight to SPIR-V, in `spv/*.slang.spv`. This is the default.
-  - To GLSL in `shaders/glsl/`, which `glslangValidator` then compiles to `spv/*.spv`. Open `shaders/glsl/` to read the GLSL version of any shader.
-- Switch between them at runtime from the **Shaders** section of the settings panel, or start with the GLSL version using `-glsl`.
-  - Switching rebuilds every pipeline and the shader binding table.
-  - If one binary is missing, the renderer falls back to the other.
+- Each entry point is compiled straight to SPIR-V, in `spv/*.slang.spv`. This is what the renderer uses by default.
+- A GLSL version is generated only when you ask for it:
+  - Pick **GLSL (generated)** in the **Supported shader types** section of the settings panel, then click **Build GLSL shaders**. The build runs in the background while the renderer keeps going, and the renderer switches to GLSL once it finishes.
+  - Slang writes the GLSL to `shaders/glsl/`, where you can read it, and `glslangValidator` compiles it to `spv/*.spv`.
+  - While GLSL is in use, **Rebuild GLSL shaders** regenerates it after a Slang change and reloads it.
+  - Starting with `-glsl` builds the GLSL shaders first if they're missing.
+- Switching between Slang and GLSL rebuilds every pipeline and the shader binding table.
 - `shaders/shared_structs.h` is shared by C++ and Slang, so buffer and push-constant layouts are declared once.
   - Slang is compiled column-major, so glm matrices load unchanged.
   - Slang writes buffer pointers as `std430` in its GLSL output, while the C++ data is tightly packed. `compile_shaders.bat` switches them to `scalar`, the layout Slang's own SPIR-V uses.
@@ -74,13 +75,13 @@ At the default 1280×768 window, the path tracer with the denoiser runs at about
 2. Choose the `x64` platform and either the `Debug` or `Release` configuration, then build. The shaders are compiled to `src/spv/` as part of the build.
 3. The build writes `rtrt.exe` to `vs/x64/<configuration>/`. Visual Studio starts it with `src/` as the working directory, so it can find `models/` and `spv/`. When starting it some other way, run it from `src/`.
 
-The compiled shaders in `src/spv/` and the generated GLSL in `src/shaders/glsl/` aren't kept in the repository. If any shaders are missing when `rtrt.exe` starts, it runs `src/compile_shaders.bat` to build them from the Slang sources with the Vulkan SDK's `slangc` and `glslangValidator`, then carries on. You can also run `compile_shaders.bat` yourself after editing a shader, or `compile_shaders.bat raytrace.slang` to rebuild one file. It needs the `VULKAN_SDK` environment variable, which the SDK installer sets.
+The compiled shaders in `src/spv/` and the generated GLSL in `src/shaders/glsl/` aren't kept in the repository. If any Slang shaders are missing when `rtrt.exe` starts, it runs `src/compile_shaders.bat` to build them with the Vulkan SDK's `slangc`, then carries on. You can also run `compile_shaders.bat` yourself after editing a shader, `compile_shaders.bat raytrace.slang` to rebuild one file, or `compile_shaders.bat glsl` to also generate the GLSL versions (which uses `glslangValidator` too). It needs the `VULKAN_SDK` environment variable, which the SDK installer sets.
 
 Command-line options:
 
 | Option | Effect |
 |---|---|
-| `-glsl` | Start with the shaders built from Slang's generated GLSL |
+| `-glsl` | Start with the shaders built from Slang's generated GLSL, building them first if needed |
 | `-d` | Enable the Vulkan API dump layer |
 
 ## Controls
