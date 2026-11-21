@@ -29,18 +29,11 @@ bool Renderer::Init()
     {
         return false;
     }
-    if (!CreatePhysicalDevice())
+    if (!GpuDevice.Init(GpuContext))
     {
-        fprintf(stderr, "No GPU supports the required ray tracing extensions.\n");
         return false;
     }
-    ChooseQueueIndex();  // -> GraphicsQueueIndex
-    CreateDevice();      // -> Device
-    GetCommandQueue();   // -> Queue
 
-    LoadExtensions();  // Auto generated; loads namespace of all known extensions
-
-    CheckPresentSupport();
     CreateCommandPool();  // -> CmdPool
 
     CreateSwapchain();         // -> Swapchain
@@ -123,7 +116,8 @@ VkCommandBuffer Renderer::CreateTempCmdBuffer()
     AllocateInfo.commandPool = CmdPool;
     AllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     VkCommandBuffer CmdBuffer;
-    RTRT_CHECK_VK(vkAllocateCommandBuffers(Device, &AllocateInfo, &CmdBuffer));
+    RTRT_CHECK_VK(
+        vkAllocateCommandBuffers(GpuDevice.GetHandle(), &AllocateInfo, &CmdBuffer));
 
     VkCommandBufferBeginInfo BeginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     BeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -138,9 +132,9 @@ void Renderer::SubmitTempCmdBuffer(VkCommandBuffer CmdBuffer)
     VkSubmitInfo SubmitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
     SubmitInfo.commandBufferCount = 1;
     SubmitInfo.pCommandBuffers = &CmdBuffer;
-    RTRT_CHECK_VK(vkQueueSubmit(Queue, 1, &SubmitInfo, {}));
-    RTRT_CHECK_VK(vkQueueWaitIdle(Queue));
-    vkFreeCommandBuffers(Device, CmdPool, 1, &CmdBuffer);
+    RTRT_CHECK_VK(vkQueueSubmit(GpuDevice.GetQueue(), 1, &SubmitInfo, {}));
+    RTRT_CHECK_VK(vkQueueWaitIdle(GpuDevice.GetQueue()));
+    vkFreeCommandBuffers(GpuDevice.GetHandle(), CmdPool, 1, &CmdBuffer);
 }
 
 bool Renderer::PrepareFrame()
@@ -152,7 +146,8 @@ bool Renderer::PrepareFrame()
     VkResult WaitResult = VK_TIMEOUT;
     while (WaitResult == VK_TIMEOUT)
     {
-        WaitResult = vkWaitForFences(Device, 1, &WaitFence, VK_TRUE, 1'000'000);
+        WaitResult =
+            vkWaitForFences(GpuDevice.GetHandle(), 1, &WaitFence, VK_TRUE, 1'000'000);
     }
     CheckVkResult(WaitResult, "vkWaitForFences", __FILE__, __LINE__);
     GpuWaitMs = (glfwGetTime() - WaitStart) * 1000.0;
@@ -165,16 +160,17 @@ bool Renderer::PrepareFrame()
     // Acquire the next image from the swap chain --> SwapchainIndex
     // A suboptimal acquire still signals ReadSemaphore, so that frame is drawn and
     // the swapchain is rebuilt after its present.
-    VkResult Result = vkAcquireNextImageKHR(Device, Swapchain, UINT64_MAX, ReadSemaphore,
-                                            VK_NULL_HANDLE, &SwapchainIndex);
+    VkResult Result =
+        vkAcquireNextImageKHR(GpuDevice.GetHandle(), Swapchain, UINT64_MAX, ReadSemaphore,
+                              VK_NULL_HANDLE, &SwapchainIndex);
     while (Result == VK_ERROR_OUT_OF_DATE_KHR)
     {
         if (!RecreateSizedResources())
         {
             return false;
         }
-        Result = vkAcquireNextImageKHR(Device, Swapchain, UINT64_MAX, ReadSemaphore,
-                                       VK_NULL_HANDLE, &SwapchainIndex);
+        Result = vkAcquireNextImageKHR(GpuDevice.GetHandle(), Swapchain, UINT64_MAX,
+                                       ReadSemaphore, VK_NULL_HANDLE, &SwapchainIndex);
     }
     CheckVkResult(Result, "vkAcquireNextImageKHR", __FILE__, __LINE__);
     return true;
@@ -182,7 +178,7 @@ bool Renderer::PrepareFrame()
 
 void Renderer::SubmitFrame()
 {
-    RTRT_CHECK_VK(vkResetFences(Device, 1, &WaitFence));
+    RTRT_CHECK_VK(vkResetFences(GpuDevice.GetHandle(), 1, &WaitFence));
 
     // Pipeline stage at which the queue submission will wait (via pWaitSemaphores)
     const VkPipelineStageFlags WaitStageMask =
@@ -199,7 +195,7 @@ void Renderer::SubmitFrame()
     FrameSubmitInfo.pSignalSemaphores = &WrittenSemaphores[SwapchainIndex];
     FrameSubmitInfo.commandBufferCount = 1;
     FrameSubmitInfo.pCommandBuffers = &CommandBuffer;
-    RTRT_CHECK_VK(vkQueueSubmit(Queue, 1, &FrameSubmitInfo, WaitFence));
+    RTRT_CHECK_VK(vkQueueSubmit(GpuDevice.GetQueue(), 1, &FrameSubmitInfo, WaitFence));
 
     // Present frame
     VkPresentInfoKHR PresentInfo{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
@@ -208,7 +204,7 @@ void Renderer::SubmitFrame()
     PresentInfo.swapchainCount = 1;
     PresentInfo.pSwapchains = &Swapchain;
     PresentInfo.pImageIndices = &SwapchainIndex;
-    VkResult Result = vkQueuePresentKHR(Queue, &PresentInfo);
+    VkResult Result = vkQueuePresentKHR(GpuDevice.GetQueue(), &PresentInfo);
     if (Result == VK_ERROR_OUT_OF_DATE_KHR || Result == VK_SUBOPTIMAL_KHR)
     {
         Application->GetWindow().SetFramebufferResized(true);
@@ -227,7 +223,8 @@ VkShaderModule Renderer::CreateShaderModule(const std::string& Code)
     CreateInfo.pCode = reinterpret_cast<const uint32_t*>(Code.data());
 
     VkShaderModule ShaderModule = VK_NULL_HANDLE;
-    RTRT_CHECK_VK(vkCreateShaderModule(Device, &CreateInfo, nullptr, &ShaderModule));
+    RTRT_CHECK_VK(
+        vkCreateShaderModule(GpuDevice.GetHandle(), &CreateInfo, nullptr, &ShaderModule));
 
     return ShaderModule;
 }
@@ -259,15 +256,16 @@ void Renderer::InitGui()
     PoolInfo.maxSets = 2;
     PoolInfo.poolSizeCount = 2;
     PoolInfo.pPoolSizes = PoolSize.data();
-    RTRT_CHECK_VK(vkCreateDescriptorPool(Device, &PoolInfo, nullptr, &ImguiDescPool));
+    RTRT_CHECK_VK(vkCreateDescriptorPool(GpuDevice.GetHandle(), &PoolInfo, nullptr,
+                                         &ImguiDescPool));
 
     // Setup Platform/Renderer back ends
     ImGui_ImplVulkan_InitInfo InitInfo = {};
     InitInfo.Instance = GpuContext.GetInstance();
-    InitInfo.PhysicalDevice = PhysicalDevice;
-    InitInfo.Device = Device;
-    InitInfo.QueueFamily = GraphicsQueueIndex;
-    InitInfo.Queue = Queue;
+    InitInfo.PhysicalDevice = GpuDevice.GetPhysical();
+    InitInfo.Device = GpuDevice.GetHandle();
+    InitInfo.QueueFamily = GpuDevice.GetQueueFamily();
+    InitInfo.Queue = GpuDevice.GetQueue();
     InitInfo.PipelineCache = VK_NULL_HANDLE;
     InitInfo.DescriptorPool = ImguiDescPool;
     InitInfo.Subpass = SubpassID;

@@ -156,11 +156,14 @@ void Renderer::MyLoadModel(const std::string& Filename, const glm::mat4& Transfo
     // Creating information for device access
     ObjDesc Desc;
     Desc.TxtOffset = TxtOffset;
-    Desc.VertexAddress = GetBufferDeviceAddress(Device, Object.VertexBuffer.Buffer);
-    Desc.IndexAddress = GetBufferDeviceAddress(Device, Object.IndexBuffer.Buffer);
-    Desc.MaterialAddress = GetBufferDeviceAddress(Device, Object.MatColorBuffer.Buffer);
+    Desc.VertexAddress =
+        GetBufferDeviceAddress(GpuDevice.GetHandle(), Object.VertexBuffer.Buffer);
+    Desc.IndexAddress =
+        GetBufferDeviceAddress(GpuDevice.GetHandle(), Object.IndexBuffer.Buffer);
+    Desc.MaterialAddress =
+        GetBufferDeviceAddress(GpuDevice.GetHandle(), Object.MatColorBuffer.Buffer);
     Desc.MaterialIndexAddress =
-        GetBufferDeviceAddress(Device, Object.MatIndexBuffer.Buffer);
+        GetBufferDeviceAddress(GpuDevice.GetHandle(), Object.MatIndexBuffer.Buffer);
 
     ObjDataList.emplace_back(Object);
     ObjDescList.emplace_back(Desc);

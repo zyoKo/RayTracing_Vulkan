@@ -117,9 +117,10 @@ ImageWrap Renderer::CreateTextureImage(const std::string& FileName)
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     void* Data;
-    RTRT_CHECK_VK(vkMapMemory(Device, Staging.Memory, 0, ImageSize, 0, &Data));
+    RTRT_CHECK_VK(
+        vkMapMemory(GpuDevice.GetHandle(), Staging.Memory, 0, ImageSize, 0, &Data));
     memcpy(Data, Pixels, static_cast<size_t>(ImageSize));
-    vkUnmapMemory(Device, Staging.Memory);
+    vkUnmapMemory(GpuDevice.GetHandle(), Staging.Memory);
 
     stbi_image_free(Pixels);
 
@@ -139,7 +140,7 @@ ImageWrap Renderer::CreateTextureImage(const std::string& FileName)
     CopyBufferToImage(Staging.Buffer, MyImage.Image, static_cast<uint32_t>(TexWidth),
                       static_cast<uint32_t>(TexHeight));
 
-    Staging.Destroy(Device);
+    Staging.Destroy(GpuDevice.GetHandle());
 
     GenerateMipmaps(MyImage.Image, VK_FORMAT_R8G8B8A8_UNORM, TexWidth, TexHeight,
                     MipLevels);
@@ -203,7 +204,8 @@ void Renderer::GenerateMipmaps(VkImage Image, VkFormat ImageFormat, int32_t TexW
 {
     // Check if image format supports linear blitting
     VkFormatProperties FormatProperties;
-    vkGetPhysicalDeviceFormatProperties(PhysicalDevice, ImageFormat, &FormatProperties);
+    vkGetPhysicalDeviceFormatProperties(GpuDevice.GetPhysical(), ImageFormat,
+                                        &FormatProperties);
 
     if (!(FormatProperties.optimalTilingFeatures &
           VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT))
@@ -261,15 +263,15 @@ BufferWrap Renderer::CreateStagedBufferWrap(VkCommandBuffer CmdBuf, VkDeviceSize
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     void* Dest;
-    RTRT_CHECK_VK(vkMapMemory(Device, Staging.Memory, 0, Size, 0, &Dest));
+    RTRT_CHECK_VK(vkMapMemory(GpuDevice.GetHandle(), Staging.Memory, 0, Size, 0, &Dest));
     memcpy(Dest, Data, Size);
-    vkUnmapMemory(Device, Staging.Memory);
+    vkUnmapMemory(GpuDevice.GetHandle(), Staging.Memory);
 
     BufferWrap Bw = CreateBufferWrap(Size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | Usage,
                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     CopyBuffer(Staging.Buffer, Bw.Buffer, Size);
 
-    Staging.Destroy(Device);
+    Staging.Destroy(GpuDevice.GetHandle());
 
     return Bw;
 }
@@ -284,10 +286,11 @@ BufferWrap Renderer::CreateBufferWrap(VkDeviceSize Size, VkBufferUsageFlags Usag
     BufferInfo.usage = Usage;
     BufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    RTRT_CHECK_VK(vkCreateBuffer(Device, &BufferInfo, nullptr, &Result.Buffer));
+    RTRT_CHECK_VK(
+        vkCreateBuffer(GpuDevice.GetHandle(), &BufferInfo, nullptr, &Result.Buffer));
 
     VkMemoryRequirements MemRequirements;
-    vkGetBufferMemoryRequirements(Device, Result.Buffer, &MemRequirements);
+    vkGetBufferMemoryRequirements(GpuDevice.GetHandle(), Result.Buffer, &MemRequirements);
 
     VkMemoryAllocateFlagsInfo MemFlags = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
                                           nullptr, VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT,
@@ -297,11 +300,13 @@ BufferWrap Renderer::CreateBufferWrap(VkDeviceSize Size, VkBufferUsageFlags Usag
     AllocInfo.pNext = &MemFlags;
     AllocInfo.allocationSize = MemRequirements.size;
     AllocInfo.memoryTypeIndex =
-        FindMemoryType(MemRequirements.memoryTypeBits, Properties);
+        GpuDevice.FindMemoryType(MemRequirements.memoryTypeBits, Properties);
 
-    RTRT_CHECK_VK(vkAllocateMemory(Device, &AllocInfo, nullptr, &Result.Memory));
+    RTRT_CHECK_VK(
+        vkAllocateMemory(GpuDevice.GetHandle(), &AllocInfo, nullptr, &Result.Memory));
 
-    RTRT_CHECK_VK(vkBindBufferMemory(Device, Result.Buffer, Result.Memory, 0));
+    RTRT_CHECK_VK(
+        vkBindBufferMemory(GpuDevice.GetHandle(), Result.Buffer, Result.Memory, 0));
 
     return Result;
 }
@@ -371,7 +376,7 @@ void Renderer::TransitionImageLayout(VkImage Image, VkFormat Format,
 VkSampler Renderer::CreateTextureSampler()
 {
     VkPhysicalDeviceProperties Properties{};
-    vkGetPhysicalDeviceProperties(PhysicalDevice, &Properties);
+    vkGetPhysicalDeviceProperties(GpuDevice.GetPhysical(), &Properties);
 
     VkSamplerCreateInfo SamplerInfo{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
     SamplerInfo.magFilter = VK_FILTER_LINEAR;
@@ -388,15 +393,17 @@ VkSampler Renderer::CreateTextureSampler()
     SamplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 
     VkSampler TextureSampler;
-    RTRT_CHECK_VK(vkCreateSampler(Device, &SamplerInfo, nullptr, &TextureSampler));
+    RTRT_CHECK_VK(
+        vkCreateSampler(GpuDevice.GetHandle(), &SamplerInfo, nullptr, &TextureSampler));
     return TextureSampler;
 }
 
 void Renderer::CreatePostDescriptor()
 {
-    PostDesc.SetBindings(Device, {{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
-                                   VK_SHADER_STAGE_FRAGMENT_BIT}});
-    PostDesc.Write(Device, 0, ScImageBuffer.Descriptor());
+    PostDesc.SetBindings(GpuDevice.GetHandle(),
+                         {{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+                           VK_SHADER_STAGE_FRAGMENT_BIT}});
+    PostDesc.Write(GpuDevice.GetHandle(), 0, ScImageBuffer.Descriptor());
 }
 
 void Renderer::CreateScBuffer()
@@ -486,8 +493,8 @@ void Renderer::CreateScanlineRenderPass()
     RenderPassInfo.dependencyCount = 1;
     RenderPassInfo.pDependencies = &Dependency;
 
-    RTRT_CHECK_VK(
-        vkCreateRenderPass(Device, &RenderPassInfo, nullptr, &ScanlineRenderPass));
+    RTRT_CHECK_VK(vkCreateRenderPass(GpuDevice.GetHandle(), &RenderPassInfo, nullptr,
+                                     &ScanlineRenderPass));
 
     CreateScanlineFramebuffer();
 }
@@ -504,7 +511,8 @@ void Renderer::CreateScanlineFramebuffer()
     Info.width = WindowSize.width;
     Info.height = WindowSize.height;
     Info.layers = 1;
-    RTRT_CHECK_VK(vkCreateFramebuffer(Device, &Info, nullptr, &ScanlineFramebuffer));
+    RTRT_CHECK_VK(
+        vkCreateFramebuffer(GpuDevice.GetHandle(), &Info, nullptr, &ScanlineFramebuffer));
 }
 
 void Renderer::CreateScDescriptorSet()
@@ -512,17 +520,18 @@ void Renderer::CreateScDescriptorSet()
     auto NbTxt = static_cast<uint32_t>(ObjTextures.size());
 
     ScDesc.SetBindings(
-        Device, {{ScBindings::kMatrices, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
-                  VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR},
-                 {ScBindings::kObjDescs, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
-                  VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT |
-                      VK_SHADER_STAGE_RAYGEN_BIT_KHR},
-                 {ScBindings::kTextures, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, NbTxt,
-                  VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR}});
+        GpuDevice.GetHandle(),
+        {{ScBindings::kMatrices, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
+          VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR},
+         {ScBindings::kObjDescs, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+          VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT |
+              VK_SHADER_STAGE_RAYGEN_BIT_KHR},
+         {ScBindings::kTextures, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, NbTxt,
+          VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR}});
 
-    ScDesc.Write(Device, ScBindings::kMatrices, MatrixBw.Buffer);
-    ScDesc.Write(Device, ScBindings::kObjDescs, ObjDescriptionBw.Buffer);
-    ScDesc.Write(Device, ScBindings::kTextures, ObjTextures);
+    ScDesc.Write(GpuDevice.GetHandle(), ScBindings::kMatrices, MatrixBw.Buffer);
+    ScDesc.Write(GpuDevice.GetHandle(), ScBindings::kObjDescs, ObjDescriptionBw.Buffer);
+    ScDesc.Write(GpuDevice.GetHandle(), ScBindings::kTextures, ObjTextures);
 }
 
 void Renderer::CreateScPipeline()
@@ -537,8 +546,8 @@ void Renderer::CreateScPipeline()
     CreateInfo.pSetLayouts = &ScDesc.GetLayout();
     CreateInfo.pushConstantRangeCount = 1;
     CreateInfo.pPushConstantRanges = &PushConstantRanges;
-    RTRT_CHECK_VK(
-        vkCreatePipelineLayout(Device, &CreateInfo, nullptr, &ScanlinePipelineLayout));
+    RTRT_CHECK_VK(vkCreatePipelineLayout(GpuDevice.GetHandle(), &CreateInfo, nullptr,
+                                         &ScanlinePipelineLayout));
 
     VkVertexInputBindingDescription BindingDescription{0, sizeof(Vertex),
                                                        VK_VERTEX_INPUT_RATE_VERTEX};

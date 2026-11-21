@@ -83,7 +83,7 @@ void Renderer::InitRayTracing()
     VkPhysicalDeviceRayTracingPipelinePropertiesKHR RtProps{
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR};
     Prop2.pNext = &RtProps;
-    vkGetPhysicalDeviceProperties2(PhysicalDevice, &Prop2);
+    vkGetPhysicalDeviceProperties2(GpuDevice.GetPhysical(), &Prop2);
 
     SetDefaultSettings();
 
@@ -92,7 +92,7 @@ void Renderer::InitRayTracing()
     BaseAlignment = RtProps.shaderGroupBaseAlignment;
 
     // This initializes the acceleration structure helper class
-    RtBuilder.Setup(this, Device, GraphicsQueueIndex);
+    RtBuilder.Setup(this, GpuDevice.GetHandle(), GpuDevice.GetQueueFamily());
 }
 
 //----------------------------------------------------------------------------------------
@@ -101,7 +101,7 @@ void Renderer::InitRayTracing()
 void Renderer::CreateRtDescriptorSet()
 {
     RtDesc.SetBindings(
-        Device,
+        GpuDevice.GetHandle(),
         {{0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1,  // TLAS
           VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR},
          {1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1,  // Output image
@@ -114,13 +114,13 @@ void Renderer::CreateRtDescriptorSet()
 
     // Note: This will grow to include more buffers.
 
-    RtDesc.Write(Device, 0, RtBuilder.GetAccelerationStructure());
-    RtDesc.Write(Device, 1, RtColCurrBuffer.Descriptor());
-    RtDesc.Write(Device, 2, RtColPrevBuffer.Descriptor());
-    RtDesc.Write(Device, 3, RtNdCurrBuffer.Descriptor());
-    RtDesc.Write(Device, 4, RtNdPrevBuffer.Descriptor());
-    RtDesc.Write(Device, 5, RtKdCurrBuffer.Descriptor());
-    RtDesc.Write(Device, 6, RtKdPrevBuffer.Descriptor());
+    RtDesc.Write(GpuDevice.GetHandle(), 0, RtBuilder.GetAccelerationStructure());
+    RtDesc.Write(GpuDevice.GetHandle(), 1, RtColCurrBuffer.Descriptor());
+    RtDesc.Write(GpuDevice.GetHandle(), 2, RtColPrevBuffer.Descriptor());
+    RtDesc.Write(GpuDevice.GetHandle(), 3, RtNdCurrBuffer.Descriptor());
+    RtDesc.Write(GpuDevice.GetHandle(), 4, RtNdPrevBuffer.Descriptor());
+    RtDesc.Write(GpuDevice.GetHandle(), 5, RtKdCurrBuffer.Descriptor());
+    RtDesc.Write(GpuDevice.GetHandle(), 6, RtKdPrevBuffer.Descriptor());
 }
 
 // Pipeline for the ray tracer: all shaders, raygen, chit, miss
@@ -146,11 +146,11 @@ void Renderer::CreateRtPipeline()
     RayPipelineInfo.maxPipelineRayRecursionDepth = 10;  // Ray depth
     RayPipelineInfo.layout = RtPipelineLayout;
 
-    RTRT_CHECK_VK(vkCreateRayTracingPipelinesKHR(Device, {}, {}, 1, &RayPipelineInfo,
-                                                 nullptr, &RtPipeline));
+    RTRT_CHECK_VK(vkCreateRayTracingPipelinesKHR(GpuDevice.GetHandle(), {}, {}, 1,
+                                                 &RayPipelineInfo, nullptr, &RtPipeline));
     for (auto& S : Stages)
     {
-        vkDestroyShaderModule(Device, S.module, nullptr);
+        vkDestroyShaderModule(GpuDevice.GetHandle(), S.module, nullptr);
     }
 }
 
@@ -228,8 +228,8 @@ void Renderer::CreateRtPipelineLayout()
         static_cast<uint32_t>(RtDescSetLayouts.size());
     PipelineLayoutCreateInfo.pSetLayouts = RtDescSetLayouts.data();
 
-    RTRT_CHECK_VK(vkCreatePipelineLayout(Device, &PipelineLayoutCreateInfo, nullptr,
-                                         &RtPipelineLayout));
+    RTRT_CHECK_VK(vkCreatePipelineLayout(GpuDevice.GetHandle(), &PipelineLayoutCreateInfo,
+                                         nullptr, &RtPipelineLayout));
 }
 
 //----------------------------------------------------------------------------------------
@@ -266,8 +266,8 @@ void Renderer::CreateRtShaderBindingTable()
     // from the pipeline.
     uint32_t DataSize = HandleCount * HandleSize;
     std::vector<uint8_t> Handles(DataSize);
-    RTRT_CHECK_VK(vkGetRayTracingShaderGroupHandlesKHR(Device, RtPipeline, 0, HandleCount,
-                                                       DataSize, Handles.data()));
+    RTRT_CHECK_VK(vkGetRayTracingShaderGroupHandlesKHR(
+        GpuDevice.GetHandle(), RtPipeline, 0, HandleCount, DataSize, Handles.data()));
 
     // Allocate a buffer for storing the SBT, and a staging buffer for transferring data
     // to it.
@@ -286,7 +286,7 @@ void Renderer::CreateRtShaderBindingTable()
     // Find the SBT addresses of each group
     VkBufferDeviceAddressInfo Info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
     Info.buffer = ShaderBindingTableBw.Buffer;
-    VkDeviceAddress SbtAddress = vkGetBufferDeviceAddress(Device, &Info);
+    VkDeviceAddress SbtAddress = vkGetBufferDeviceAddress(GpuDevice.GetHandle(), &Info);
 
     RgenRegion.deviceAddress = SbtAddress;
     MissRegion.deviceAddress = SbtAddress + RgenRegion.size;
@@ -296,7 +296,7 @@ void Renderer::CreateRtShaderBindingTable()
 
     CopyBuffer(Staging.Buffer, ShaderBindingTableBw.Buffer, SbtSize);
 
-    Staging.Destroy(Device);
+    Staging.Destroy(GpuDevice.GetHandle());
 }
 
 void Renderer::ComputeSbtRegions(uint32_t MissCount, uint32_t HitCount)
@@ -343,7 +343,8 @@ void Renderer::WriteSbtHandles(const BufferWrap& Staging, VkDeviceSize SbtSize,
 
     // Map the SBT buffer and write in the handles.
     void* MappedMemory = nullptr;
-    RTRT_CHECK_VK(vkMapMemory(Device, Staging.Memory, 0, SbtSize, 0, &MappedMemory));
+    RTRT_CHECK_VK(
+        vkMapMemory(GpuDevice.GetHandle(), Staging.Memory, 0, SbtSize, 0, &MappedMemory));
     uint8_t* MappedMemAddress = static_cast<uint8_t*>(MappedMemory);
     VkDeviceSize Offset = 0;
 
@@ -367,7 +368,7 @@ void Renderer::WriteSbtHandles(const BufferWrap& Staging, VkDeviceSize SbtSize,
         Offset += HitRegion.stride;
     }
 
-    vkUnmapMemory(Device, Staging.Memory);
+    vkUnmapMemory(GpuDevice.GetHandle(), Staging.Memory);
 }
 
 void Renderer::CmdCopyImage(ImageWrap& Src, ImageWrap& Dst)

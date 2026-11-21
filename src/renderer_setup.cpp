@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <array>
 #include <cstdio>
-#include <cstring>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -15,7 +14,6 @@
 #include <imgui.h>
 
 #include "app.h"
-#include "extensions_vk.hpp"
 #include "vk_check.h"
 
 namespace rtrt
@@ -23,95 +21,93 @@ namespace rtrt
 
 void Renderer::DestroyAllVulkanResources()
 {
-    RTRT_CHECK_VK(vkDeviceWaitIdle(Device));
+    RTRT_CHECK_VK(vkDeviceWaitIdle(GpuDevice.GetHandle()));
 
     // All objects created on Device must be destroyed before Device.
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
-    vkDestroyDescriptorPool(Device, ImguiDescPool, nullptr);
+    vkDestroyDescriptorPool(GpuDevice.GetHandle(), ImguiDescPool, nullptr);
 
     DestroySwapchain();
-    vkDestroyCommandPool(Device, CmdPool, nullptr);
+    vkDestroyCommandPool(GpuDevice.GetHandle(), CmdPool, nullptr);
 
     DestroyPostResources();
     DestroySceneResources();
     DestroyScanlineResources();
     DestroyRaytracingResources();
     DestroyDenoiseResources();
-
-    vkDestroyDevice(Device, nullptr);
 }
 
 void Renderer::DestroyPostResources()
 {
-    DepthImage.Destroy(Device);
-    vkDestroyRenderPass(Device, PostRenderPass, nullptr);
+    DepthImage.Destroy(GpuDevice.GetHandle());
+    vkDestroyRenderPass(GpuDevice.GetHandle(), PostRenderPass, nullptr);
 
     for (auto& Framebuffer : Framebuffers)
     {
-        vkDestroyFramebuffer(Device, Framebuffer, nullptr);
+        vkDestroyFramebuffer(GpuDevice.GetHandle(), Framebuffer, nullptr);
     }
 
-    ScImageBuffer.Destroy(Device);
-    PostDesc.Destroy(Device);
+    ScImageBuffer.Destroy(GpuDevice.GetHandle());
+    PostDesc.Destroy(GpuDevice.GetHandle());
 
-    vkDestroyPipelineLayout(Device, PostPipelineLayout, nullptr);
-    vkDestroyPipeline(Device, PostPipeline, nullptr);
+    vkDestroyPipelineLayout(GpuDevice.GetHandle(), PostPipelineLayout, nullptr);
+    vkDestroyPipeline(GpuDevice.GetHandle(), PostPipeline, nullptr);
 }
 
 void Renderer::DestroySceneResources()
 {
     for (auto T : ObjTextures)
     {
-        T.Destroy(Device);
+        T.Destroy(GpuDevice.GetHandle());
     }
     // ObjDescList only holds device addresses; the buffers themselves live in
     // ObjDataList.
     for (auto& Ob : ObjDataList)
     {
-        Ob.VertexBuffer.Destroy(Device);
-        Ob.IndexBuffer.Destroy(Device);
-        Ob.MatColorBuffer.Destroy(Device);
-        Ob.MatIndexBuffer.Destroy(Device);
+        Ob.VertexBuffer.Destroy(GpuDevice.GetHandle());
+        Ob.IndexBuffer.Destroy(GpuDevice.GetHandle());
+        Ob.MatColorBuffer.Destroy(GpuDevice.GetHandle());
+        Ob.MatIndexBuffer.Destroy(GpuDevice.GetHandle());
     }
 
-    MatrixBw.Destroy(Device);
-    ObjDescriptionBw.Destroy(Device);
+    MatrixBw.Destroy(GpuDevice.GetHandle());
+    ObjDescriptionBw.Destroy(GpuDevice.GetHandle());
 }
 
 void Renderer::DestroyScanlineResources()
 {
-    vkDestroyRenderPass(Device, ScanlineRenderPass, nullptr);
-    vkDestroyFramebuffer(Device, ScanlineFramebuffer, nullptr);
-    ScDesc.Destroy(Device);
-    vkDestroyPipelineLayout(Device, ScanlinePipelineLayout, nullptr);
-    vkDestroyPipeline(Device, ScanlinePipeline, nullptr);
+    vkDestroyRenderPass(GpuDevice.GetHandle(), ScanlineRenderPass, nullptr);
+    vkDestroyFramebuffer(GpuDevice.GetHandle(), ScanlineFramebuffer, nullptr);
+    ScDesc.Destroy(GpuDevice.GetHandle());
+    vkDestroyPipelineLayout(GpuDevice.GetHandle(), ScanlinePipelineLayout, nullptr);
+    vkDestroyPipeline(GpuDevice.GetHandle(), ScanlinePipeline, nullptr);
 }
 
 void Renderer::DestroyRaytracingResources()
 {
-    RtColCurrBuffer.Destroy(Device);
+    RtColCurrBuffer.Destroy(GpuDevice.GetHandle());
     RtBuilder.Destroy();
-    RtDesc.Destroy(Device);
-    vkDestroyPipelineLayout(Device, RtPipelineLayout, nullptr);
-    vkDestroyPipeline(Device, RtPipeline, nullptr);
-    ShaderBindingTableBw.Destroy(Device);
+    RtDesc.Destroy(GpuDevice.GetHandle());
+    vkDestroyPipelineLayout(GpuDevice.GetHandle(), RtPipelineLayout, nullptr);
+    vkDestroyPipeline(GpuDevice.GetHandle(), RtPipeline, nullptr);
+    ShaderBindingTableBw.Destroy(GpuDevice.GetHandle());
 
     // History buffers
-    RtColPrevBuffer.Destroy(Device);
-    RtNdCurrBuffer.Destroy(Device);
-    RtNdPrevBuffer.Destroy(Device);
-    RtKdCurrBuffer.Destroy(Device);
-    RtKdPrevBuffer.Destroy(Device);
+    RtColPrevBuffer.Destroy(GpuDevice.GetHandle());
+    RtNdCurrBuffer.Destroy(GpuDevice.GetHandle());
+    RtNdPrevBuffer.Destroy(GpuDevice.GetHandle());
+    RtKdCurrBuffer.Destroy(GpuDevice.GetHandle());
+    RtKdPrevBuffer.Destroy(GpuDevice.GetHandle());
 }
 
 void Renderer::DestroyDenoiseResources()
 {
-    DenoiseBuffer.Destroy(Device);
-    DenoiseDesc.Destroy(Device);
-    vkDestroyPipelineLayout(Device, DenoiseCompPipelineLayout, nullptr);
-    vkDestroyPipeline(Device, DenoisePipeline, nullptr);
+    DenoiseBuffer.Destroy(GpuDevice.GetHandle());
+    DenoiseDesc.Destroy(GpuDevice.GetHandle());
+    vkDestroyPipelineLayout(GpuDevice.GetHandle(), DenoiseCompPipelineLayout, nullptr);
+    vkDestroyPipeline(GpuDevice.GetHandle(), DenoisePipeline, nullptr);
 }
 
 bool Renderer::RecreateSizedResources()
@@ -121,7 +117,7 @@ bool Renderer::RecreateSizedResources()
         return false;
     }
 
-    RTRT_CHECK_VK(vkDeviceWaitIdle(Device));
+    RTRT_CHECK_VK(vkDeviceWaitIdle(GpuDevice.GetHandle()));
     Application->GetWindow().SetFramebufferResized(false);
 
     DestroySizedResources();
@@ -148,198 +144,43 @@ void Renderer::DestroySizedResources()
 {
     for (auto& Framebuffer : Framebuffers)
     {
-        vkDestroyFramebuffer(Device, Framebuffer, nullptr);
+        vkDestroyFramebuffer(GpuDevice.GetHandle(), Framebuffer, nullptr);
     }
     Framebuffers.clear();
-    vkDestroyFramebuffer(Device, ScanlineFramebuffer, nullptr);
-    DepthImage.Destroy(Device);
+    vkDestroyFramebuffer(GpuDevice.GetHandle(), ScanlineFramebuffer, nullptr);
+    DepthImage.Destroy(GpuDevice.GetHandle());
     DestroySwapchain();
 
-    ScImageBuffer.Destroy(Device);
-    RtColCurrBuffer.Destroy(Device);
-    RtColPrevBuffer.Destroy(Device);
-    RtNdCurrBuffer.Destroy(Device);
-    RtNdPrevBuffer.Destroy(Device);
-    RtKdCurrBuffer.Destroy(Device);
-    RtKdPrevBuffer.Destroy(Device);
-    DenoiseBuffer.Destroy(Device);
+    ScImageBuffer.Destroy(GpuDevice.GetHandle());
+    RtColCurrBuffer.Destroy(GpuDevice.GetHandle());
+    RtColPrevBuffer.Destroy(GpuDevice.GetHandle());
+    RtNdCurrBuffer.Destroy(GpuDevice.GetHandle());
+    RtNdPrevBuffer.Destroy(GpuDevice.GetHandle());
+    RtKdCurrBuffer.Destroy(GpuDevice.GetHandle());
+    RtKdPrevBuffer.Destroy(GpuDevice.GetHandle());
+    DenoiseBuffer.Destroy(GpuDevice.GetHandle());
 
-    vkDestroyPipeline(Device, PostPipeline, nullptr);
-    vkDestroyPipelineLayout(Device, PostPipelineLayout, nullptr);
-    vkDestroyPipeline(Device, ScanlinePipeline, nullptr);
-    vkDestroyPipelineLayout(Device, ScanlinePipelineLayout, nullptr);
+    vkDestroyPipeline(GpuDevice.GetHandle(), PostPipeline, nullptr);
+    vkDestroyPipelineLayout(GpuDevice.GetHandle(), PostPipelineLayout, nullptr);
+    vkDestroyPipeline(GpuDevice.GetHandle(), ScanlinePipeline, nullptr);
+    vkDestroyPipelineLayout(GpuDevice.GetHandle(), ScanlinePipelineLayout, nullptr);
 }
 
 void Renderer::WriteSizedDescriptors()
 {
-    PostDesc.Write(Device, 0, ScImageBuffer.Descriptor());
+    PostDesc.Write(GpuDevice.GetHandle(), 0, ScImageBuffer.Descriptor());
 
-    RtDesc.Write(Device, 1, RtColCurrBuffer.Descriptor());
-    RtDesc.Write(Device, 2, RtColPrevBuffer.Descriptor());
-    RtDesc.Write(Device, 3, RtNdCurrBuffer.Descriptor());
-    RtDesc.Write(Device, 4, RtNdPrevBuffer.Descriptor());
-    RtDesc.Write(Device, 5, RtKdCurrBuffer.Descriptor());
-    RtDesc.Write(Device, 6, RtKdPrevBuffer.Descriptor());
+    RtDesc.Write(GpuDevice.GetHandle(), 1, RtColCurrBuffer.Descriptor());
+    RtDesc.Write(GpuDevice.GetHandle(), 2, RtColPrevBuffer.Descriptor());
+    RtDesc.Write(GpuDevice.GetHandle(), 3, RtNdCurrBuffer.Descriptor());
+    RtDesc.Write(GpuDevice.GetHandle(), 4, RtNdPrevBuffer.Descriptor());
+    RtDesc.Write(GpuDevice.GetHandle(), 5, RtKdCurrBuffer.Descriptor());
+    RtDesc.Write(GpuDevice.GetHandle(), 6, RtKdPrevBuffer.Descriptor());
 
-    DenoiseDesc.Write(Device, 0, ScImageBuffer.Descriptor());
-    DenoiseDesc.Write(Device, 1, DenoiseBuffer.Descriptor());
-    DenoiseDesc.Write(Device, 2, RtKdCurrBuffer.Descriptor());
-    DenoiseDesc.Write(Device, 3, RtNdCurrBuffer.Descriptor());
-}
-
-bool Renderer::CreatePhysicalDevice()
-{
-    uint32_t PhysicalDevicesCount;
-    RTRT_CHECK_VK(vkEnumeratePhysicalDevices(GpuContext.GetInstance(),
-                                             &PhysicalDevicesCount, nullptr));
-    std::vector<VkPhysicalDevice> PhysicalDevices(PhysicalDevicesCount);
-    RTRT_CHECK_VK(vkEnumeratePhysicalDevices(
-        GpuContext.GetInstance(), &PhysicalDevicesCount, PhysicalDevices.data()));
-
-    printf("%d devices\n", PhysicalDevicesCount);
-
-    // Pick the first GPU that supports every extension in ReqDeviceExtensions.
-    for (auto& Candidate : PhysicalDevices)
-    {
-        VkPhysicalDeviceProperties GPUproperties;
-        vkGetPhysicalDeviceProperties(Candidate, &GPUproperties);
-
-        printf("\nGPU: %s", GPUproperties.deviceName);
-        if (GPUproperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
-        {
-            printf(" supports ");
-        }
-        else
-        {
-            printf(" does not supports ");
-        }
-        printf("VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU properties!\n");
-
-        if (SupportsRequiredExtensions(Candidate))
-        {
-            PhysicalDevice = Candidate;
-            return true;
-        }
-    }
-    return false;
-}
-
-bool Renderer::SupportsRequiredExtensions(VkPhysicalDevice Candidate)
-{
-    uint32_t ExtCount;
-    RTRT_CHECK_VK(
-        vkEnumerateDeviceExtensionProperties(Candidate, nullptr, &ExtCount, nullptr));
-    std::vector<VkExtensionProperties> ExtensionProperties(ExtCount);
-    RTRT_CHECK_VK(vkEnumerateDeviceExtensionProperties(Candidate, nullptr, &ExtCount,
-                                                       ExtensionProperties.data()));
-
-    printf("Required Extension Properties for GPU:\n");
-    int Count = 0;
-    for (const auto& ReqDeviceExtension : ReqDeviceExtensions)
-    {
-        for (const auto& Properties : ExtensionProperties)
-        {
-            const int Result = strcmp(ReqDeviceExtension, Properties.extensionName);
-            if (!Result)
-            {
-                printf("%s matches the Required Device Extensions list!\n",
-                       Properties.extensionName);
-                ++Count;
-                break;
-            }
-        }
-    }
-
-    return Count == ReqDeviceExtensions.size();
-}
-
-void Renderer::ChooseQueueIndex()
-{
-    VkQueueFlags RequiredQueueFlags =
-        VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT;
-
-    uint32_t MpCount;
-    vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &MpCount, nullptr);
-    std::vector<VkQueueFamilyProperties> QueueProperties(MpCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &MpCount,
-                                             QueueProperties.data());
-
-    // Assumes queue family 0 supports graphics, compute and transfer.
-    GraphicsQueueIndex = 0;
-}
-
-void Renderer::CreateDevice()
-{
-    // pNext chain of feature structures:
-    //   features2->features11->features12->features13->accelFeature->rtPipelineFeature->NULL
-    VkPhysicalDeviceRayTracingPipelineFeaturesKHR RtPipelineFeature{
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR, nullptr};
-
-    VkPhysicalDeviceAccelerationStructureFeaturesKHR AccelFeature{
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
-        &RtPipelineFeature};
-
-    VkPhysicalDeviceVulkan13Features Features13{
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES, &AccelFeature};
-
-    VkPhysicalDeviceVulkan12Features Features12{
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES, &Features13};
-
-    VkPhysicalDeviceVulkan11Features Features11{
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES, &Features12};
-
-    VkPhysicalDeviceFeatures2 Features2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-                                        &Features11};
-
-    // Fill in all structures on the pNext chain
-    vkGetPhysicalDeviceFeatures2(PhysicalDevice, &Features2);
-
-    // Bounds-checked buffer access costs performance and isn't needed here
-    Features2.features.robustBufferAccess = VK_FALSE;
-
-    float Priority = 1.0;
-    VkDeviceQueueCreateInfo QueueInfo{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
-    QueueInfo.queueFamilyIndex = GraphicsQueueIndex;
-    QueueInfo.queueCount = 1;
-    QueueInfo.pQueuePriorities = &Priority;
-
-    VkDeviceCreateInfo DeviceCreateInfo{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
-    DeviceCreateInfo.pNext = &Features2;  // This is the whole pNext chain
-
-    DeviceCreateInfo.queueCreateInfoCount = 1;
-    DeviceCreateInfo.pQueueCreateInfos = &QueueInfo;
-
-    DeviceCreateInfo.enabledExtensionCount =
-        static_cast<uint32_t>(ReqDeviceExtensions.size());
-    DeviceCreateInfo.ppEnabledExtensionNames = ReqDeviceExtensions.data();
-
-    RTRT_CHECK_VK(vkCreateDevice(PhysicalDevice, &DeviceCreateInfo, nullptr, &Device));
-}
-
-void Renderer::GetCommandQueue()
-{
-    vkGetDeviceQueue(Device, GraphicsQueueIndex, 0, &Queue);
-    // The queue is owned by the device; nothing to destroy.
-}
-
-// Loads function pointers for all registered extensions via
-// extensions_vk.cpp, which NVIDIA generates from the Vulkan spec.
-void Renderer::LoadExtensions()
-{
-    load_VK_EXTENSIONS(GpuContext.GetInstance(), vkGetInstanceProcAddr, Device,
-                       vkGetDeviceProcAddr);
-}
-
-void Renderer::CheckPresentSupport()
-{
-    VkBool32 IsSupported;
-    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceSupportKHR(
-        PhysicalDevice, GraphicsQueueIndex, GpuContext.GetSurface(), &IsSupported));
-
-    if (IsSupported != VK_TRUE)
-    {
-        printf("\nVulkan does not support presenting on this surface!\n");
-    }
+    DenoiseDesc.Write(GpuDevice.GetHandle(), 0, ScImageBuffer.Descriptor());
+    DenoiseDesc.Write(GpuDevice.GetHandle(), 1, DenoiseBuffer.Descriptor());
+    DenoiseDesc.Write(GpuDevice.GetHandle(), 2, RtKdCurrBuffer.Descriptor());
+    DenoiseDesc.Write(GpuDevice.GetHandle(), 3, RtNdCurrBuffer.Descriptor());
 }
 
 // Create a command pool, used to allocate command buffers, which in
@@ -351,8 +192,9 @@ void Renderer::CreateCommandPool()
 {
     VkCommandPoolCreateInfo PoolCreateInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     PoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    PoolCreateInfo.queueFamilyIndex = GraphicsQueueIndex;
-    RTRT_CHECK_VK(vkCreateCommandPool(Device, &PoolCreateInfo, nullptr, &CmdPool));
+    PoolCreateInfo.queueFamilyIndex = GpuDevice.GetQueueFamily();
+    RTRT_CHECK_VK(
+        vkCreateCommandPool(GpuDevice.GetHandle(), &PoolCreateInfo, nullptr, &CmdPool));
 
     // Create a command buffer
     VkCommandBufferAllocateInfo AllocateInfo{
@@ -360,7 +202,8 @@ void Renderer::CreateCommandPool()
     AllocateInfo.commandPool = CmdPool;
     AllocateInfo.commandBufferCount = 1;
     AllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    RTRT_CHECK_VK(vkAllocateCommandBuffers(Device, &AllocateInfo, &CommandBuffer));
+    RTRT_CHECK_VK(
+        vkAllocateCommandBuffers(GpuDevice.GetHandle(), &AllocateInfo, &CommandBuffer));
     // Nothing to destroy -- the pool owns the command buffer.
 }
 
@@ -368,12 +211,12 @@ void Renderer::CreateSwapchain()
 {
     VkSwapchainKHR OldSwapchain = Swapchain;
 
-    RTRT_CHECK_VK(vkDeviceWaitIdle(Device));  // Probably unnecessary
+    RTRT_CHECK_VK(vkDeviceWaitIdle(GpuDevice.GetHandle()));  // Probably unnecessary
 
     // Get the surface's capabilities
     VkSurfaceCapabilitiesKHR Capabilities;
     RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
-        PhysicalDevice, GpuContext.GetSurface(), &Capabilities));
+        GpuDevice.GetPhysical(), GpuContext.GetSurface(), &Capabilities));
 
     // FIFO is the one present mode every implementation must support.
     VkPresentModeKHR SwapchainPresentMode = VK_PRESENT_MODE_FIFO_KHR;
@@ -406,18 +249,21 @@ void Renderer::CreateSwapchain()
     SwapchainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     SwapchainInfo.imageArrayLayers = 1;
     SwapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    const uint32_t QueueFamily = GpuDevice.GetQueueFamily();
     SwapchainInfo.queueFamilyIndexCount = 1;
-    SwapchainInfo.pQueueFamilyIndices = &GraphicsQueueIndex;
+    SwapchainInfo.pQueueFamilyIndices = &QueueFamily;
     SwapchainInfo.presentMode = SwapchainPresentMode;
     SwapchainInfo.oldSwapchain = OldSwapchain;
     SwapchainInfo.clipped = true;
 
-    RTRT_CHECK_VK(vkCreateSwapchainKHR(Device, &SwapchainInfo, nullptr, &Swapchain));
-
-    RTRT_CHECK_VK(vkGetSwapchainImagesKHR(Device, Swapchain, &ImageCount, nullptr));
-    SwapchainImages.resize(ImageCount);
     RTRT_CHECK_VK(
-        vkGetSwapchainImagesKHR(Device, Swapchain, &ImageCount, SwapchainImages.data()));
+        vkCreateSwapchainKHR(GpuDevice.GetHandle(), &SwapchainInfo, nullptr, &Swapchain));
+
+    RTRT_CHECK_VK(
+        vkGetSwapchainImagesKHR(GpuDevice.GetHandle(), Swapchain, &ImageCount, nullptr));
+    SwapchainImages.resize(ImageCount);
+    RTRT_CHECK_VK(vkGetSwapchainImagesKHR(GpuDevice.GetHandle(), Swapchain, &ImageCount,
+                                          SwapchainImages.data()));
 
     CreateSwapchainImageViews(SurfaceFormat);
     TransitionSwapchainImages();
@@ -442,10 +288,11 @@ VkSurfaceFormatKHR Renderer::ChooseSurfaceFormat()
 {
     uint32_t SurfaceFormatCount;
     RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(
-        PhysicalDevice, GpuContext.GetSurface(), &SurfaceFormatCount, nullptr));
+        GpuDevice.GetPhysical(), GpuContext.GetSurface(), &SurfaceFormatCount, nullptr));
     std::vector<VkSurfaceFormatKHR> Formats(SurfaceFormatCount);
     RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(
-        PhysicalDevice, GpuContext.GetSurface(), &SurfaceFormatCount, Formats.data()));
+        GpuDevice.GetPhysical(), GpuContext.GetSurface(), &SurfaceFormatCount,
+        Formats.data()));
     return Formats[0];
 }
 
@@ -487,7 +334,8 @@ void Renderer::CreateSwapchainImageViews(VkFormat SurfaceFormat)
         CreateInfo.subresourceRange.baseArrayLayer = 0;
         CreateInfo.subresourceRange.layerCount = 1;
 
-        RTRT_CHECK_VK(vkCreateImageView(Device, &CreateInfo, nullptr, &ImageViews[I]));
+        RTRT_CHECK_VK(vkCreateImageView(GpuDevice.GetHandle(), &CreateInfo, nullptr,
+                                        &ImageViews[I]));
     }
 }
 
@@ -526,39 +374,42 @@ void Renderer::CreateFrameSyncObjects()
     // Not part of the swapchain, but used only to synchronize with it.
     VkFenceCreateInfo FenceCreateInfo{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
     FenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-    RTRT_CHECK_VK(vkCreateFence(Device, &FenceCreateInfo, nullptr, &WaitFence));
+    RTRT_CHECK_VK(
+        vkCreateFence(GpuDevice.GetHandle(), &FenceCreateInfo, nullptr, &WaitFence));
 
     VkSemaphoreCreateInfo SemCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-    RTRT_CHECK_VK(vkCreateSemaphore(Device, &SemCreateInfo, nullptr, &ReadSemaphore));
+    RTRT_CHECK_VK(vkCreateSemaphore(GpuDevice.GetHandle(), &SemCreateInfo, nullptr,
+                                    &ReadSemaphore));
     // A present may still be waiting on an image's semaphore, so each
     // swapchain image gets its own.
     WrittenSemaphores.resize(ImageCount);
     for (VkSemaphore& Sem : WrittenSemaphores)
     {
-        RTRT_CHECK_VK(vkCreateSemaphore(Device, &SemCreateInfo, nullptr, &Sem));
+        RTRT_CHECK_VK(
+            vkCreateSemaphore(GpuDevice.GetHandle(), &SemCreateInfo, nullptr, &Sem));
     }
 }
 
 void Renderer::DestroySwapchain()
 {
-    RTRT_CHECK_VK(vkDeviceWaitIdle(Device));
+    RTRT_CHECK_VK(vkDeviceWaitIdle(GpuDevice.GetHandle()));
 
     for (int I = 0; I < 3; ++I)
     {
-        vkDestroyImageView(Device, ImageViews[I], nullptr);
+        vkDestroyImageView(GpuDevice.GetHandle(), ImageViews[I], nullptr);
     }
 
     // Destroy the synchronization items:
-    vkDestroyFence(Device, WaitFence, nullptr);
-    vkDestroySemaphore(Device, ReadSemaphore, nullptr);
+    vkDestroyFence(GpuDevice.GetHandle(), WaitFence, nullptr);
+    vkDestroySemaphore(GpuDevice.GetHandle(), ReadSemaphore, nullptr);
     for (VkSemaphore Sem : WrittenSemaphores)
     {
-        vkDestroySemaphore(Device, Sem, nullptr);
+        vkDestroySemaphore(GpuDevice.GetHandle(), Sem, nullptr);
     }
     WrittenSemaphores.clear();
 
     // Destroy the actual swapchain:
-    vkDestroySwapchainKHR(Device, Swapchain, nullptr);
+    vkDestroySwapchainKHR(GpuDevice.GetHandle(), Swapchain, nullptr);
     Swapchain = VK_NULL_HANDLE;
     ImageViews.clear();
     Barriers.clear();
@@ -587,28 +438,6 @@ void Renderer::CreateDepthResource()
 //
 // (2) VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT:
 // for memory visible to the CPU  for CPU to GPU copy operations.
-uint32_t Renderer::FindMemoryType(uint32_t TypeFilter, VkMemoryPropertyFlags Properties)
-{
-    VkPhysicalDeviceMemoryProperties MemProperties;
-    vkGetPhysicalDeviceMemoryProperties(PhysicalDevice, &MemProperties);
-
-    for (uint32_t I = 0; I < MemProperties.memoryTypeCount; I++)
-    {
-        if ((TypeFilter & (1 << I)) &&
-            (MemProperties.memoryTypes[I].propertyFlags & Properties) == Properties)
-        {
-            return I;
-        }
-    }
-
-    RTRT_FATAL("No memory type matches filter 0x%x with properties 0x%x", TypeFilter,
-               Properties);
-}
-
-// A factory function for an ImageWrap, this creates a VkImage and
-// creates and binds an associated VkDeviceMemory object.  The
-// VkImageView and VkSampler are left empty to be created elsewhere as
-// needed.
 ImageWrap Renderer::CreateImageWrap(uint32_t Width, uint32_t Height, VkFormat Format,
                                     VkImageUsageFlags Usage,
                                     VkMemoryPropertyFlags Properties, uint32_t MipLevels)
@@ -629,19 +458,22 @@ ImageWrap Renderer::CreateImageWrap(uint32_t Width, uint32_t Height, VkFormat Fo
     ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    RTRT_CHECK_VK(vkCreateImage(Device, &ImageInfo, nullptr, &MyImage.Image));
+    RTRT_CHECK_VK(
+        vkCreateImage(GpuDevice.GetHandle(), &ImageInfo, nullptr, &MyImage.Image));
 
     VkMemoryRequirements MemRequirements;
-    vkGetImageMemoryRequirements(Device, MyImage.Image, &MemRequirements);
+    vkGetImageMemoryRequirements(GpuDevice.GetHandle(), MyImage.Image, &MemRequirements);
 
     VkMemoryAllocateInfo AllocInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
     AllocInfo.allocationSize = MemRequirements.size;
     AllocInfo.memoryTypeIndex =
-        FindMemoryType(MemRequirements.memoryTypeBits, Properties);
+        GpuDevice.FindMemoryType(MemRequirements.memoryTypeBits, Properties);
 
-    RTRT_CHECK_VK(vkAllocateMemory(Device, &AllocInfo, nullptr, &MyImage.Memory));
+    RTRT_CHECK_VK(
+        vkAllocateMemory(GpuDevice.GetHandle(), &AllocInfo, nullptr, &MyImage.Memory));
 
-    RTRT_CHECK_VK(vkBindImageMemory(Device, MyImage.Image, MyImage.Memory, 0));
+    RTRT_CHECK_VK(
+        vkBindImageMemory(GpuDevice.GetHandle(), MyImage.Image, MyImage.Memory, 0));
 
     MyImage.ImageView = VK_NULL_HANDLE;
     MyImage.Sampler = VK_NULL_HANDLE;
@@ -663,7 +495,8 @@ VkImageView Renderer::CreateImageView(VkImage Image, VkFormat Format,
     ViewInfo.subresourceRange.layerCount = 1;
 
     VkImageView ImageView;
-    RTRT_CHECK_VK(vkCreateImageView(Device, &ViewInfo, nullptr, &ImageView));
+    RTRT_CHECK_VK(
+        vkCreateImageView(GpuDevice.GetHandle(), &ViewInfo, nullptr, &ImageView));
     return ImageView;
 }
 
@@ -714,7 +547,8 @@ void Renderer::CreatePostRenderPass()
     RenderPassInfo.dependencyCount = static_cast<uint32_t>(SubpassDependencies.size());
     RenderPassInfo.pDependencies = SubpassDependencies.data();
 
-    RTRT_CHECK_VK(vkCreateRenderPass(Device, &RenderPassInfo, nullptr, &PostRenderPass));
+    RTRT_CHECK_VK(vkCreateRenderPass(GpuDevice.GetHandle(), &RenderPassInfo, nullptr,
+                                     &PostRenderPass));
 }
 
 // A VkFrameBuffer wraps several images into a render target --
@@ -739,8 +573,8 @@ void Renderer::CreatePostFrameBuffers()
     {
         Fbattachments[0] = ImageViews[I];  // A color attachment from the swap chain
         Fbattachments[1] = DepthImage.ImageView;  // A depth attachment
-        RTRT_CHECK_VK(
-            vkCreateFramebuffer(Device, &FramebufferInfo, nullptr, &Framebuffers[I]));
+        RTRT_CHECK_VK(vkCreateFramebuffer(GpuDevice.GetHandle(), &FramebufferInfo,
+                                          nullptr, &Framebuffers[I]));
     }
 }
 
@@ -756,8 +590,8 @@ void Renderer::CreatePostPipeline()
     CreateInfo.pushConstantRangeCount = 1;
     CreateInfo.pPushConstantRanges = &PushConstant;
 
-    RTRT_CHECK_VK(
-        vkCreatePipelineLayout(Device, &CreateInfo, nullptr, &PostPipelineLayout));
+    RTRT_CHECK_VK(vkCreatePipelineLayout(GpuDevice.GetHandle(), &CreateInfo, nullptr,
+                                         &PostPipelineLayout));
 
     // No geometry in this pipeline's draw.
     VkPipelineVertexInputStateCreateInfo VertexInputInfo{};
@@ -824,13 +658,13 @@ VkPipeline Renderer::CreateGraphicsPipeline(
     PipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
     VkPipeline Pipeline = VK_NULL_HANDLE;
-    RTRT_CHECK_VK(vkCreateGraphicsPipelines(Device, VK_NULL_HANDLE, 1, &PipelineInfo,
-                                            nullptr, &Pipeline));
+    RTRT_CHECK_VK(vkCreateGraphicsPipelines(GpuDevice.GetHandle(), VK_NULL_HANDLE, 1,
+                                            &PipelineInfo, nullptr, &Pipeline));
 
     // The pipeline has fully compiled copies of the shaders, so these
     // intermediate (SPV) versions can be destroyed.
-    vkDestroyShaderModule(Device, FragShaderModule, nullptr);
-    vkDestroyShaderModule(Device, VertShaderModule, nullptr);
+    vkDestroyShaderModule(GpuDevice.GetHandle(), FragShaderModule, nullptr);
+    vkDestroyShaderModule(GpuDevice.GetHandle(), VertShaderModule, nullptr);
     return Pipeline;
 }
 
@@ -913,25 +747,25 @@ void Renderer::SetShaderLanguage(bool UseSlangShaders)
     UseSlang = UseSlangShaders;
 
     // The last frame may still be using the old pipelines
-    RTRT_CHECK_VK(vkDeviceWaitIdle(Device));
+    RTRT_CHECK_VK(vkDeviceWaitIdle(GpuDevice.GetHandle()));
 
-    vkDestroyPipeline(Device, PostPipeline, nullptr);
-    vkDestroyPipelineLayout(Device, PostPipelineLayout, nullptr);
+    vkDestroyPipeline(GpuDevice.GetHandle(), PostPipeline, nullptr);
+    vkDestroyPipelineLayout(GpuDevice.GetHandle(), PostPipelineLayout, nullptr);
     CreatePostPipeline();
 
-    vkDestroyPipeline(Device, ScanlinePipeline, nullptr);
-    vkDestroyPipelineLayout(Device, ScanlinePipelineLayout, nullptr);
+    vkDestroyPipeline(GpuDevice.GetHandle(), ScanlinePipeline, nullptr);
+    vkDestroyPipelineLayout(GpuDevice.GetHandle(), ScanlinePipelineLayout, nullptr);
     CreateScPipeline();
 
     // The SBT holds group handles of the old pipeline, so it is rebuilt with it
-    ShaderBindingTableBw.Destroy(Device);
-    vkDestroyPipeline(Device, RtPipeline, nullptr);
-    vkDestroyPipelineLayout(Device, RtPipelineLayout, nullptr);
+    ShaderBindingTableBw.Destroy(GpuDevice.GetHandle());
+    vkDestroyPipeline(GpuDevice.GetHandle(), RtPipeline, nullptr);
+    vkDestroyPipelineLayout(GpuDevice.GetHandle(), RtPipelineLayout, nullptr);
     CreateRtPipeline();
     CreateRtShaderBindingTable();
 
-    vkDestroyPipeline(Device, DenoisePipeline, nullptr);
-    vkDestroyPipelineLayout(Device, DenoiseCompPipelineLayout, nullptr);
+    vkDestroyPipeline(GpuDevice.GetHandle(), DenoisePipeline, nullptr);
+    vkDestroyPipelineLayout(GpuDevice.GetHandle(), DenoiseCompPipelineLayout, nullptr);
     CreateDenoiseCompPipeline();
 }
 

@@ -13,6 +13,7 @@
 #include "image_wrap.h"
 #include "shaders/shared_structs.h"
 #include "vk/context.h"
+#include "vk/device.h"
 #include "vk_check.h"
 
 namespace rtrt
@@ -29,17 +30,6 @@ struct ObjData
     BufferWrap MatColorBuffer;  // Buffer of materials
     BufferWrap MatIndexBuffer;  // Buffer of each triangle's material index
 };
-
-template <typename Handle>
-void SetDebugName(VkDevice Device, Handle Object, VkObjectType Type, const char* Name)
-{
-    VkDebugUtilsObjectNameInfoEXT Info{
-        VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT};
-    Info.objectType = Type;
-    Info.objectHandle = reinterpret_cast<uint64_t>(Object);
-    Info.pObjectName = Name;
-    RTRT_CHECK_VK(vkSetDebugUtilsObjectNameEXT(Device, &Info));
-}
 
 // Pair each instance with its instance transform
 struct ObjInst
@@ -129,7 +119,7 @@ public:
     // Helpers the acceleration-structure builder uses.
     VkDevice GetDevice() const
     {
-        return Device;
+        return GpuDevice.GetHandle();
     }
 
     // A one-time command buffer; SubmitTempCmdBuffer runs it, waits and frees it.
@@ -151,15 +141,9 @@ public:
     }
 
 private:
-    std::vector<const char*> ReqDeviceExtensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME,  // Presentation engine; draws to screen
-        VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,  // Ray tracing extension
-        VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,    // Ray tracing extension
-        // Required by ray tracing pipeline;
-        VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
-
     App* Application;
     Context GpuContext;
+    Device GpuDevice;
 
     RenderSettings Settings;
     // Frames rendered since the history was last reset
@@ -183,22 +167,6 @@ private:
         const char* EntryPoint = "main");
 
     // Vulkan objects that will be created and the functions that will do the creation.
-    VkPhysicalDevice PhysicalDevice{};
-    bool CreatePhysicalDevice();
-    bool SupportsRequiredExtensions(VkPhysicalDevice Candidate);
-
-    uint32_t GraphicsQueueIndex{VK_QUEUE_FAMILY_IGNORED};
-    void ChooseQueueIndex();
-
-    VkDevice Device{};
-    void CreateDevice();
-
-    VkQueue Queue{};
-    void GetCommandQueue();
-
-    void LoadExtensions();
-
-    void CheckPresentSupport();
 
     VkCommandPool CmdPool{VK_NULL_HANDLE};
     VkCommandBuffer CommandBuffer{};
@@ -387,7 +355,6 @@ private:
     void SubmitFrame();
 
     std::string LoadFile(const std::string& Filename);
-    uint32_t FindMemoryType(uint32_t TypeFilter, VkMemoryPropertyFlags Properties);
 
     void CopyBuffer(VkBuffer SrcBuffer, VkBuffer DstBuffer, VkDeviceSize Size);
 

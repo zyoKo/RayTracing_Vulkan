@@ -15,9 +15,9 @@ LIBS =  -lassimp  -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi `pkg-con
 
 target = rtrt.exe
 
-headers = app.h core/window.h renderer.h scene/camera.h scene/camera_controller.h buffer_wrap.h descriptor_wrap.h image_wrap.h extensions_vk.hpp acceleration_wrap.h vk_check.h vk/context.h
+headers = app.h core/window.h renderer.h scene/camera.h scene/camera_controller.h buffer_wrap.h descriptor_wrap.h image_wrap.h extensions_vk.hpp acceleration_wrap.h vk_check.h vk/context.h vk/device.h vk/physical_device.h
 
-src = app.cpp core/window.cpp renderer.cpp scene/camera.cpp scene/camera_controller.cpp renderer_setup.cpp extensions_vk.cpp descriptor_wrap.cpp renderer_load_model.cpp renderer_scanline.cpp renderer_raytracing.cpp acceleration_wrap.cpp renderer_denoise.cpp vk/context.cpp
+src = app.cpp core/window.cpp renderer.cpp scene/camera.cpp scene/camera_controller.cpp renderer_setup.cpp extensions_vk.cpp descriptor_wrap.cpp renderer_load_model.cpp renderer_scanline.cpp renderer_raytracing.cpp acceleration_wrap.cpp renderer_denoise.cpp vk/context.cpp vk/device.cpp vk/physical_device.cpp
 
 shader_spvs = spv/post.frag.spv  spv/post.vert.spv spv/scanline.vert.spv spv/scanline.frag.spv spv/post.frag.spv spv/post.vert.spv spv/raytrace.rgen.spv spv/raytrace.rmiss.spv spv/raytrace.rchit.spv spv/raytraceShadow.rmiss.spv spv/denoise.comp.spv $(slang_spvs)
 

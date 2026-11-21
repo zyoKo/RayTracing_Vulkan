@@ -23,16 +23,20 @@ void Renderer::CreateDenoiseBuffer()
 void Renderer::CreateDenoiseDescriptorSet()
 {
     DenoiseDesc.SetBindings(
-        Device, {{0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT},
-                 {1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT},
-                 {2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT},
-                 {3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT}});
+        GpuDevice.GetHandle(),
+        {{0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT},
+         {1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT},
+         {2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT},
+         {3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT}});
 
-    DenoiseDesc.Write(Device, 0, ScImageBuffer.Descriptor());   // The input image
-    DenoiseDesc.Write(Device, 1, DenoiseBuffer.Descriptor());   // The output image
-    DenoiseDesc.Write(Device, 2, RtKdCurrBuffer.Descriptor());  // The color buffer
+    // The input image
+    DenoiseDesc.Write(GpuDevice.GetHandle(), 0, ScImageBuffer.Descriptor());
+    // The output image
+    DenoiseDesc.Write(GpuDevice.GetHandle(), 1, DenoiseBuffer.Descriptor());
+    // The color buffer
+    DenoiseDesc.Write(GpuDevice.GetHandle(), 2, RtKdCurrBuffer.Descriptor());
     // The normal:depth buffer
-    DenoiseDesc.Write(Device, 3, RtNdCurrBuffer.Descriptor());
+    DenoiseDesc.Write(GpuDevice.GetHandle(), 3, RtNdCurrBuffer.Descriptor());
 }
 
 void Renderer::CreateDenoiseCompPipeline()
@@ -45,7 +49,7 @@ void Renderer::CreateDenoiseCompPipeline()
     PlCreateInfo.pSetLayouts = &DenoiseDesc.GetLayout();
     PlCreateInfo.pushConstantRangeCount = 1;
     PlCreateInfo.pPushConstantRanges = &PcInfo;
-    RTRT_CHECK_VK(vkCreatePipelineLayout(Device, &PlCreateInfo, nullptr,
+    RTRT_CHECK_VK(vkCreatePipelineLayout(GpuDevice.GetHandle(), &PlCreateInfo, nullptr,
                                          &DenoiseCompPipelineLayout));
 
     VkComputePipelineCreateInfo CpCreateInfo{
@@ -55,9 +59,9 @@ void Renderer::CreateDenoiseCompPipeline()
     CpCreateInfo.stage = CreateShaderStageInfo(
         LoadShader("spv/denoise.comp.spv", "spv/denoise.comp.slang.spv"),
         VK_SHADER_STAGE_COMPUTE_BIT);
-    RTRT_CHECK_VK(vkCreateComputePipelines(Device, {}, 1, &CpCreateInfo, nullptr,
-                                           &DenoisePipeline));
-    vkDestroyShaderModule(Device, CpCreateInfo.stage.module, nullptr);
+    RTRT_CHECK_VK(vkCreateComputePipelines(GpuDevice.GetHandle(), {}, 1, &CpCreateInfo,
+                                           nullptr, &DenoisePipeline));
+    vkDestroyShaderModule(GpuDevice.GetHandle(), CpCreateInfo.stage.module, nullptr);
 }
 
 void Renderer::Denoise()
