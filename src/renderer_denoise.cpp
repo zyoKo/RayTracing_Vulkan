@@ -15,7 +15,7 @@ constexpr uint32_t kGroupSize = 128;
 
 void Renderer::CreateDenoiseBuffer()
 {
-    DenoiseBuffer = CreateBufferImage(MainSwapchain->GetExtent());
+    DenoiseBuffer = CreateRenderImage(*GpuDevice, MainSwapchain->GetExtent());
     DenoiseBuffer.TransitionLayout(MainCmdPool, VK_IMAGE_LAYOUT_UNDEFINED,
                                    VK_IMAGE_LAYOUT_GENERAL);
 }
@@ -34,9 +34,9 @@ void Renderer::CreateDenoiseDescriptorSet()
     // The output image
     DenoiseDesc.Set.Write(1, DenoiseBuffer.Descriptor());
     // The color buffer
-    DenoiseDesc.Set.Write(2, RtKdCurrBuffer.Descriptor());
+    DenoiseDesc.Set.Write(2, RayTrace.GetAlbedo().Descriptor());
     // The normal:depth buffer
-    DenoiseDesc.Set.Write(3, RtNdCurrBuffer.Descriptor());
+    DenoiseDesc.Set.Write(3, RayTrace.GetNormalDepth().Descriptor());
 }
 
 void Renderer::CreateDenoiseCompPipeline()

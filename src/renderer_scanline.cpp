@@ -13,29 +13,12 @@ namespace rtrt
 
 void Renderer::CreateScBuffer()
 {
-    ScImageBuffer = CreateBufferImage(MainSwapchain->GetExtent());
+    ScImageBuffer = CreateRenderImage(*GpuDevice, MainSwapchain->GetExtent());
 
     VkCommandBuffer CmdBuf = MainCmdPool.BeginSingleUse();
     CmdImageBarrier(CmdBuf, ScImageBuffer.GetHandle(), VK_IMAGE_LAYOUT_UNDEFINED,
                     VK_IMAGE_LAYOUT_GENERAL);
     MainCmdPool.EndSingleUse(CmdBuf);
-}
-
-Image Renderer::CreateBufferImage(VkExtent2D Size)
-{
-    uint32_t MipLevels = 1;
-
-    Image MyImage =
-        CreateImage(Size.width, Size.height, VK_FORMAT_R32G32B32A32_SFLOAT,
-                    VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
-                        VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT |
-                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MipLevels);
-
-    MyImage.CreateView(VK_FORMAT_R32G32B32A32_SFLOAT);
-    MyImage.CreateSampler(*GpuDevice);
-    MyImage.SetLayout(VK_IMAGE_LAYOUT_GENERAL);
-    return MyImage;
 }
 
 void Renderer::CreateScDescriptorSet()

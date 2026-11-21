@@ -53,19 +53,8 @@ void Renderer::DestroyScanlineResources()
 
 void Renderer::DestroyRaytracingResources()
 {
-    RtColCurrBuffer.Destroy();
     SceneAccel.Destroy();
-    RtDesc.Destroy();
-    RtPipelineLayout.Destroy();
-    RtPipeline.Destroy();
-    RtSbt.Destroy();
-
-    // History buffers
-    RtColPrevBuffer.Destroy();
-    RtNdCurrBuffer.Destroy();
-    RtNdPrevBuffer.Destroy();
-    RtKdCurrBuffer.Destroy();
-    RtKdPrevBuffer.Destroy();
+    RayTrace.Destroy();
 }
 
 void Renderer::DestroyDenoiseResources()
@@ -93,7 +82,7 @@ bool Renderer::RecreateSizedResources()
     CreateScBuffer();
     Post.OnResize(PassCtx, ScImageBuffer, DepthImage);
     Scanline.OnResize(PassCtx, ScImageBuffer, DepthImage, ScDesc.Layout.GetHandle());
-    CreateRtBuffers();
+    RayTrace.OnResize(PassCtx);
     CreateDenoiseBuffer();
 
     WriteSizedDescriptors();
@@ -110,28 +99,16 @@ void Renderer::DestroySizedResources()
     MainSwapchain->Destroy();
 
     ScImageBuffer.Destroy();
-    RtColCurrBuffer.Destroy();
-    RtColPrevBuffer.Destroy();
-    RtNdCurrBuffer.Destroy();
-    RtNdPrevBuffer.Destroy();
-    RtKdCurrBuffer.Destroy();
-    RtKdPrevBuffer.Destroy();
+    RayTrace.ReleaseSized();
     DenoiseBuffer.Destroy();
 }
 
 void Renderer::WriteSizedDescriptors()
 {
-    RtDesc.Set.Write(1, RtColCurrBuffer.Descriptor());
-    RtDesc.Set.Write(2, RtColPrevBuffer.Descriptor());
-    RtDesc.Set.Write(3, RtNdCurrBuffer.Descriptor());
-    RtDesc.Set.Write(4, RtNdPrevBuffer.Descriptor());
-    RtDesc.Set.Write(5, RtKdCurrBuffer.Descriptor());
-    RtDesc.Set.Write(6, RtKdPrevBuffer.Descriptor());
-
     DenoiseDesc.Set.Write(0, ScImageBuffer.Descriptor());
     DenoiseDesc.Set.Write(1, DenoiseBuffer.Descriptor());
-    DenoiseDesc.Set.Write(2, RtKdCurrBuffer.Descriptor());
-    DenoiseDesc.Set.Write(3, RtNdCurrBuffer.Descriptor());
+    DenoiseDesc.Set.Write(2, RayTrace.GetAlbedo().Descriptor());
+    DenoiseDesc.Set.Write(3, RayTrace.GetNormalDepth().Descriptor());
 }
 
 // Create a command pool, used to allocate command buffers, which in
@@ -161,12 +138,10 @@ void Renderer::CreateFrameFence()
 
 void Renderer::CreateDepthResource()
 {
-    uint32_t MipLevels = 1;
-
-    DepthImage = CreateImage(
-        MainSwapchain->GetExtent().width, MainSwapchain->GetExtent().height,
-        VK_FORMAT_X8_D24_UNORM_PACK32, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MipLevels);
+    DepthImage.Create(*GpuDevice, MainSwapchain->GetExtent().width,
+                      MainSwapchain->GetExtent().height, VK_FORMAT_X8_D24_UNORM_PACK32,
+                      VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     DepthImage.CreateView(VK_FORMAT_X8_D24_UNORM_PACK32, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
@@ -179,15 +154,6 @@ void Renderer::CreateDepthResource()
 //
 // (2) VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT:
 // for memory visible to the CPU  for CPU to GPU copy operations.
-Image Renderer::CreateImage(uint32_t Width, uint32_t Height, VkFormat Format,
-                            VkImageUsageFlags Usage, VkMemoryPropertyFlags Properties,
-                            uint32_t MipLevels)
-{
-    Image Result;
-    Result.Create(*GpuDevice, Width, Height, Format, Usage, Properties, MipLevels);
-    return Result;
-}
-
 void Renderer::SetShaderLanguage(bool UseSlangShaders)
 {
     if (UseSlangShaders == UseSlang)
@@ -204,13 +170,7 @@ void Renderer::SetShaderLanguage(bool UseSlangShaders)
 
     Scanline.RebuildPipeline(PassCtx, ScDesc.Layout.GetHandle());
 
-    // The SBT holds group handles of the old pipeline, so it is rebuilt with it
-    RtSbt.Destroy();
-    RtPipeline.Destroy();
-    RtPipelineLayout.Destroy();
-    CreateRtPipeline();
-    // One raygen, one miss and one hit group
-    RtSbt.Create(*GpuDevice, MainCmdPool, RtPipeline.GetHandle(), 1, 1);
+    RayTrace.RebuildPipeline(PassCtx, ScDesc.Layout.GetHandle());
 
     DenoisePipeline.Destroy();
     DenoiseCompPipelineLayout.Destroy();

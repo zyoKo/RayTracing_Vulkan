@@ -43,14 +43,10 @@ bool Renderer::Init(Window& Target, Context& Instance, Device& Gpu, Swapchain& C
     CreateScDescriptorSet();
     Scanline.Create(PassCtx, ScImageBuffer, DepthImage, ScDesc.Layout.GetHandle());
 
-    // //init ray tracing capabilities
-    CreateRtBuffers();
     InitRayTracing();
     CreateRtAccelerationStructure();
-    CreateRtDescriptorSet();
-    CreateRtPipeline();
-    // One raygen, one miss and one hit group
-    RtSbt.Create(*GpuDevice, MainCmdPool, RtPipeline.GetHandle(), 1, 1);
+    RayTrace.Create(PassCtx, SceneAccel.GetAccelerationStructure(),
+                    ScDesc.Layout.GetHandle());
 
     CreateDenoiseBuffer();
     CreateDenoiseDescriptorSet();
@@ -74,7 +70,10 @@ void Renderer::DrawFrame()
         // Draw scene
         if (Settings.UseRaytracer)
         {
-            Raytrace();
+            RayTrace.Record(FrameCmd.GetHandle(), PassCtx, ScDesc.Set.GetHandle(),
+                            ScImageBuffer, Settings.ViewMode, ResetHistory);
+            ResetHistory = false;
+            FrameCount++;
             if (Settings.DenoiseEnabled && Settings.ViewMode == kViewFinal)
             {
                 Denoise();

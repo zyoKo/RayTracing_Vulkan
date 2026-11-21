@@ -11,6 +11,8 @@
 #include "renderer/graphics_pipeline.h"
 #include "renderer/pass_context.h"
 #include "renderer/post_pass.h"
+#include "renderer/ray_trace_pass.h"
+#include "renderer/render_image.h"
 #include "renderer/scanline_pass.h"
 #include "rt/acceleration_structure.h"
 #include "rt/shader_binding_table.h"
@@ -83,7 +85,7 @@ public:
 
     PushConstantRay& GetRayConstants()
     {
-        return PcRay;
+        return RayTrace.GetConstants();
     }
 
     PushConstantDenoise& GetDenoiseConstants()
@@ -123,6 +125,7 @@ private:
     PassContext PassCtx;
     PostPass Post;
     ScanlinePass Scanline;
+    RayTracePass RayTrace;
 
     RenderSettings Settings;
     // Frames rendered since the history was last reset
@@ -166,17 +169,6 @@ private:
     void DestroyRaytracingResources();
     void DestroyDenoiseResources();
 
-    Image RtColCurrBuffer{};
-    Image RtColPrevBuffer{};
-
-    Image RtKdCurrBuffer{};
-    Image RtKdPrevBuffer{};
-
-    Image RtNdCurrBuffer{};
-    Image RtNdPrevBuffer{};
-
-    void CreateRtBuffers();
-
     Image DenoiseBuffer{};
     void CreateDenoiseBuffer();
 
@@ -189,26 +181,11 @@ private:
     void CreateMatrixBuffer();
 
     AccelerationStructure SceneAccel;
-    PushConstantRay PcRay{};  // Push constant for ray tracer
     PushConstantDenoise PcDenoise{};
     void InitRayTracing();
 
     BlasInput ObjectToVkGeometryKhr(const Mesh& Model);
     void CreateRtAccelerationStructure();
-
-    DescriptorBundle RtDesc;
-    void CreateRtDescriptorSet();
-
-    PipelineLayout RtPipelineLayout;
-    Pipeline RtPipeline;
-    void CreateRtPipeline();
-    // One raygen, one miss and one closest-hit shader, each in its own group.
-    void CollectRtShaders(std::vector<Shader>& Modules,
-                          std::vector<VkPipelineShaderStageCreateInfo>& Stages,
-                          std::vector<VkRayTracingShaderGroupCreateInfoKHR>& Groups);
-    void CreateRtPipelineLayout();
-
-    ShaderBindingTable RtSbt;
 
     DescriptorBundle DenoiseDesc;
     void CreateDenoiseDescriptorSet();
@@ -222,16 +199,9 @@ private:
 
     glm::mat4 PriorViewProj{};
     void UpdateCameraBuffer();
-    void Raytrace();
     void Denoise();
 
     void SubmitFrame();
-
-    Image CreateBufferImage(VkExtent2D Size);
-
-    Image CreateImage(uint32_t Width, uint32_t Height, VkFormat Format,
-                      VkImageUsageFlags Usage, VkMemoryPropertyFlags Properties,
-                      uint32_t MipLevels = 1);
 };
 
 }  // namespace rtrt
