@@ -127,6 +127,9 @@
     <ClCompile Include="..\libs\imgui-master\imgui_draw.cpp">
       <Filter>ImGui Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\libs\imgui-master\imgui_tables.cpp">
+      <Filter>ImGui Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\libs\imgui-master\backends\imgui_impl_glfw.cpp">
       <Filter>ImGui Files</Filter>
     </ClCompile>

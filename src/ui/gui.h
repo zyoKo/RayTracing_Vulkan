@@ -13,7 +13,6 @@
 #include "scene/camera.h"
 #include "scene/camera_controller.h"
 #include "vk/context.h"
-#include "vk/descriptor_pool.h"
 #include "vk/device.h"
 
 namespace rtrt
@@ -116,7 +115,6 @@ private:
     void DrawShaderSettings(Renderer& VK);
 
     VkDevice DeviceHandle = VK_NULL_HANDLE;
-    DescriptorPool ImguiDescPool;
     // GLSL was picked before its shaders were built
     bool WantGlsl = false;
     std::future<bool> GlslBuild;
