@@ -20,6 +20,8 @@
 #include "vk/device.h"
 #include "vk/fence.h"
 #include "vk/image.h"
+#include "vk/pipeline.h"
+#include "vk/pipeline_layout.h"
 #include "vk/shader.h"
 #include "vk/swapchain.h"
 #include "vk_check.h"
@@ -182,14 +184,14 @@ private:
     Image DepthImage;
     void CreateDepthResource();
 
-    VkPipelineLayout PostPipelineLayout{VK_NULL_HANDLE};
+    PipelineLayout PostPipelineLayout;
     VkRenderPass PostRenderPass{};
     void CreatePostRenderPass();
 
     std::vector<VkFramebuffer> Framebuffers{};  // One frambuffer per swapchain image.
     void CreatePostFrameBuffers();
 
-    VkPipeline PostPipeline{VK_NULL_HANDLE};
+    Pipeline PostPipeline;
     void CreatePostPipeline();
 
     // GLSL and Slang SPIR-V files for a vertex and a fragment shader.
@@ -216,7 +218,7 @@ private:
     };
 
     // A full-window triangle-list pipeline with depth test and no blending.
-    VkPipeline CreateGraphicsPipeline(
+    Pipeline CreateGraphicsPipeline(
         const GraphicsShaders& Shaders,
         const VkPipelineVertexInputStateCreateInfo& VertexInput, VkPipelineLayout Layout,
         VkRenderPass RenderPass);
@@ -268,8 +270,8 @@ private:
     DescriptorBundle ScDesc;
     void CreateScDescriptorSet();
 
-    VkPipelineLayout ScanlinePipelineLayout{};
-    VkPipeline ScanlinePipeline{};
+    PipelineLayout ScanlinePipelineLayout;
+    Pipeline ScanlinePipeline;
     void CreateScPipeline();
 
     Buffer MatrixBw{};  // Device-Host of the camera matrices
@@ -291,8 +293,8 @@ private:
     DescriptorBundle RtDesc;
     void CreateRtDescriptorSet();
 
-    VkPipelineLayout RtPipelineLayout{};
-    VkPipeline RtPipeline{};
+    PipelineLayout RtPipelineLayout;
+    Pipeline RtPipeline;
     void CreateRtPipeline();
     // One raygen, one miss and one closest-hit shader, each in its own group.
     void CollectRtShaders(std::vector<Shader>& Modules,
@@ -319,8 +321,8 @@ private:
     DescriptorBundle DenoiseDesc;
     void CreateDenoiseDescriptorSet();
 
-    VkPipelineLayout DenoiseCompPipelineLayout{};
-    VkPipeline DenoisePipeline{};
+    PipelineLayout DenoiseCompPipelineLayout;
+    Pipeline DenoisePipeline;
     void CreateDenoiseCompPipeline();
 
     void CmdCopyImage(Image& Src, Image& Dst);

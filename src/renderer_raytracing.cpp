@@ -144,10 +144,9 @@ void Renderer::CreateRtPipeline()
     RayPipelineInfo.pGroups = Groups.data();
 
     RayPipelineInfo.maxPipelineRayRecursionDepth = 10;  // Ray depth
-    RayPipelineInfo.layout = RtPipelineLayout;
+    RayPipelineInfo.layout = RtPipelineLayout.GetHandle();
 
-    RTRT_CHECK_VK(vkCreateRayTracingPipelinesKHR(GpuDevice->GetHandle(), {}, {}, 1,
-                                                 &RayPipelineInfo, nullptr, &RtPipeline));
+    RtPipeline.CreateRayTracing(GpuDevice->GetHandle(), RayPipelineInfo);
 }
 
 void Renderer::CollectRtShaders(std::vector<Shader>& Modules,
@@ -215,21 +214,11 @@ void Renderer::CreateRtPipelineLayout()
                                          VK_SHADER_STAGE_MISS_BIT_KHR,
                                      0, sizeof(PushConstantRay)};
 
-    VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo{
-        VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-    PipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-    PipelineLayoutCreateInfo.pPushConstantRanges = &PushConstant;
-
     // Descriptor sets: one specific to ray tracing, and one shared with the rasterization
     // pipeline
-    std::vector<VkDescriptorSetLayout> RtDescSetLayouts = {RtDesc.Layout.GetHandle(),
-                                                           ScDesc.Layout.GetHandle()};
-    PipelineLayoutCreateInfo.setLayoutCount =
-        static_cast<uint32_t>(RtDescSetLayouts.size());
-    PipelineLayoutCreateInfo.pSetLayouts = RtDescSetLayouts.data();
-
-    RTRT_CHECK_VK(vkCreatePipelineLayout(
-        GpuDevice->GetHandle(), &PipelineLayoutCreateInfo, nullptr, &RtPipelineLayout));
+    RtPipelineLayout.Create(GpuDevice->GetHandle(),
+                            {RtDesc.Layout.GetHandle(), ScDesc.Layout.GetHandle()},
+                            {PushConstant});
 }
 
 //----------------------------------------------------------------------------------------
@@ -267,7 +256,8 @@ void Renderer::CreateRtShaderBindingTable()
     uint32_t DataSize = HandleCount * HandleSize;
     std::vector<uint8_t> Handles(DataSize);
     RTRT_CHECK_VK(vkGetRayTracingShaderGroupHandlesKHR(
-        GpuDevice->GetHandle(), RtPipeline, 0, HandleCount, DataSize, Handles.data()));
+        GpuDevice->GetHandle(), RtPipeline.GetHandle(), 0, HandleCount, DataSize,
+        Handles.data()));
 
     // Allocate a buffer for storing the SBT, and a staging buffer for transferring data
     // to it.
@@ -409,17 +399,18 @@ void Renderer::Raytrace()
 
     // Bind the ray tracing pipeline
     vkCmdBindPipeline(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
-                      RtPipeline);
+                      RtPipeline.GetHandle());
 
     // Bind the descriptor sets (the ray tracing specific one, and the
     // full model descriptor)
     std::vector<VkDescriptorSet> DescSets{RtDesc.Set.GetHandle(), ScDesc.Set.GetHandle()};
     vkCmdBindDescriptorSets(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
-                            RtPipelineLayout, 0, static_cast<uint32_t>(DescSets.size()),
-                            DescSets.data(), 0, nullptr);
+                            RtPipelineLayout.GetHandle(), 0,
+                            static_cast<uint32_t>(DescSets.size()), DescSets.data(), 0,
+                            nullptr);
 
     // Push the push constants
-    vkCmdPushConstants(FrameCmd.GetHandle(), RtPipelineLayout,
+    vkCmdPushConstants(FrameCmd.GetHandle(), RtPipelineLayout.GetHandle(),
                        VK_SHADER_STAGE_RAYGEN_BIT_KHR |
                            VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR |
                            VK_SHADER_STAGE_MISS_BIT_KHR,

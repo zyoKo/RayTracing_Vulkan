@@ -483,14 +483,8 @@ void Renderer::CreateScPipeline()
         VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
         sizeof(PushConstantRaster)};
 
-    // Creating the Pipeline Layout
-    VkPipelineLayoutCreateInfo CreateInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-    CreateInfo.setLayoutCount = 1;
-    CreateInfo.pSetLayouts = &ScDesc.Layout.GetHandle();
-    CreateInfo.pushConstantRangeCount = 1;
-    CreateInfo.pPushConstantRanges = &PushConstantRanges;
-    RTRT_CHECK_VK(vkCreatePipelineLayout(GpuDevice->GetHandle(), &CreateInfo, nullptr,
-                                         &ScanlinePipelineLayout));
+    ScanlinePipelineLayout.Create(GpuDevice->GetHandle(), {ScDesc.Layout.GetHandle()},
+                                  {PushConstantRanges});
 
     VkVertexInputBindingDescription BindingDescription{0, sizeof(Vertex),
                                                        VK_VERTEX_INPUT_RATE_VERTEX};
@@ -511,8 +505,8 @@ void Renderer::CreateScPipeline()
 
     const GraphicsShaders Shaders{"spv/scanline.vert.spv", "spv/scanline.vert.slang.spv",
                                   "spv/scanline.frag.spv", "spv/scanline.frag.slang.spv"};
-    ScanlinePipeline = CreateGraphicsPipeline(Shaders, VertexInputInfo,
-                                              ScanlinePipelineLayout, ScanlineRenderPass);
+    ScanlinePipeline = CreateGraphicsPipeline(
+        Shaders, VertexInputInfo, ScanlinePipelineLayout.GetHandle(), ScanlineRenderPass);
 }
 
 // Create a Vulkan buffer to hold the camera matrices, products and inverses.
@@ -554,10 +548,10 @@ void Renderer::Rasterize()
                          VK_SUBPASS_CONTENTS_INLINE);
 
     vkCmdBindPipeline(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS,
-                      ScanlinePipeline);
+                      ScanlinePipeline.GetHandle());
     vkCmdBindDescriptorSets(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            ScanlinePipelineLayout, 0, 1, &ScDesc.Set.GetHandle(), 0,
-                            nullptr);
+                            ScanlinePipelineLayout.GetHandle(), 0, 1,
+                            &ScDesc.Set.GetHandle(), 0, nullptr);
 
     for (const ObjInst& Inst : ObjInstList)
     {
@@ -574,7 +568,7 @@ void Renderer::Rasterize()
         PcRaster.ObjIndex = Inst.ObjIndex;  // Telling which object is drawn
         PcRaster.ModelMatrix = Inst.Transform;
 
-        vkCmdPushConstants(FrameCmd.GetHandle(), ScanlinePipelineLayout,
+        vkCmdPushConstants(FrameCmd.GetHandle(), ScanlinePipelineLayout.GetHandle(),
                            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                            sizeof(PushConstantRaster), &PcRaster);
         const VkBuffer VertexBuffer = Object.VertexBuffer.GetHandle();

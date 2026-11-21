@@ -37,7 +37,7 @@ bool Renderer::Init(Window& Target, Context& Instance, Device& Gpu, Swapchain& C
 
     CreateScBuffer();
     CreatePostDescriptor();
-    CreatePostPipeline();  // -> PostPipelineLayout
+    CreatePostPipeline();  // -> PostPipelineLayout.GetHandle()
 
     InitGui();
 

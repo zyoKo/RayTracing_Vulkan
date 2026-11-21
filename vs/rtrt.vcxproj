@@ -19,6 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\vk\pipeline_layout.cpp" />
+    <ClCompile Include="..\src\vk\pipeline.cpp" />
     <ClCompile Include="..\src\vk\descriptor_builder.cpp" />
     <ClCompile Include="..\src\vk\descriptor_set.cpp" />
     <ClCompile Include="..\src\vk\descriptor_pool.cpp" />
@@ -197,6 +199,8 @@ cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangVali
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\vk\pipeline_layout.h" />
+    <ClInclude Include="..\src\vk\pipeline.h" />
     <ClInclude Include="..\src\vk\descriptor_builder.h" />
     <ClInclude Include="..\src\vk\descriptor_set.h" />
     <ClInclude Include="..\src\vk\descriptor_pool.h" />

@@ -43,25 +43,18 @@ void Renderer::CreateDenoiseCompPipeline()
 {
     VkPushConstantRange PcInfo = {VK_SHADER_STAGE_COMPUTE_BIT, 0,
                                   sizeof(PushConstantDenoise)};
-    VkPipelineLayoutCreateInfo PlCreateInfo{
-        VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-    PlCreateInfo.setLayoutCount = 1;
-    PlCreateInfo.pSetLayouts = &DenoiseDesc.Layout.GetHandle();
-    PlCreateInfo.pushConstantRangeCount = 1;
-    PlCreateInfo.pPushConstantRanges = &PcInfo;
-    RTRT_CHECK_VK(vkCreatePipelineLayout(GpuDevice->GetHandle(), &PlCreateInfo, nullptr,
-                                         &DenoiseCompPipelineLayout));
+    DenoiseCompPipelineLayout.Create(GpuDevice->GetHandle(),
+                                     {DenoiseDesc.Layout.GetHandle()}, {PcInfo});
 
     VkComputePipelineCreateInfo CpCreateInfo{
         VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
-    CpCreateInfo.layout = DenoiseCompPipelineLayout;
+    CpCreateInfo.layout = DenoiseCompPipelineLayout.GetHandle();
 
     Shader Comp;
     Comp.Load(GpuDevice->GetHandle(), "spv/denoise.comp.spv",
               "spv/denoise.comp.slang.spv", UseSlang);
     CpCreateInfo.stage = Comp.StageInfo(VK_SHADER_STAGE_COMPUTE_BIT);
-    RTRT_CHECK_VK(vkCreateComputePipelines(GpuDevice->GetHandle(), {}, 1, &CpCreateInfo,
-                                           nullptr, &DenoisePipeline));
+    DenoisePipeline.CreateCompute(GpuDevice->GetHandle(), CpCreateInfo);
 }
 
 void Renderer::Denoise()
@@ -91,11 +84,11 @@ void Renderer::Denoise()
 
         // Select the compute shader, and its descriptor set and push constant
         vkCmdBindPipeline(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_COMPUTE,
-                          DenoisePipeline);
+                          DenoisePipeline.GetHandle());
         vkCmdBindDescriptorSets(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_COMPUTE,
-                                DenoiseCompPipelineLayout, 0, 1,
+                                DenoiseCompPipelineLayout.GetHandle(), 0, 1,
                                 &DenoiseDesc.Set.GetHandle(), 0, nullptr);
-        vkCmdPushConstants(FrameCmd.GetHandle(), DenoiseCompPipelineLayout,
+        vkCmdPushConstants(FrameCmd.GetHandle(), DenoiseCompPipelineLayout.GetHandle(),
                            VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantDenoise),
                            &PcDenoise);
 

@@ -45,8 +45,8 @@ void Renderer::DestroyPostResources()
     ScImageBuffer.Destroy();
     PostDesc.Destroy();
 
-    vkDestroyPipelineLayout(GpuDevice->GetHandle(), PostPipelineLayout, nullptr);
-    vkDestroyPipeline(GpuDevice->GetHandle(), PostPipeline, nullptr);
+    PostPipelineLayout.Destroy();
+    PostPipeline.Destroy();
 }
 
 void Renderer::DestroySceneResources()
@@ -74,8 +74,8 @@ void Renderer::DestroyScanlineResources()
     vkDestroyRenderPass(GpuDevice->GetHandle(), ScanlineRenderPass, nullptr);
     vkDestroyFramebuffer(GpuDevice->GetHandle(), ScanlineFramebuffer, nullptr);
     ScDesc.Destroy();
-    vkDestroyPipelineLayout(GpuDevice->GetHandle(), ScanlinePipelineLayout, nullptr);
-    vkDestroyPipeline(GpuDevice->GetHandle(), ScanlinePipeline, nullptr);
+    ScanlinePipelineLayout.Destroy();
+    ScanlinePipeline.Destroy();
 }
 
 void Renderer::DestroyRaytracingResources()
@@ -83,8 +83,8 @@ void Renderer::DestroyRaytracingResources()
     RtColCurrBuffer.Destroy();
     RtBuilder.Destroy();
     RtDesc.Destroy();
-    vkDestroyPipelineLayout(GpuDevice->GetHandle(), RtPipelineLayout, nullptr);
-    vkDestroyPipeline(GpuDevice->GetHandle(), RtPipeline, nullptr);
+    RtPipelineLayout.Destroy();
+    RtPipeline.Destroy();
     ShaderBindingTableBw.Destroy();
 
     // History buffers
@@ -99,8 +99,8 @@ void Renderer::DestroyDenoiseResources()
 {
     DenoiseBuffer.Destroy();
     DenoiseDesc.Destroy();
-    vkDestroyPipelineLayout(GpuDevice->GetHandle(), DenoiseCompPipelineLayout, nullptr);
-    vkDestroyPipeline(GpuDevice->GetHandle(), DenoisePipeline, nullptr);
+    DenoiseCompPipelineLayout.Destroy();
+    DenoisePipeline.Destroy();
 }
 
 bool Renderer::RecreateSizedResources()
@@ -153,10 +153,10 @@ void Renderer::DestroySizedResources()
     RtKdPrevBuffer.Destroy();
     DenoiseBuffer.Destroy();
 
-    vkDestroyPipeline(GpuDevice->GetHandle(), PostPipeline, nullptr);
-    vkDestroyPipelineLayout(GpuDevice->GetHandle(), PostPipelineLayout, nullptr);
-    vkDestroyPipeline(GpuDevice->GetHandle(), ScanlinePipeline, nullptr);
-    vkDestroyPipelineLayout(GpuDevice->GetHandle(), ScanlinePipelineLayout, nullptr);
+    PostPipeline.Destroy();
+    PostPipelineLayout.Destroy();
+    ScanlinePipeline.Destroy();
+    ScanlinePipelineLayout.Destroy();
 }
 
 void Renderer::WriteSizedDescriptors()
@@ -311,18 +311,10 @@ void Renderer::CreatePostFrameBuffers()
 
 void Renderer::CreatePostPipeline()
 {
-    // Creating the pipeline layout
-    VkPipelineLayoutCreateInfo CreateInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-    CreateInfo.setLayoutCount = 1;
-    CreateInfo.pSetLayouts = &PostDesc.Layout.GetHandle();
-
     VkPushConstantRange PushConstant{VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                                      sizeof(PushConstantPost)};
-    CreateInfo.pushConstantRangeCount = 1;
-    CreateInfo.pPushConstantRanges = &PushConstant;
-
-    RTRT_CHECK_VK(vkCreatePipelineLayout(GpuDevice->GetHandle(), &CreateInfo, nullptr,
-                                         &PostPipelineLayout));
+    PostPipelineLayout.Create(GpuDevice->GetHandle(), {PostDesc.Layout.GetHandle()},
+                              {PushConstant});
 
     // No geometry in this pipeline's draw.
     VkPipelineVertexInputStateCreateInfo VertexInputInfo{};
@@ -334,11 +326,11 @@ void Renderer::CreatePostPipeline()
 
     const GraphicsShaders Shaders{"spv/post.vert.spv", "spv/post.vert.slang.spv",
                                   "spv/post.frag.spv", "spv/post.frag.slang.spv"};
-    PostPipeline = CreateGraphicsPipeline(Shaders, VertexInputInfo, PostPipelineLayout,
-                                          PostRenderPass);
+    PostPipeline = CreateGraphicsPipeline(Shaders, VertexInputInfo,
+                                          PostPipelineLayout.GetHandle(), PostRenderPass);
 }
 
-VkPipeline Renderer::CreateGraphicsPipeline(
+Pipeline Renderer::CreateGraphicsPipeline(
     const GraphicsShaders& Shaders,
     const VkPipelineVertexInputStateCreateInfo& VertexInput, VkPipelineLayout Layout,
     VkRenderPass RenderPass)
@@ -378,10 +370,9 @@ VkPipeline Renderer::CreateGraphicsPipeline(
     PipelineInfo.subpass = 0;
     PipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-    VkPipeline Pipeline = VK_NULL_HANDLE;
-    RTRT_CHECK_VK(vkCreateGraphicsPipelines(GpuDevice->GetHandle(), VK_NULL_HANDLE, 1,
-                                            &PipelineInfo, nullptr, &Pipeline));
-    return Pipeline;
+    Pipeline Result;
+    Result.CreateGraphics(GpuDevice->GetHandle(), PipelineInfo);
+    return Result;
 }
 
 Renderer::FixedFunctionState Renderer::MakeFixedFunctionState() const
@@ -452,23 +443,23 @@ void Renderer::SetShaderLanguage(bool UseSlangShaders)
     // The last frame may still be using the old pipelines
     RTRT_CHECK_VK(vkDeviceWaitIdle(GpuDevice->GetHandle()));
 
-    vkDestroyPipeline(GpuDevice->GetHandle(), PostPipeline, nullptr);
-    vkDestroyPipelineLayout(GpuDevice->GetHandle(), PostPipelineLayout, nullptr);
+    PostPipeline.Destroy();
+    PostPipelineLayout.Destroy();
     CreatePostPipeline();
 
-    vkDestroyPipeline(GpuDevice->GetHandle(), ScanlinePipeline, nullptr);
-    vkDestroyPipelineLayout(GpuDevice->GetHandle(), ScanlinePipelineLayout, nullptr);
+    ScanlinePipeline.Destroy();
+    ScanlinePipelineLayout.Destroy();
     CreateScPipeline();
 
     // The SBT holds group handles of the old pipeline, so it is rebuilt with it
     ShaderBindingTableBw.Destroy();
-    vkDestroyPipeline(GpuDevice->GetHandle(), RtPipeline, nullptr);
-    vkDestroyPipelineLayout(GpuDevice->GetHandle(), RtPipelineLayout, nullptr);
+    RtPipeline.Destroy();
+    RtPipelineLayout.Destroy();
     CreateRtPipeline();
     CreateRtShaderBindingTable();
 
-    vkDestroyPipeline(GpuDevice->GetHandle(), DenoisePipeline, nullptr);
-    vkDestroyPipelineLayout(GpuDevice->GetHandle(), DenoiseCompPipelineLayout, nullptr);
+    DenoisePipeline.Destroy();
+    DenoiseCompPipelineLayout.Destroy();
     CreateDenoiseCompPipeline();
 }
 
@@ -494,10 +485,10 @@ void Renderer::PostProcess()
         auto AspectRatio = static_cast<float>(MainSwapchain->GetExtent().width) /
                            static_cast<float>(MainSwapchain->GetExtent().height);
         vkCmdBindPipeline(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          PostPipeline);
+                          PostPipeline.GetHandle());
         vkCmdBindDescriptorSets(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                PostPipelineLayout, 0, 1, &PostDesc.Set.GetHandle(), 0,
-                                nullptr);
+                                PostPipelineLayout.GetHandle(), 0, 1,
+                                &PostDesc.Set.GetHandle(), 0, nullptr);
 
         // The rasterizer has no G-buffer images, so the debug views only apply to the ray
         // tracer.
@@ -505,7 +496,7 @@ void Renderer::PostProcess()
             Settings.Exposure, Settings.Gamma,
             static_cast<uint32_t>(Settings.UseRaytracer ? Settings.ViewMode
                                                         : kViewFinal)};
-        vkCmdPushConstants(FrameCmd.GetHandle(), PostPipelineLayout,
+        vkCmdPushConstants(FrameCmd.GetHandle(), PostPipelineLayout.GetHandle(),
                            VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstantPost),
                            &PcPost);
 
