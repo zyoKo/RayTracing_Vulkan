@@ -13,7 +13,7 @@ A real-time path tracer written in C++ on Vulkan's hardware ray tracing pipeline
   - Walter et al., [Microfacet Models for Refraction through Rough Surfaces](https://www.cs.cornell.edu/~srm/publications/EGSR07-btdf.pdf) (EGSR 2007)
   - Heitz, [Sampling the GGX Distribution of Visible Normals](https://jcgt.org/published/0007/04/01/) (JCGT 2018)
 - **Temporal history.** Each pixel is reprojected into the previous frame using the previous camera matrix, and its color is blended with the four surrounding history pixels by bilinear weight. A history pixel is only used if its normal and depth match the current pixel, so history doesn't leak across edges or through disocclusions. Each pixel keeps a running average with its sample count, and an optional cap on that count keeps the image responsive to changes.
-- **À-Trous denoiser.** Based on Dammertz et al., [Edge-Avoiding À-Trous Wavelet Transform for fast Global Illumination Filtering](https://jo.dreggn.org/home/2010_atrous.pdf) (HPG 2010). Runs as a compute shader over several passes, with edge stops on depth, normal and albedo. Lighting is divided by albedo before filtering and multiplied back afterwards, so textures stay sharp.
+- **À-Trous denoiser.** Based on Dammertz et al., [Edge-Avoiding À-Trous Wavelet Transform for fast Global Illumination Filtering](https://jo.dreggn.org/home/2010_atrous.pdf) (HPG 2010). Runs as a compute shader over several passes, with edge stops on depth, normal, albedo and colour. Lighting is divided by albedo before filtering and multiplied back afterwards, so textures stay sharp. Light sources are left out of the filter, and outlier pixels are clamped to their neighbours' range before the first pass.
 - **Rasterizer.** A standard scanline renderer of the same scene, for comparison.
 - **Post-processing.** Exposure and gamma, plus debug views for albedo, normals, depth and per-pixel sample count.
 - **Window resizing.** The swapchain and every window-sized image, framebuffer and pipeline are rebuilt when the window changes size, and a minimized window pauses until it is restored.
@@ -41,6 +41,15 @@ A real-time path tracer written in C++ on Vulkan's hardware ray tracing pipeline
 | Rasterizer | Path tracing, no denoiser | Path tracing with denoiser |
 |---|---|---|
 | ![Scanline](images/Scanline.png) | ![Path tracing with noise](images/RayTracing_With_Noise.png) | ![Path tracing with denoiser](images/RayTracing_With_Denoiser.png) |
+
+### Denoiser: before and after the window fix
+
+The emissive window panes used to leak into the walls around them, and the wide filter passes spread the brightest samples into square blotches. The denoiser now leaves light sources out of the filter, weights neighbours by colour as well as depth, normal and albedo, and clamps outlier pixels before the first pass.
+
+| Before | After |
+|---|---|
+| ![Denoiser before the fix](images/Denoiser_Before.png) | ![Denoiser after the fix](images/RayTracing_With_Denoiser.png) |
+| ![Window area before the fix](images/Denoiser_Before_Window.png) | ![Window area after the fix](images/Denoiser_After_Window.png) |
 
 ## Requirements
 

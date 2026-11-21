@@ -191,6 +191,7 @@ void rayGenMain()
     float firstDepth = 0.0f;
     float3 firstNrm = float3(0.0f);
     float3 firstKd = float3(0.0f);
+    bool firstEmissive = false;
 
     // Paths end by Russian roulette below; pcRay.Depth is only an upper limit on their length.
     for (int i = 0; i < pcRay.Depth; ++i)
@@ -252,6 +253,8 @@ void rayGenMain()
 
         if (dot(mat.Emission, mat.Emission) > 0.0f)
         {
+            if (i == 0)
+                firstEmissive = true;
             C += mat.Emission * pcRay.EmissionScale * W;
             break;
         }
@@ -352,7 +355,7 @@ void rayGenMain()
     }
 
     colCurr.Store(pixel, float4(newAve, newN));
-    KdCurr.Store(pixel, float4(firstKd, 0.0f));
+    KdCurr.Store(pixel, float4(firstKd, firstEmissive ? 1.0f : 0.0f));
     NdCurr.Store(pixel, float4(firstNrm, firstDepth));
 }
 

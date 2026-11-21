@@ -14,6 +14,16 @@ namespace
 // Must match local_size_x in denoise.comp
 constexpr uint32_t kGroupSize = 128;
 
+void CmdMemoryBarrier(VkCommandBuffer Cmd, VkPipelineStageFlags SrcStage,
+                      VkAccessFlags SrcAccess, VkPipelineStageFlags DstStage,
+                      VkAccessFlags DstAccess)
+{
+    VkMemoryBarrier Barrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+    Barrier.srcAccessMask = SrcAccess;
+    Barrier.dstAccessMask = DstAccess;
+    vkCmdPipelineBarrier(Cmd, SrcStage, DstStage, 0, 1, &Barrier, 0, nullptr, 0, nullptr);
+}
+
 }  // namespace
 
 void DenoisePass::Create(const PassContext& Context, const Image& Color,
@@ -63,27 +73,22 @@ void DenoisePass::Destroy()
 void DenoisePass::Record(VkCommandBuffer Cmd, const PassContext& Context,
                          const Image& Color, int Iterations)
 {
-    // Wait for RT to finish
-    VkImageSubresourceRange Range{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-    VkImageMemoryBarrier ImgMemBarrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
-    ImgMemBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-    ImgMemBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    ImgMemBarrier.image = Color.GetHandle();
-    ImgMemBarrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-    ImgMemBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-    ImgMemBarrier.subresourceRange = Range;
-
-    vkCmdPipelineBarrier(
-        Cmd, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-        VK_DEPENDENCY_DEVICE_GROUP_BIT, 0, nullptr, 0, nullptr, 1, &ImgMemBarrier);
+    // Color was last written by the ray tracing pass's copy
+    CmdMemoryBarrier(Cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+                     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                     VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT);
 
     // A-trous wavelet denoise
+    PushConstantDenoise PassConstants = Constants;
     int Stepwidth = 1;
     for (int A = 0; A < Iterations; A++)
     {
         // Tell the A-Trous algorithm its "hole" size
-        Constants.StepWidth = Stepwidth;
+        PassConstants.StepWidth = Stepwidth;
         Stepwidth *= 2;
+
+        // The colour tolerance halves each pass, as the image gets smoother
+        PassConstants.ColorFactor = Constants.ColorFactor / static_cast<float>(1 << A);
 
         // Select the compute shader, and its descriptor set and push constant
         vkCmdBindPipeline(Cmd, VK_PIPELINE_BIND_POINT_COMPUTE,
@@ -92,22 +97,25 @@ void DenoisePass::Record(VkCommandBuffer Cmd, const PassContext& Context,
                                 FilterLayout.GetHandle(), 0, 1, &Desc.Set.GetHandle(), 0,
                                 nullptr);
         vkCmdPushConstants(Cmd, FilterLayout.GetHandle(), VK_SHADER_STAGE_COMPUTE_BIT, 0,
-                           sizeof(PushConstantDenoise), &Constants);
+                           sizeof(PushConstantDenoise), &PassConstants);
 
         // One 128x1 workgroup per row segment
         vkCmdDispatch(Cmd,
                       (Context.Chain->GetExtent().width + kGroupSize - 1) / kGroupSize,
                       Context.Chain->GetExtent().height, 1);
 
-        // Wait until denoise shader is done writing to Output
-        ImgMemBarrier.image = Output.GetHandle();
-        vkCmdPipelineBarrier(Cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                             VK_DEPENDENCY_DEVICE_GROUP_BIT, 0, nullptr, 0, nullptr, 1,
-                             &ImgMemBarrier);
+        CmdMemoryBarrier(Cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                         VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT);
 
         // Feed this pass's output back in as the next pass's input
         CmdCopyImage(Cmd, Output, Color, Context.Chain->GetExtent());
+
+        // The next pass, or the post pass, reads Color
+        CmdMemoryBarrier(
+            Cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT);
     }
 }
 

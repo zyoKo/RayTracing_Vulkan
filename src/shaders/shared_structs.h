@@ -162,6 +162,8 @@ struct PushConstantDenoise
     float DepthFactor;
     int   StepWidth;
     float AlbedoFactor;
+    float ColorFactor;
+    int   ClampFireflies;
 };
 
 // Push constant structure for the post-processing pass

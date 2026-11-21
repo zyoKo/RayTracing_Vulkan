@@ -74,6 +74,7 @@ void main()
     float firstDepth = 0.0f;
     vec3 firstNrm = vec3(0.0f);
     vec3 firstKd = vec3(0.0f);
+    bool firstEmissive = false;
 
     // Loop through ray-by-ray along a path. Paths end by Russian roulette below;
     // pcRay.Depth is only an upper limit on their length.
@@ -157,6 +158,8 @@ void main()
 
         if (dot(mat.Emission, mat.Emission) > 0.0f)
         {
+            if (i == 0)
+                firstEmissive = true;
             C += mat.Emission * pcRay.EmissionScale * W;
             break;
         }
@@ -264,7 +267,7 @@ void main()
     }
 
     imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy), vec4(newAve, newN));
-    imageStore(KdCurr,  ivec2(gl_LaunchIDEXT.xy), vec4(firstKd, 0.0f));
+    imageStore(KdCurr,  ivec2(gl_LaunchIDEXT.xy), vec4(firstKd, firstEmissive ? 1.0f : 0.0f));
     imageStore(NdCurr,  ivec2(gl_LaunchIDEXT.xy), vec4(firstNrm, firstDepth));
 }
 

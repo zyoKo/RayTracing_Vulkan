@@ -281,6 +281,13 @@ void Gui::DrawDenoiserSettings(Renderer& VK)
                        ImGuiSliderFlags_Logarithmic);
     ImGui::SliderFloat("Albedo factor", &Denoise.AlbedoFactor, 0.0f, 1.0f, "%.3f",
                        ImGuiSliderFlags_Logarithmic);
+    ImGui::SliderFloat("Color factor", &Denoise.ColorFactor, 0.0f, 2.0f, "%.3f",
+                       ImGuiSliderFlags_Logarithmic);
+    bool ClampFireflies = Denoise.ClampFireflies != 0;
+    if (ImGui::Checkbox("Clamp outliers", &ClampFireflies))
+    {
+        Denoise.ClampFireflies = ClampFireflies ? 1 : 0;
+    }
 }
 
 void Gui::DrawDisplaySettings(Renderer& VK)

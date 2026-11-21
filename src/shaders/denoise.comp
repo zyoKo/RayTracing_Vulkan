@@ -14,15 +14,78 @@ layout(set = 0, binding = 3, rgba32f) uniform image2D ndBuff;
 layout(push_constant) uniform _pcDenoise { PushConstantDenoise pc; };
 float gaussian[5] = float[5](1.0/16.0, 4.0/16.0, 6.0/16.0, 4.0/16.0, 1.0/16.0);
 
+float Luminance(vec3 c)
+{
+    return dot(c, vec3(0.2126, 0.7152, 0.0722));
+}
+
+// Luminance mapped to [0, 1) so a single very bright sample can't dominate the colour weight
+float CompressedLuminance(vec3 c)
+{
+    float l = Luminance(c);
+    return l / (1.0 + l);
+}
+
 void main()
 {
     ivec2 gpos = ivec2(gl_GlobalInvocationID.xy);  // Index of central pixel being denoised
     
     // Central pixel: albedo (clamped so demodulation stays stable), color,
     // demodulated color, normal and depth
-    vec3 cKd = clamp(imageLoad(kdBuff, gpos).xyz, vec3(0.1), vec3(1.0));
-    vec3 cVal = imageLoad(inImage, gpos).xyz;
+    vec4 cKdRaw = imageLoad(kdBuff, gpos);
+    vec4 cIn = imageLoad(inImage, gpos);
+    vec3 cVal = cIn.xyz;
+    float cSamples = cIn.w;
+
+    // Light sources (Kd.w = 1) are already noise free; filtering them would only spread them
+    if (cKdRaw.w > 0.5)
+    {
+        imageStore(outImage, gpos, vec4(cVal, cSamples));
+        return;
+    }
+
+    vec3 cKd = clamp(cKdRaw.xyz, vec3(0.1), vec3(1.0));
     vec3 cDem = cVal / cKd;
+
+    // Outlier clamp: on the first pass, keep the centre's luminance within the range of its
+    // 8 neighbours, which removes lone fireflies and lone black pixels
+    if (pc.ClampFireflies != 0 && pc.StepWidth == 1)
+    {
+        float maxLum = -1.0;
+        float minLum = 1e30;
+        vec3 minDem = vec3(0.0);
+        for (int i = -1; i <= 1; i++)
+        {
+            for (int j = -1; j <= 1; j++)
+            {
+                if (i == 0 && j == 0)
+                    continue;
+                ivec2 q = gpos + ivec2(i, j);
+                vec4 qKd = imageLoad(kdBuff, q);
+                if (qKd.w > 0.5)
+                    continue;
+                vec3 qDem = imageLoad(inImage, q).xyz / clamp(qKd.xyz, vec3(0.1), vec3(1.0));
+                float qLum = Luminance(qDem);
+                maxLum = max(maxLum, qLum);
+                if (qLum < minLum)
+                {
+                    minLum = qLum;
+                    minDem = qDem;
+                }
+            }
+        }
+        float lum = Luminance(cDem);
+        if (maxLum >= 0.0 && lum > maxLum)
+            cDem *= maxLum / lum;
+        else if (maxLum >= 0.0 && lum < minLum)
+            cDem = minDem;
+    }
+
+    // A pixel with few samples (just revealed by camera motion) is too noisy to trust its
+    // own colour, so the colour weight fades in as samples accumulate
+    float colorTrust = clamp(cSamples / 16.0, 0.0, 1.0);
+
+    float cLum = CompressedLuminance(cDem);
     vec3 cNrm = imageLoad(ndBuff, gpos).xyz;
     float cDepth = imageLoad(ndBuff, gpos).w;
     
@@ -35,9 +98,14 @@ void main()
             ivec2 offset = ivec2(i,j) * pc.StepWidth; // Offset of 5x5 pixels **with holes**
             // The same values for the offset pixel
             ivec2 total_offset = gpos + offset;
-            vec3 pKd = clamp(imageLoad(kdBuff, total_offset).xyz, vec3(0.1), vec3(1.0));
+            vec4 pKdRaw = imageLoad(kdBuff, total_offset);
+            if (pKdRaw.w > 0.5)
+                continue;
+            vec3 pKd = clamp(pKdRaw.xyz, vec3(0.1), vec3(1.0));
             vec3 pVal = imageLoad(inImage, total_offset).xyz;
             vec3 pDem = pVal / pKd;
+            if (i == 0 && j == 0)
+                pDem = cDem;
             vec3 pNrm = imageLoad(ndBuff, total_offset).xyz;
             float pDepth = imageLoad(ndBuff, total_offset).w;
 
@@ -64,7 +132,14 @@ void main()
             if (pc.AlbedoFactor == 0.0f)
                 k_weight = 1.0f;
 
-            float weight = h_weight * v_weight * d_weight * n_weight * k_weight;
+            //  6: colour similarity, exp(-l^2 / colorFactor) on compressed luminance (1 if factor is 0).
+            //     The factor halves each pass, so the wide passes don't smear noise into blocks.
+            float l = cLum - CompressedLuminance(pDem);
+            float c_weight = mix(1.0, exp(-(l * l) / pc.ColorFactor), colorTrust);
+            if (pc.ColorFactor == 0.0f)
+                c_weight = 1.0f;
+
+            float weight = h_weight * v_weight * d_weight * n_weight * k_weight * c_weight;
             numerator += pDem * weight;
             denominator += weight;
         }
@@ -74,5 +149,5 @@ void main()
     if (denominator == 0)
         outVal = cVal;
     
-    imageStore(outImage, gpos, vec4(outVal, 0));
+    imageStore(outImage, gpos, vec4(outVal, cSamples));
 }

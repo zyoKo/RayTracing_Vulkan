@@ -393,6 +393,8 @@ void Renderer::SetDefaultSettings()
     PcDenoise.NormFactor = 0.003f;
     PcDenoise.DepthFactor = 0.007f;
     PcDenoise.AlbedoFactor = 0.1f;
+    PcDenoise.ColorFactor = 0.5f;
+    PcDenoise.ClampFireflies = 1;
 
     Settings.ViewMode = kViewFinal;
     Settings.Exposure = 1.0f;
