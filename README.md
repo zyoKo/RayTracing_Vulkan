@@ -106,7 +106,11 @@ Formatting is set in `.clang-format`. Format the code with the clang-format that
 
 ## Changelog
 
-### Update 1 (2026-11-21): Denoiser fix around emissive windows
+### 1.1 Shaders compiled on first run ([8a1f3e4](https://github.com/zyoKo/RayTracing_Vulkan/commit/8a1f3e491f193cf058f76e618ba52ee504f5b3b7))
+
+The compiled SPIR-V files are no longer stored in the repository. `rtrt.exe` checks `src/spv/` when it starts and runs `src/compile_shaders.bat` to build any that are missing.
+
+### 1.0 Denoiser fix around emissive windows ([4f1e4f4](https://github.com/zyoKo/RayTracing_Vulkan/commit/4f1e4f4f785beb294b390b7b4065ccba910e563c))
 
 The emissive window panes used to leak into the walls around them, and the wide filter passes spread the brightest samples into square blotches. The denoiser now leaves light sources out of the filter, weights neighbours by colour as well as depth, normal and albedo, and clamps outlier pixels before the first pass.
 
