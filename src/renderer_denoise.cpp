@@ -16,7 +16,7 @@ constexpr uint32_t kGroupSize = 128;
 void Renderer::CreateDenoiseBuffer()
 {
     DenoiseBuffer = CreateBufferImage(MainSwapchain->GetExtent());
-    TransitionImageLayout(DenoiseBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    TransitionImageLayout(DenoiseBuffer.GetHandle(), VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 }
 
@@ -71,7 +71,7 @@ void Renderer::Denoise()
     VkImageMemoryBarrier ImgMemBarrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
     ImgMemBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
     ImgMemBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    ImgMemBarrier.image = ScImageBuffer.Image;
+    ImgMemBarrier.image = ScImageBuffer.GetHandle();
     ImgMemBarrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
     ImgMemBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
     ImgMemBarrier.subresourceRange = Range;
@@ -105,7 +105,7 @@ void Renderer::Denoise()
                       MainSwapchain->GetExtent().height, 1);
 
         // Wait until denoise shader is done writing to DenoiseBuffer
-        ImgMemBarrier.image = DenoiseBuffer.Image;
+        ImgMemBarrier.image = DenoiseBuffer.GetHandle();
         vkCmdPipelineBarrier(CommandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                              VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                              VK_DEPENDENCY_DEVICE_GROUP_BIT, 0, nullptr, 0, nullptr, 1,

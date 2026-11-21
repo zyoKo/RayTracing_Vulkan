@@ -10,12 +10,12 @@
 #include "acceleration_wrap.h"
 #include "core/window.h"
 #include "descriptor_wrap.h"
-#include "image_wrap.h"
 #include "scene/camera.h"
 #include "shaders/shared_structs.h"
 #include "vk/buffer.h"
 #include "vk/context.h"
 #include "vk/device.h"
+#include "vk/image.h"
 #include "vk/swapchain.h"
 #include "vk_check.h"
 
@@ -179,7 +179,7 @@ private:
     void CreateSwapchain();
     void CreateFrameFence();
 
-    ImageWrap DepthImage;
+    Image DepthImage;
     void CreateDepthResource();
 
     VkPipelineLayout PostPipelineLayout{VK_NULL_HANDLE};
@@ -230,7 +230,7 @@ private:
     void CreateScanlineRenderPass();
     void CreateScanlineFramebuffer();
 
-    ImageWrap ScImageBuffer{};
+    Image ScImageBuffer{};
     void CreateScBuffer();
 
     // Each destroys one part of the renderer during shutdown.
@@ -240,26 +240,26 @@ private:
     void DestroyRaytracingResources();
     void DestroyDenoiseResources();
 
-    ImageWrap RtColCurrBuffer{};
-    ImageWrap RtColPrevBuffer{};
+    Image RtColCurrBuffer{};
+    Image RtColPrevBuffer{};
 
-    ImageWrap RtKdCurrBuffer{};
-    ImageWrap RtKdPrevBuffer{};
+    Image RtKdCurrBuffer{};
+    Image RtKdPrevBuffer{};
 
-    ImageWrap RtNdCurrBuffer{};
-    ImageWrap RtNdPrevBuffer{};
+    Image RtNdCurrBuffer{};
+    Image RtNdPrevBuffer{};
 
     void CreateRtBuffers();
 
-    ImageWrap DenoiseBuffer{};
+    Image DenoiseBuffer{};
     void CreateDenoiseBuffer();
 
     // Arrays of objects instances and textures in the scene
-    std::vector<ObjData> ObjDataList{};    // Obj data in Vulkan Buffers
-    std::vector<ObjDesc> ObjDescList{};    // Device-addresses of those buffers
-    std::vector<ImageWrap> ObjTextures{};  // All textures of the scene
-    std::vector<ObjInst> ObjInstList{};    // Instances paring an object and a transform
-    Buffer LightBuff{};                    // Buffer of light list
+    std::vector<ObjData> ObjDataList{};  // Obj data in Vulkan Buffers
+    std::vector<ObjDesc> ObjDescList{};  // Device-addresses of those buffers
+    std::vector<Image> ObjTextures{};    // All textures of the scene
+    std::vector<ObjInst> ObjInstList{};  // Instances paring an object and a transform
+    Buffer LightBuff{};                  // Buffer of light list
     void MyLoadModel(const std::string& Filename, const glm::mat4& Transform);
 
     Buffer ObjDescriptionBw{};  // Device buffer of the OBJ descriptions
@@ -322,9 +322,9 @@ private:
     VkPipeline DenoisePipeline{};
     void CreateDenoiseCompPipeline();
 
-    void CmdCopyImage(ImageWrap& Src, ImageWrap& Dst);
+    void CmdCopyImage(Image& Src, Image& Dst);
 
-    void ImageLayoutBarrier(VkCommandBuffer Cmdbuffer, VkImage Image,
+    void ImageLayoutBarrier(VkCommandBuffer Cmdbuffer, VkImage TargetImage,
                             VkImageLayout OldImageLayout, VkImageLayout NewImageLayout,
                             VkImageAspectFlags AspectMask = VK_IMAGE_ASPECT_COLOR_BIT);
     // Run loop
@@ -343,23 +343,20 @@ private:
 
     void CopyBuffer(VkBuffer SrcBuffer, VkBuffer DstBuffer, VkDeviceSize Size);
 
-    void TransitionImageLayout(VkImage Image, VkFormat Format, VkImageLayout OldLayout,
-                               VkImageLayout NewLayout, uint32_t MipLevels = 1);
-    void CopyBufferToImage(VkBuffer Buffer, VkImage Image, uint32_t Width,
+    void TransitionImageLayout(VkImage TargetImage, VkFormat Format,
+                               VkImageLayout OldLayout, VkImageLayout NewLayout,
+                               uint32_t MipLevels = 1);
+    void CopyBufferToImage(VkBuffer SourceBuffer, VkImage TargetImage, uint32_t Width,
                            uint32_t Height);
 
-    ImageWrap CreateTextureImage(const std::string& FileName);
-    ImageWrap CreateBufferImage(VkExtent2D Size);
+    Image CreateTextureImage(const std::string& FileName);
+    Image CreateBufferImage(VkExtent2D Size);
 
-    ImageWrap CreateImageWrap(uint32_t Width, uint32_t Height, VkFormat Format,
-                              VkImageUsageFlags Usage, VkMemoryPropertyFlags Properties,
-                              uint32_t MipLevels = 1);
+    Image CreateImage(uint32_t Width, uint32_t Height, VkFormat Format,
+                      VkImageUsageFlags Usage, VkMemoryPropertyFlags Properties,
+                      uint32_t MipLevels = 1);
 
-    VkImageView CreateImageView(VkImage Image, VkFormat Format,
-                                VkImageAspectFlagBits Aspect = VK_IMAGE_ASPECT_COLOR_BIT);
-    VkSampler CreateTextureSampler();
-
-    void GenerateMipmaps(VkImage Image, VkFormat ImageFormat, int32_t TexWidth,
+    void GenerateMipmaps(VkImage TargetImage, VkFormat ImageFormat, int32_t TexWidth,
                          int32_t TexHeight, uint32_t MipLevels);
 };
 

@@ -6,7 +6,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "image_wrap.h"
+#include "vk/image.h"
 
 namespace rtrt
 {
@@ -25,9 +25,9 @@ public:
     void Destroy(VkDevice Device);
 
     // Writes one binding of the set; the binding's type must match the data.
-    void Write(VkDevice Device, uint32_t Index, VkBuffer Buffer);
+    void Write(VkDevice Device, uint32_t Index, VkBuffer BufferHandle);
     void Write(VkDevice Device, uint32_t Index, const VkDescriptorImageInfo& TextureDesc);
-    void Write(VkDevice Device, uint32_t Index, const std::vector<ImageWrap>& Textures);
+    void Write(VkDevice Device, uint32_t Index, const std::vector<Image>& Textures);
     void Write(VkDevice Device, uint32_t Index, VkAccelerationStructureKHR Tlas);
 
     const VkDescriptorSetLayout& GetLayout() const

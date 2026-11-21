@@ -18,27 +18,27 @@ void Renderer::CreateRtBuffers()
 {
     // Note: This will grow to create more than the single buffer RtColCurrBuffer.
     RtColCurrBuffer = CreateBufferImage(MainSwapchain->GetExtent());
-    TransitionImageLayout(RtColCurrBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    TransitionImageLayout(RtColCurrBuffer.GetHandle(), VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 
     RtColPrevBuffer = CreateBufferImage(MainSwapchain->GetExtent());
-    TransitionImageLayout(RtColPrevBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    TransitionImageLayout(RtColPrevBuffer.GetHandle(), VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 
     RtNdCurrBuffer = CreateBufferImage(MainSwapchain->GetExtent());
-    TransitionImageLayout(RtNdCurrBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    TransitionImageLayout(RtNdCurrBuffer.GetHandle(), VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 
     RtNdPrevBuffer = CreateBufferImage(MainSwapchain->GetExtent());
-    TransitionImageLayout(RtNdPrevBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    TransitionImageLayout(RtNdPrevBuffer.GetHandle(), VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 
     RtKdCurrBuffer = CreateBufferImage(MainSwapchain->GetExtent());
-    TransitionImageLayout(RtKdCurrBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    TransitionImageLayout(RtKdCurrBuffer.GetHandle(), VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 
     RtKdPrevBuffer = CreateBufferImage(MainSwapchain->GetExtent());
-    TransitionImageLayout(RtKdPrevBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
+    TransitionImageLayout(RtKdPrevBuffer.GetHandle(), VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 }
 
@@ -368,7 +368,7 @@ void Renderer::WriteSbtHandles(const Buffer& Staging, VkDeviceSize SbtSize,
     Staging.Unmap();
 }
 
-void Renderer::CmdCopyImage(ImageWrap& Src, ImageWrap& Dst)
+void Renderer::CmdCopyImage(Image& Src, Image& Dst)
 {
     VkImageCopy ImageCopyRegion{};
     ImageCopyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -379,18 +379,19 @@ void Renderer::CmdCopyImage(ImageWrap& Src, ImageWrap& Dst)
     ImageCopyRegion.extent.height = MainSwapchain->GetExtent().height;
     ImageCopyRegion.extent.depth = 1;
 
-    ImageLayoutBarrier(CommandBuffer, Src.Image, VK_IMAGE_LAYOUT_GENERAL,
+    ImageLayoutBarrier(CommandBuffer, Src.GetHandle(), VK_IMAGE_LAYOUT_GENERAL,
                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    ImageLayoutBarrier(CommandBuffer, Dst.Image, VK_IMAGE_LAYOUT_GENERAL,
+    ImageLayoutBarrier(CommandBuffer, Dst.GetHandle(), VK_IMAGE_LAYOUT_GENERAL,
                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-    vkCmdCopyImage(CommandBuffer, Src.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                   Dst.Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &ImageCopyRegion);
+    vkCmdCopyImage(CommandBuffer, Src.GetHandle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                   Dst.GetHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+                   &ImageCopyRegion);
 
-    ImageLayoutBarrier(CommandBuffer, Src.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                       VK_IMAGE_LAYOUT_GENERAL);
-    ImageLayoutBarrier(CommandBuffer, Dst.Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                       VK_IMAGE_LAYOUT_GENERAL);
+    ImageLayoutBarrier(CommandBuffer, Src.GetHandle(),
+                       VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+    ImageLayoutBarrier(CommandBuffer, Dst.GetHandle(),
+                       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 }
 
 void Renderer::Raytrace()

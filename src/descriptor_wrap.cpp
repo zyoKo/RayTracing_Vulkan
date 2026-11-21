@@ -80,9 +80,9 @@ void DescriptorWrap::Destroy(VkDevice Device)
     vkDestroyDescriptorPool(Device, DescPool, nullptr);
 }
 
-void DescriptorWrap::Write(VkDevice Device, uint32_t Index, VkBuffer Buffer)
+void DescriptorWrap::Write(VkDevice Device, uint32_t Index, VkBuffer BufferHandle)
 {
-    VkDescriptorBufferInfo DesBuf{Buffer, 0, VK_WHOLE_SIZE};
+    VkDescriptorBufferInfo DesBuf{BufferHandle, 0, VK_WHOLE_SIZE};
     VkWriteDescriptorSet WriteSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     WriteSet.dstSet = DescSet;
     WriteSet.dstBinding = Index;
@@ -124,7 +124,7 @@ void DescriptorWrap::Write(VkDevice Device, uint32_t Index,
 }
 
 void DescriptorWrap::Write(VkDevice Device, uint32_t Index,
-                           const std::vector<ImageWrap>& Textures)
+                           const std::vector<Image>& Textures)
 {
     std::vector<VkDescriptorImageInfo> Des;
     for (auto& Texture : Textures)

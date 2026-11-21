@@ -19,6 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\vk\sampler.cpp" />
+    <ClCompile Include="..\src\vk\image.cpp" />
     <ClCompile Include="..\src\vk\buffer.cpp" />
     <ClCompile Include="..\src\main.cpp" />
     <ClCompile Include="..\src\core\application.cpp" />
@@ -187,6 +189,8 @@ cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangVali
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\vk\sampler.h" />
+    <ClInclude Include="..\src\vk\image.h" />
     <ClInclude Include="..\src\vk\buffer.h" />
     <ClInclude Include="..\src\core\application.h" />
     <ClInclude Include="..\src\vk\swapchain.h" />
@@ -198,7 +202,6 @@ cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangVali
     <ClInclude Include="..\src\core\window.h" />
     <ClInclude Include="..\src\descriptor_wrap.h" />
     <ClInclude Include="..\src\extensions_vk.hpp" />
-    <ClInclude Include="..\src\image_wrap.h" />
     <ClInclude Include="..\src\vk_check.h" />
     <ClInclude Include="..\src\renderer.h" />
     <ClInclude Include="..\src\acceleration_wrap.h" />

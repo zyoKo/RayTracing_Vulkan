@@ -67,7 +67,7 @@ VkPipelineStageFlags PipelineStageForLayout(VkImageLayout Layout)
 
 }  // namespace
 
-void Renderer::ImageLayoutBarrier(VkCommandBuffer Cmdbuffer, VkImage Image,
+void Renderer::ImageLayoutBarrier(VkCommandBuffer Cmdbuffer, VkImage TargetImage,
                                   VkImageLayout OldImageLayout,
                                   VkImageLayout NewImageLayout,
                                   VkImageAspectFlags AspectMask)
@@ -82,7 +82,7 @@ void Renderer::ImageLayoutBarrier(VkCommandBuffer Cmdbuffer, VkImage Image,
     VkImageMemoryBarrier ImageMemoryBarrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
     ImageMemoryBarrier.oldLayout = OldImageLayout;
     ImageMemoryBarrier.newLayout = NewImageLayout;
-    ImageMemoryBarrier.image = Image;
+    ImageMemoryBarrier.image = TargetImage;
     ImageMemoryBarrier.subresourceRange = SubresourceRange;
     ImageMemoryBarrier.srcAccessMask = AccessFlagsForImageLayout(OldImageLayout);
     ImageMemoryBarrier.dstAccessMask = AccessFlagsForImageLayout(NewImageLayout);
@@ -95,7 +95,7 @@ void Renderer::ImageLayoutBarrier(VkCommandBuffer Cmdbuffer, VkImage Image,
                          nullptr, 1, &ImageMemoryBarrier);
 }
 
-ImageWrap Renderer::CreateTextureImage(const std::string& FileName)
+Image Renderer::CreateTextureImage(const std::string& FileName)
 {
     // VkImage& textureImage, VkDeviceMemory& textureImageMemory
     int TexWidth, TexHeight, TexChannels;
@@ -123,27 +123,27 @@ ImageWrap Renderer::CreateTextureImage(const std::string& FileName)
     uint32_t MipLevels =
         static_cast<uint32_t>(std::floor(std::log2(std::max(TexWidth, TexHeight)))) + 1;
 
-    ImageWrap MyImage =
-        CreateImageWrap(TexWidth, TexHeight, VK_FORMAT_R8G8B8A8_UNORM,
-                        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
-                            VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MipLevels);
+    Image MyImage =
+        CreateImage(TexWidth, TexHeight, VK_FORMAT_R8G8B8A8_UNORM,
+                    VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
+                        VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MipLevels);
 
-    TransitionImageLayout(MyImage.Image, VK_FORMAT_R8G8B8A8_UNORM,
+    TransitionImageLayout(MyImage.GetHandle(), VK_FORMAT_R8G8B8A8_UNORM,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                           MipLevels);
 
-    CopyBufferToImage(Staging.GetHandle(), MyImage.Image, static_cast<uint32_t>(TexWidth),
-                      static_cast<uint32_t>(TexHeight));
+    CopyBufferToImage(Staging.GetHandle(), MyImage.GetHandle(),
+                      static_cast<uint32_t>(TexWidth), static_cast<uint32_t>(TexHeight));
 
     Staging.Destroy();
 
-    GenerateMipmaps(MyImage.Image, VK_FORMAT_R8G8B8A8_UNORM, TexWidth, TexHeight,
+    GenerateMipmaps(MyImage.GetHandle(), VK_FORMAT_R8G8B8A8_UNORM, TexWidth, TexHeight,
                     MipLevels);
 
-    MyImage.ImageView = CreateImageView(MyImage.Image, VK_FORMAT_R8G8B8A8_UNORM);
-    MyImage.Sampler = CreateTextureSampler();
-    MyImage.ImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    MyImage.CreateView(VK_FORMAT_R8G8B8A8_UNORM);
+    MyImage.CreateSampler(*GpuDevice);
+    MyImage.SetLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     return MyImage;
 }
 
@@ -152,8 +152,9 @@ namespace
 
 // Blits mip level Level - 1 (MipWidth x MipHeight) down into level Level, then moves
 // level Level - 1 to the shader-read layout.
-void BlitMipLevel(VkCommandBuffer CmdBuffer, VkImage Image, VkImageMemoryBarrier& Barrier,
-                  uint32_t Level, int32_t MipWidth, int32_t MipHeight)
+void BlitMipLevel(VkCommandBuffer CmdBuffer, VkImage TargetImage,
+                  VkImageMemoryBarrier& Barrier, uint32_t Level, int32_t MipWidth,
+                  int32_t MipHeight)
 {
     Barrier.subresourceRange.baseMipLevel = Level - 1;
     Barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
@@ -180,8 +181,9 @@ void BlitMipLevel(VkCommandBuffer CmdBuffer, VkImage Image, VkImageMemoryBarrier
     Blit.dstSubresource.baseArrayLayer = 0;
     Blit.dstSubresource.layerCount = 1;
 
-    vkCmdBlitImage(CmdBuffer, Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Image,
-                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &Blit, VK_FILTER_LINEAR);
+    vkCmdBlitImage(CmdBuffer, TargetImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                   TargetImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &Blit,
+                   VK_FILTER_LINEAR);
 
     Barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
     Barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -195,8 +197,8 @@ void BlitMipLevel(VkCommandBuffer CmdBuffer, VkImage Image, VkImageMemoryBarrier
 
 }  // namespace
 
-void Renderer::GenerateMipmaps(VkImage Image, VkFormat ImageFormat, int32_t TexWidth,
-                               int32_t TexHeight, uint32_t MipLevels)
+void Renderer::GenerateMipmaps(VkImage TargetImage, VkFormat ImageFormat,
+                               int32_t TexWidth, int32_t TexHeight, uint32_t MipLevels)
 {
     // Check if image format supports linear blitting
     VkFormatProperties FormatProperties;
@@ -212,7 +214,7 @@ void Renderer::GenerateMipmaps(VkImage Image, VkFormat ImageFormat, int32_t TexW
     VkCommandBuffer TempCmdBuffer = CreateTempCmdBuffer();
 
     VkImageMemoryBarrier Barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
-    Barrier.image = Image;
+    Barrier.image = TargetImage;
     Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -225,7 +227,7 @@ void Renderer::GenerateMipmaps(VkImage Image, VkFormat ImageFormat, int32_t TexW
 
     for (uint32_t I = 1; I < MipLevels; I++)
     {
-        BlitMipLevel(TempCmdBuffer, Image, Barrier, I, MipWidth, MipHeight);
+        BlitMipLevel(TempCmdBuffer, TargetImage, Barrier, I, MipWidth, MipHeight);
 
         if (MipWidth > 1)
         {
@@ -289,8 +291,8 @@ void Renderer::CopyBuffer(VkBuffer SrcBuffer, VkBuffer DstBuffer, VkDeviceSize S
     SubmitTempCmdBuffer(TempCmdBuffer);
 }
 
-void Renderer::CopyBufferToImage(VkBuffer Buffer, VkImage Image, uint32_t Width,
-                                 uint32_t Height)
+void Renderer::CopyBufferToImage(VkBuffer SourceBuffer, VkImage TargetImage,
+                                 uint32_t Width, uint32_t Height)
 {
     VkCommandBuffer TempCmdBuffer = CreateTempCmdBuffer();
 
@@ -305,13 +307,13 @@ void Renderer::CopyBufferToImage(VkBuffer Buffer, VkImage Image, uint32_t Width,
     Region.imageOffset = {0, 0, 0};
     Region.imageExtent = {Width, Height, 1};
 
-    vkCmdCopyBufferToImage(TempCmdBuffer, Buffer, Image,
+    vkCmdCopyBufferToImage(TempCmdBuffer, SourceBuffer, TargetImage,
                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &Region);
 
     SubmitTempCmdBuffer(TempCmdBuffer);
 }
 
-void Renderer::TransitionImageLayout(VkImage Image, VkFormat Format,
+void Renderer::TransitionImageLayout(VkImage TargetImage, VkFormat Format,
                                      VkImageLayout OldLayout, VkImageLayout NewLayout,
                                      uint32_t MipLevels)
 {
@@ -322,7 +324,7 @@ void Renderer::TransitionImageLayout(VkImage Image, VkFormat Format,
     Barrier.newLayout = NewLayout;
     Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    Barrier.image = Image;
+    Barrier.image = TargetImage;
     Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     Barrier.subresourceRange.baseMipLevel = 0;
     Barrier.subresourceRange.levelCount = MipLevels;
@@ -340,31 +342,6 @@ void Renderer::TransitionImageLayout(VkImage Image, VkFormat Format,
     SubmitTempCmdBuffer(TempCmdBuffer);
 }
 
-VkSampler Renderer::CreateTextureSampler()
-{
-    VkPhysicalDeviceProperties Properties{};
-    vkGetPhysicalDeviceProperties(GpuDevice->GetPhysical(), &Properties);
-
-    VkSamplerCreateInfo SamplerInfo{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
-    SamplerInfo.magFilter = VK_FILTER_LINEAR;
-    SamplerInfo.minFilter = VK_FILTER_LINEAR;
-    SamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    SamplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    SamplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    SamplerInfo.anisotropyEnable = VK_TRUE;
-    SamplerInfo.maxAnisotropy = Properties.limits.maxSamplerAnisotropy;
-    SamplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    SamplerInfo.unnormalizedCoordinates = VK_FALSE;
-    SamplerInfo.compareEnable = VK_FALSE;
-    SamplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-    SamplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-
-    VkSampler TextureSampler;
-    RTRT_CHECK_VK(
-        vkCreateSampler(GpuDevice->GetHandle(), &SamplerInfo, nullptr, &TextureSampler));
-    return TextureSampler;
-}
-
 void Renderer::CreatePostDescriptor()
 {
     PostDesc.SetBindings(GpuDevice->GetHandle(),
@@ -378,25 +355,25 @@ void Renderer::CreateScBuffer()
     ScImageBuffer = CreateBufferImage(MainSwapchain->GetExtent());
 
     VkCommandBuffer CmdBuf = CreateTempCmdBuffer();
-    ImageLayoutBarrier(CmdBuf, ScImageBuffer.Image, VK_IMAGE_LAYOUT_UNDEFINED,
+    ImageLayoutBarrier(CmdBuf, ScImageBuffer.GetHandle(), VK_IMAGE_LAYOUT_UNDEFINED,
                        VK_IMAGE_LAYOUT_GENERAL);
     SubmitTempCmdBuffer(CmdBuf);
 }
 
-ImageWrap Renderer::CreateBufferImage(VkExtent2D Size)
+Image Renderer::CreateBufferImage(VkExtent2D Size)
 {
     uint32_t MipLevels = 1;
 
-    ImageWrap MyImage =
-        CreateImageWrap(Size.width, Size.height, VK_FORMAT_R32G32B32A32_SFLOAT,
-                        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
-                            VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT |
-                            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MipLevels);
+    Image MyImage =
+        CreateImage(Size.width, Size.height, VK_FORMAT_R32G32B32A32_SFLOAT,
+                    VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
+                        VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT |
+                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MipLevels);
 
-    MyImage.ImageView = CreateImageView(MyImage.Image, VK_FORMAT_R32G32B32A32_SFLOAT);
-    MyImage.Sampler = CreateTextureSampler();
-    MyImage.ImageLayout = VK_IMAGE_LAYOUT_GENERAL;
+    MyImage.CreateView(VK_FORMAT_R32G32B32A32_SFLOAT);
+    MyImage.CreateSampler(*GpuDevice);
+    MyImage.SetLayout(VK_IMAGE_LAYOUT_GENERAL);
     return MyImage;
 }
 
@@ -468,8 +445,8 @@ void Renderer::CreateScanlineRenderPass()
 
 void Renderer::CreateScanlineFramebuffer()
 {
-    std::vector<VkImageView> Attachments = {ScImageBuffer.ImageView,
-                                            DepthImage.ImageView};
+    std::vector<VkImageView> Attachments = {ScImageBuffer.GetView(),
+                                            DepthImage.GetView()};
 
     VkFramebufferCreateInfo Info{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
     Info.renderPass = ScanlineRenderPass;

@@ -40,7 +40,7 @@ void Renderer::DestroyAllVulkanResources()
 
 void Renderer::DestroyPostResources()
 {
-    DepthImage.Destroy(GpuDevice->GetHandle());
+    DepthImage.Destroy();
     vkDestroyRenderPass(GpuDevice->GetHandle(), PostRenderPass, nullptr);
 
     for (auto& Framebuffer : Framebuffers)
@@ -48,7 +48,7 @@ void Renderer::DestroyPostResources()
         vkDestroyFramebuffer(GpuDevice->GetHandle(), Framebuffer, nullptr);
     }
 
-    ScImageBuffer.Destroy(GpuDevice->GetHandle());
+    ScImageBuffer.Destroy();
     PostDesc.Destroy(GpuDevice->GetHandle());
 
     vkDestroyPipelineLayout(GpuDevice->GetHandle(), PostPipelineLayout, nullptr);
@@ -57,9 +57,9 @@ void Renderer::DestroyPostResources()
 
 void Renderer::DestroySceneResources()
 {
-    for (auto T : ObjTextures)
+    for (auto& T : ObjTextures)
     {
-        T.Destroy(GpuDevice->GetHandle());
+        T.Destroy();
     }
     // ObjDescList only holds device addresses; the buffers themselves live in
     // ObjDataList.
@@ -86,7 +86,7 @@ void Renderer::DestroyScanlineResources()
 
 void Renderer::DestroyRaytracingResources()
 {
-    RtColCurrBuffer.Destroy(GpuDevice->GetHandle());
+    RtColCurrBuffer.Destroy();
     RtBuilder.Destroy();
     RtDesc.Destroy(GpuDevice->GetHandle());
     vkDestroyPipelineLayout(GpuDevice->GetHandle(), RtPipelineLayout, nullptr);
@@ -94,16 +94,16 @@ void Renderer::DestroyRaytracingResources()
     ShaderBindingTableBw.Destroy();
 
     // History buffers
-    RtColPrevBuffer.Destroy(GpuDevice->GetHandle());
-    RtNdCurrBuffer.Destroy(GpuDevice->GetHandle());
-    RtNdPrevBuffer.Destroy(GpuDevice->GetHandle());
-    RtKdCurrBuffer.Destroy(GpuDevice->GetHandle());
-    RtKdPrevBuffer.Destroy(GpuDevice->GetHandle());
+    RtColPrevBuffer.Destroy();
+    RtNdCurrBuffer.Destroy();
+    RtNdPrevBuffer.Destroy();
+    RtKdCurrBuffer.Destroy();
+    RtKdPrevBuffer.Destroy();
 }
 
 void Renderer::DestroyDenoiseResources()
 {
-    DenoiseBuffer.Destroy(GpuDevice->GetHandle());
+    DenoiseBuffer.Destroy();
     DenoiseDesc.Destroy(GpuDevice->GetHandle());
     vkDestroyPipelineLayout(GpuDevice->GetHandle(), DenoiseCompPipelineLayout, nullptr);
     vkDestroyPipeline(GpuDevice->GetHandle(), DenoisePipeline, nullptr);
@@ -147,17 +147,17 @@ void Renderer::DestroySizedResources()
     }
     Framebuffers.clear();
     vkDestroyFramebuffer(GpuDevice->GetHandle(), ScanlineFramebuffer, nullptr);
-    DepthImage.Destroy(GpuDevice->GetHandle());
+    DepthImage.Destroy();
     MainSwapchain->Destroy();
 
-    ScImageBuffer.Destroy(GpuDevice->GetHandle());
-    RtColCurrBuffer.Destroy(GpuDevice->GetHandle());
-    RtColPrevBuffer.Destroy(GpuDevice->GetHandle());
-    RtNdCurrBuffer.Destroy(GpuDevice->GetHandle());
-    RtNdPrevBuffer.Destroy(GpuDevice->GetHandle());
-    RtKdCurrBuffer.Destroy(GpuDevice->GetHandle());
-    RtKdPrevBuffer.Destroy(GpuDevice->GetHandle());
-    DenoiseBuffer.Destroy(GpuDevice->GetHandle());
+    ScImageBuffer.Destroy();
+    RtColCurrBuffer.Destroy();
+    RtColPrevBuffer.Destroy();
+    RtNdCurrBuffer.Destroy();
+    RtNdPrevBuffer.Destroy();
+    RtKdCurrBuffer.Destroy();
+    RtKdPrevBuffer.Destroy();
+    DenoiseBuffer.Destroy();
 
     vkDestroyPipeline(GpuDevice->GetHandle(), PostPipeline, nullptr);
     vkDestroyPipelineLayout(GpuDevice->GetHandle(), PostPipelineLayout, nullptr);
@@ -227,14 +227,11 @@ void Renderer::CreateDepthResource()
 {
     uint32_t MipLevels = 1;
 
-    // Note DepthImage is type ImageWrap; a tiny wrapper around
-    // several related Vulkan objects.
-    DepthImage = CreateImageWrap(
+    DepthImage = CreateImage(
         MainSwapchain->GetExtent().width, MainSwapchain->GetExtent().height,
         VK_FORMAT_X8_D24_UNORM_PACK32, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MipLevels);
-    DepthImage.ImageView = CreateImageView(
-        DepthImage.Image, VK_FORMAT_X8_D24_UNORM_PACK32, VK_IMAGE_ASPECT_DEPTH_BIT);
+    DepthImage.CreateView(VK_FORMAT_X8_D24_UNORM_PACK32, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
 // Gets a list of memory types supported by the GPU, and search
@@ -246,66 +243,13 @@ void Renderer::CreateDepthResource()
 //
 // (2) VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT:
 // for memory visible to the CPU  for CPU to GPU copy operations.
-ImageWrap Renderer::CreateImageWrap(uint32_t Width, uint32_t Height, VkFormat Format,
-                                    VkImageUsageFlags Usage,
-                                    VkMemoryPropertyFlags Properties, uint32_t MipLevels)
+Image Renderer::CreateImage(uint32_t Width, uint32_t Height, VkFormat Format,
+                            VkImageUsageFlags Usage, VkMemoryPropertyFlags Properties,
+                            uint32_t MipLevels)
 {
-    ImageWrap MyImage;
-
-    VkImageCreateInfo ImageInfo{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
-    ImageInfo.imageType = VK_IMAGE_TYPE_2D;
-    ImageInfo.extent.width = Width;
-    ImageInfo.extent.height = Height;
-    ImageInfo.extent.depth = 1;
-    ImageInfo.mipLevels = MipLevels;
-    ImageInfo.arrayLayers = 1;
-    ImageInfo.format = Format;
-    ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    ImageInfo.usage = Usage;
-    ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    RTRT_CHECK_VK(
-        vkCreateImage(GpuDevice->GetHandle(), &ImageInfo, nullptr, &MyImage.Image));
-
-    VkMemoryRequirements MemRequirements;
-    vkGetImageMemoryRequirements(GpuDevice->GetHandle(), MyImage.Image, &MemRequirements);
-
-    VkMemoryAllocateInfo AllocInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-    AllocInfo.allocationSize = MemRequirements.size;
-    AllocInfo.memoryTypeIndex =
-        GpuDevice->FindMemoryType(MemRequirements.memoryTypeBits, Properties);
-
-    RTRT_CHECK_VK(
-        vkAllocateMemory(GpuDevice->GetHandle(), &AllocInfo, nullptr, &MyImage.Memory));
-
-    RTRT_CHECK_VK(
-        vkBindImageMemory(GpuDevice->GetHandle(), MyImage.Image, MyImage.Memory, 0));
-
-    MyImage.ImageView = VK_NULL_HANDLE;
-    MyImage.Sampler = VK_NULL_HANDLE;
-
-    return MyImage;
-}
-
-VkImageView Renderer::CreateImageView(VkImage Image, VkFormat Format,
-                                      VkImageAspectFlagBits Aspect)
-{
-    VkImageViewCreateInfo ViewInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
-    ViewInfo.image = Image;
-    ViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    ViewInfo.format = Format;
-    ViewInfo.subresourceRange.aspectMask = Aspect;
-    ViewInfo.subresourceRange.baseMipLevel = 0;
-    ViewInfo.subresourceRange.levelCount = 1;
-    ViewInfo.subresourceRange.baseArrayLayer = 0;
-    ViewInfo.subresourceRange.layerCount = 1;
-
-    VkImageView ImageView;
-    RTRT_CHECK_VK(
-        vkCreateImageView(GpuDevice->GetHandle(), &ViewInfo, nullptr, &ImageView));
-    return ImageView;
+    Image Result;
+    Result.Create(*GpuDevice, Width, Height, Format, Usage, Properties, MipLevels);
+    return Result;
 }
 
 void Renderer::CreatePostRenderPass()
@@ -381,7 +325,7 @@ void Renderer::CreatePostFrameBuffers()
     {
         // A color attachment from the swap chain
         Fbattachments[0] = MainSwapchain->GetView(I);
-        Fbattachments[1] = DepthImage.ImageView;  // A depth attachment
+        Fbattachments[1] = DepthImage.GetView();  // A depth attachment
         RTRT_CHECK_VK(vkCreateFramebuffer(GpuDevice->GetHandle(), &FramebufferInfo,
                                           nullptr, &Framebuffers[I]));
     }
