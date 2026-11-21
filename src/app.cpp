@@ -24,6 +24,8 @@ namespace
 constexpr int kWidth = 10 * 128;
 constexpr int kHeight = 6 * 128;
 constexpr char kProject[] = "rtrt";
+constexpr float kSettingsWidth = 340.0f;
+constexpr float kSettingsMinWidth = 260.0f;
 
 void StatRow(const FrameStats& Stats, const char* Label, const float* Values)
 {
@@ -113,7 +115,7 @@ void App::RecordFrameTimes(float FrameMs, float CpuMs, float DrawMs, float GpuWa
 
 void App::DrawPerfWindow()
 {
-    ImGui::SetNextWindowPos(ImVec2(360, 10), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(420, 330), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Performance", &ShowPerf))
     {
@@ -159,9 +161,16 @@ void App::DrawPerfWindow()
 
 void App::DrawSettingsWindow(Renderer& VK)
 {
-    ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(340, 700), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Settings (F1 to hide)", &ShowGui))
+    // Pinned to the right edge at full height; only the width can change.
+    const ImVec2 Display = ImGui::GetIO().DisplaySize;
+    ImGui::SetNextWindowPos(ImVec2(Display.x, 0.0f), ImGuiCond_Always,
+                            ImVec2(1.0f, 0.0f));
+    ImGui::SetNextWindowSize(ImVec2(kSettingsWidth, Display.y), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(
+        ImVec2(kSettingsMinWidth, Display.y),
+        ImVec2(std::max(Display.x * 0.5f, kSettingsMinWidth), Display.y));
+    if (!ImGui::Begin("Settings (F1 to hide)", &ShowGui,
+                      ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse))
     {
         ImGui::End();
         return;
