@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\renderer\denoise_pass.cpp" />
     <ClCompile Include="..\src\renderer\render_image.cpp" />
     <ClCompile Include="..\src\renderer\ray_trace_pass.cpp" />
     <ClCompile Include="..\src\renderer\scanline_pass.cpp" />
@@ -55,7 +56,6 @@
     <ClCompile Include="..\src\scene\camera.cpp" />
     <ClCompile Include="..\src\scene\camera_controller.cpp" />
     <ClCompile Include="..\src\extensions_vk.cpp" />
-    <ClCompile Include="..\src\renderer_denoise.cpp" />
     <ClCompile Include="..\src\renderer_setup.cpp" />
     <ClCompile Include="..\src\renderer_raytracing.cpp" />
     <ClCompile Include="..\src\renderer_scanline.cpp" />
@@ -208,6 +208,7 @@ cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangVali
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\renderer\denoise_pass.h" />
     <ClInclude Include="..\src\renderer\render_image.h" />
     <ClInclude Include="..\src\renderer\ray_trace_pass.h" />
     <ClInclude Include="..\src\renderer\scanline_pass.h" />

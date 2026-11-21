@@ -26,6 +26,7 @@ void Renderer::SetDefaultSettings()
 
     Settings.DenoiseEnabled = true;
     Settings.NumAtrousIterations = 5;
+    PushConstantDenoise& PcDenoise = Denoiser.GetConstants();
     PcDenoise.NormFactor = 0.003f;
     PcDenoise.DepthFactor = 0.007f;
     PcDenoise.AlbedoFactor = 0.1f;

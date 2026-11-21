@@ -48,9 +48,8 @@ bool Renderer::Init(Window& Target, Context& Instance, Device& Gpu, Swapchain& C
     RayTrace.Create(PassCtx, SceneAccel.GetAccelerationStructure(),
                     ScDesc.Layout.GetHandle());
 
-    CreateDenoiseBuffer();
-    CreateDenoiseDescriptorSet();
-    CreateDenoiseCompPipeline();
+    Denoiser.Create(PassCtx, ScImageBuffer, RayTrace.GetAlbedo(),
+                    RayTrace.GetNormalDepth());
     return true;
 }
 
@@ -76,7 +75,8 @@ void Renderer::DrawFrame()
             FrameCount++;
             if (Settings.DenoiseEnabled && Settings.ViewMode == kViewFinal)
             {
-                Denoise();
+                Denoiser.Record(FrameCmd.GetHandle(), PassCtx, ScImageBuffer,
+                                Settings.NumAtrousIterations);
             }
         }
         else

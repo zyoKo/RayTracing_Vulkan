@@ -59,10 +59,7 @@ void Renderer::DestroyRaytracingResources()
 
 void Renderer::DestroyDenoiseResources()
 {
-    DenoiseBuffer.Destroy();
-    DenoiseDesc.Destroy();
-    DenoiseCompPipelineLayout.Destroy();
-    DenoisePipeline.Destroy();
+    Denoiser.Destroy();
 }
 
 bool Renderer::RecreateSizedResources()
@@ -83,9 +80,8 @@ bool Renderer::RecreateSizedResources()
     Post.OnResize(PassCtx, ScImageBuffer, DepthImage);
     Scanline.OnResize(PassCtx, ScImageBuffer, DepthImage, ScDesc.Layout.GetHandle());
     RayTrace.OnResize(PassCtx);
-    CreateDenoiseBuffer();
-
-    WriteSizedDescriptors();
+    Denoiser.OnResize(PassCtx, ScImageBuffer, RayTrace.GetAlbedo(),
+                      RayTrace.GetNormalDepth());
 
     ResetRtAccumulation();
     return true;
@@ -100,15 +96,7 @@ void Renderer::DestroySizedResources()
 
     ScImageBuffer.Destroy();
     RayTrace.ReleaseSized();
-    DenoiseBuffer.Destroy();
-}
-
-void Renderer::WriteSizedDescriptors()
-{
-    DenoiseDesc.Set.Write(0, ScImageBuffer.Descriptor());
-    DenoiseDesc.Set.Write(1, DenoiseBuffer.Descriptor());
-    DenoiseDesc.Set.Write(2, RayTrace.GetAlbedo().Descriptor());
-    DenoiseDesc.Set.Write(3, RayTrace.GetNormalDepth().Descriptor());
+    Denoiser.ReleaseSized();
 }
 
 // Create a command pool, used to allocate command buffers, which in
@@ -172,9 +160,7 @@ void Renderer::SetShaderLanguage(bool UseSlangShaders)
 
     RayTrace.RebuildPipeline(PassCtx, ScDesc.Layout.GetHandle());
 
-    DenoisePipeline.Destroy();
-    DenoiseCompPipelineLayout.Destroy();
-    CreateDenoiseCompPipeline();
+    Denoiser.RebuildPipeline(PassCtx);
 }
 
 }  // namespace rtrt

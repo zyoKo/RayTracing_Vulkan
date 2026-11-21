@@ -8,6 +8,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "core/window.h"
+#include "renderer/denoise_pass.h"
 #include "renderer/graphics_pipeline.h"
 #include "renderer/pass_context.h"
 #include "renderer/post_pass.h"
@@ -90,7 +91,7 @@ public:
 
     PushConstantDenoise& GetDenoiseConstants()
     {
-        return PcDenoise;
+        return Denoiser.GetConstants();
     }
 
     // Frames rendered since the history was last reset.
@@ -126,6 +127,7 @@ private:
     PostPass Post;
     ScanlinePass Scanline;
     RayTracePass RayTrace;
+    DenoisePass Denoiser;
 
     RenderSettings Settings;
     // Frames rendered since the history was last reset
@@ -141,7 +143,6 @@ private:
     bool RecreateSizedResources();
     // Everything that depends on the window size.
     void DestroySizedResources();
-    void WriteSizedDescriptors();
 
     // Vulkan objects that will be created and the functions that will do the creation.
 
@@ -169,9 +170,6 @@ private:
     void DestroyRaytracingResources();
     void DestroyDenoiseResources();
 
-    Image DenoiseBuffer{};
-    void CreateDenoiseBuffer();
-
     Scene MainScene;
 
     DescriptorBundle ScDesc;
@@ -181,25 +179,16 @@ private:
     void CreateMatrixBuffer();
 
     AccelerationStructure SceneAccel;
-    PushConstantDenoise PcDenoise{};
     void InitRayTracing();
 
     BlasInput ObjectToVkGeometryKhr(const Mesh& Model);
     void CreateRtAccelerationStructure();
-
-    DescriptorBundle DenoiseDesc;
-    void CreateDenoiseDescriptorSet();
-
-    PipelineLayout DenoiseCompPipelineLayout;
-    Pipeline DenoisePipeline;
-    void CreateDenoiseCompPipeline();
 
     // Run loop
     bool PrepareFrame();
 
     glm::mat4 PriorViewProj{};
     void UpdateCameraBuffer();
-    void Denoise();
 
     void SubmitFrame();
 };
