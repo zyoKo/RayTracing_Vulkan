@@ -4,8 +4,6 @@
 #include <vector>
 
 #include <GLFW/glfw3.h>
-#include <backends/imgui_impl_glfw.h>
-#include <backends/imgui_impl_vulkan.h>
 #include <glm/glm.hpp>
 #include <imgui.h>
 
@@ -32,8 +30,6 @@ bool Renderer::Init(Window& Target, Context& Instance, Device& Gpu, Swapchain& C
     CreateDepthResource();
     CreateScBuffer();
     Post.Create(PassCtx, ScImageBuffer, DepthImage);
-
-    InitGui();
 
     MainScene.LoadModel(*GpuDevice, MainCmdPool, "models/living_room/living_room.obj",
                         glm::mat4(1.0f));
@@ -162,48 +158,6 @@ void Renderer::SubmitFrame()
     {
         CheckVkResult(Result, "vkQueuePresentKHR", __FILE__, __LINE__);
     }
-}
-
-void Renderer::InitGui()
-{
-    uint32_t SubpassID = 0;
-
-    // UI
-    ImGui::CreateContext();
-    ImGuiIO& Io = ImGui::GetIO();
-    Io.LogFilename = nullptr;
-    Io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
-
-    ImguiDescPool.Create(
-        GpuDevice->GetHandle(),
-        {{VK_DESCRIPTOR_TYPE_SAMPLER, 1}, {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}},
-        2);
-
-    // Setup Platform/Renderer back ends
-    ImGui_ImplVulkan_InitInfo InitInfo = {};
-    InitInfo.Instance = GpuContext->GetInstance();
-    InitInfo.PhysicalDevice = GpuDevice->GetPhysical();
-    InitInfo.Device = GpuDevice->GetHandle();
-    InitInfo.QueueFamily = GpuDevice->GetQueueFamily();
-    InitInfo.Queue = GpuDevice->GetQueue();
-    InitInfo.PipelineCache = VK_NULL_HANDLE;
-    InitInfo.DescriptorPool = ImguiDescPool.GetHandle();
-    InitInfo.Subpass = SubpassID;
-    InitInfo.MinImageCount = 2;
-    InitInfo.ImageCount = MainSwapchain->GetImageCount();
-    InitInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-    InitInfo.CheckVkResultFn = nullptr;
-    InitInfo.Allocator = nullptr;
-
-    ImGui_ImplVulkan_Init(&InitInfo, Post.GetRenderPass());
-
-    // Upload Fonts
-    VkCommandBuffer Cmdbuf = MainCmdPool.BeginSingleUse();
-    ImGui_ImplVulkan_CreateFontsTexture(Cmdbuf);
-    MainCmdPool.EndSingleUse(Cmdbuf);
-    ImGui_ImplVulkan_DestroyFontUploadObjects();  // Staging buffer is no longer needed
-
-    ImGui_ImplGlfw_InitForVulkan(MainWindow->GetHandle(), true);
 }
 
 }  // namespace rtrt

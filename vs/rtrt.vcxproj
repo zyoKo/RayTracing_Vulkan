@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\ui\gui.cpp" />
     <ClCompile Include="..\src\renderer\denoise_pass.cpp" />
     <ClCompile Include="..\src\renderer\render_image.cpp" />
     <ClCompile Include="..\src\renderer\ray_trace_pass.cpp" />
@@ -208,6 +209,7 @@ cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangVali
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\ui\gui.h" />
     <ClInclude Include="..\src\renderer\denoise_pass.h" />
     <ClInclude Include="..\src\renderer\render_image.h" />
     <ClInclude Include="..\src\renderer\ray_trace_pass.h" />

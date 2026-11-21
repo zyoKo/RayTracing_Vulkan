@@ -105,6 +105,12 @@ public:
         return UseSlang;
     }
 
+    // The render pass the UI is drawn in.
+    VkRenderPass GetUiRenderPass() const
+    {
+        return Post.GetRenderPass();
+    }
+
     // Time blocked on the previous frame's fence.
     double GetGpuWaitMs() const
     {
@@ -156,9 +162,6 @@ private:
 
     Image DepthImage;
     void CreateDepthResource();
-
-    DescriptorPool ImguiDescPool;
-    void InitGui();
 
     Image ScImageBuffer{};
     void CreateScBuffer();

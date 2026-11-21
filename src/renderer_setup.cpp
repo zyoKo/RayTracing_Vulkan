@@ -2,10 +2,6 @@
 
 #include <array>
 
-#include <backends/imgui_impl_glfw.h>
-#include <backends/imgui_impl_vulkan.h>
-#include <imgui.h>
-
 #include "vk_check.h"
 
 namespace rtrt
@@ -14,12 +10,6 @@ namespace rtrt
 void Renderer::DestroyAllVulkanResources()
 {
     RTRT_CHECK_VK(vkDeviceWaitIdle(GpuDevice->GetHandle()));
-
-    // All objects created on Device must be destroyed before Device.
-    ImGui_ImplVulkan_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-    ImguiDescPool.Destroy();
 
     MainSwapchain->Destroy();
     FrameFence.Destroy();

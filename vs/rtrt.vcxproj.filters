@@ -1,6 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <ClCompile Include="..\src\ui\gui.cpp">
+      <Filter>Source Files\ui</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\renderer\denoise_pass.cpp">
       <Filter>Source Files\renderer</Filter>
     </ClCompile>
@@ -173,6 +176,12 @@
     <Filter Include="Header Files\renderer">
       <UniqueIdentifier>{cdddf3cd-a8ac-4a04-9917-526035f8629e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\ui">
+      <UniqueIdentifier>{d638f82e-e701-4828-8452-e12bc472821f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\ui">
+      <UniqueIdentifier>{71c346e7-0af2-4754-ba22-2cc7d4c65328}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Shader Files">
       <UniqueIdentifier>{26802777-62b4-47ec-a051-4ee8e4be1a67}</UniqueIdentifier>
     </Filter>
@@ -181,6 +190,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\ui\gui.h">
+      <Filter>Header Files\ui</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\renderer\denoise_pass.h">
       <Filter>Header Files\renderer</Filter>
     </ClInclude>
