@@ -8,7 +8,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "core/window.h"
-#include "renderer.h"
+#include "renderer/renderer.h"
 #include "scene/camera.h"
 #include "scene/camera_controller.h"
 #include "vk/context.h"

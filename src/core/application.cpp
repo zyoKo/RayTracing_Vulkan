@@ -5,7 +5,7 @@
 
 #include <GLFW/glfw3.h>
 
-#include "renderer.h"
+#include "renderer/renderer.h"
 
 namespace rtrt
 {

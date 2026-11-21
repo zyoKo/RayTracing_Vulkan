@@ -2,7 +2,7 @@
 #define RTRT_SRC_CORE_APPLICATION_H_
 
 #include "core/window.h"
-#include "renderer.h"
+#include "renderer/renderer.h"
 #include "scene/camera.h"
 #include "scene/camera_controller.h"
 #include "ui/gui.h"

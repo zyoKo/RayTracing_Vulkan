@@ -1,22 +1,16 @@
-#ifndef RTRT_SRC_RENDERER_H_
-#define RTRT_SRC_RENDERER_H_
-
-#include <string>
-#include <vector>
+#ifndef RTRT_SRC_RENDERER_RENDERER_H_
+#define RTRT_SRC_RENDERER_RENDERER_H_
 
 #include <glm/glm.hpp>
 #include <vulkan/vulkan_core.h>
 
 #include "core/window.h"
 #include "renderer/denoise_pass.h"
-#include "renderer/graphics_pipeline.h"
 #include "renderer/pass_context.h"
 #include "renderer/post_pass.h"
 #include "renderer/ray_trace_pass.h"
-#include "renderer/render_image.h"
 #include "renderer/scanline_pass.h"
 #include "rt/acceleration_structure.h"
-#include "rt/shader_binding_table.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "shaders/shared_structs.h"
@@ -25,15 +19,9 @@
 #include "vk/command_pool.h"
 #include "vk/context.h"
 #include "vk/descriptor_builder.h"
-#include "vk/descriptor_pool.h"
 #include "vk/device.h"
 #include "vk/fence.h"
-#include "vk/framebuffer.h"
 #include "vk/image.h"
-#include "vk/pipeline.h"
-#include "vk/pipeline_layout.h"
-#include "vk/render_pass.h"
-#include "vk/shader.h"
 #include "vk/swapchain.h"
 #include "vk_check.h"
 
@@ -51,8 +39,8 @@ struct RenderSettings
     float Gamma = 2.2f;
 };
 
-// Owns the Vulkan device and every resource used to draw the scene with the
-// rasterizer or the path tracer, the denoiser and the final post pass.
+// Draws each frame: owns the scene, the passes (rasterizer or path tracer, denoiser,
+// post) and the images they share, and records, submits and presents.
 class Renderer
 {
 public:
@@ -150,8 +138,6 @@ private:
     // Everything that depends on the window size.
     void DestroySizedResources();
 
-    // Vulkan objects that will be created and the functions that will do the creation.
-
     CommandPool MainCmdPool;
     CommandBuffer FrameCmd;
     void CreateCommandPool();
@@ -165,13 +151,6 @@ private:
 
     Image ScImageBuffer{};
     void CreateScBuffer();
-
-    // Each destroys one part of the renderer during shutdown.
-    void DestroyPostResources();
-    void DestroySceneResources();
-    void DestroyScanlineResources();
-    void DestroyRaytracingResources();
-    void DestroyDenoiseResources();
 
     Scene MainScene;
 
@@ -187,7 +166,6 @@ private:
     BlasInput ObjectToVkGeometryKhr(const Mesh& Model);
     void CreateRtAccelerationStructure();
 
-    // Run loop
     bool PrepareFrame();
 
     glm::mat4 PriorViewProj{};
@@ -198,4 +176,4 @@ private:
 
 }  // namespace rtrt
 
-#endif  // RTRT_SRC_RENDERER_H_
+#endif  // RTRT_SRC_RENDERER_RENDERER_H_
