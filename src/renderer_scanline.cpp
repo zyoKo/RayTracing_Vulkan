@@ -1,17 +1,9 @@
 #include "renderer.h"
 
-#include <algorithm>
 #include <array>
-#include <cmath>
-#include <cstring>
-#include <string>
 #include <vector>
 
-#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
-
-#define STBI_FAILURE_USERMSG
-#include <stb_image.h>
 
 #include "shaders/shared_structs.h"
 #include "vk_check.h"
@@ -95,81 +87,12 @@ void Renderer::ImageLayoutBarrier(VkCommandBuffer Cmdbuffer, VkImage TargetImage
                          nullptr, 1, &ImageMemoryBarrier);
 }
 
-Image Renderer::CreateTextureImage(const std::string& FileName)
-{
-    // VkImage& textureImage, VkDeviceMemory& textureImageMemory
-    int TexWidth, TexHeight, TexChannels;
-
-    stbi_set_flip_vertically_on_load(true);
-    stbi_uc* Pixels =
-        stbi_load(FileName.c_str(), &TexWidth, &TexHeight, &TexChannels, STBI_rgb_alpha);
-    VkDeviceSize ImageSize = TexWidth * TexHeight * 4;
-
-    if (!Pixels)
-    {
-        RTRT_FATAL("Failed to load texture %s: %s", FileName.c_str(),
-                   stbi_failure_reason());
-    }
-
-    Buffer Staging = CreateBuffer(
-        ImageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-    memcpy(Staging.Map(ImageSize), Pixels, static_cast<size_t>(ImageSize));
-    Staging.Unmap();
-
-    stbi_image_free(Pixels);
-
-    uint32_t MipLevels =
-        static_cast<uint32_t>(std::floor(std::log2(std::max(TexWidth, TexHeight)))) + 1;
-
-    Image MyImage =
-        CreateImage(TexWidth, TexHeight, VK_FORMAT_R8G8B8A8_UNORM,
-                    VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
-                        VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MipLevels);
-
-    MyImage.TransitionLayout(MainCmdPool, VK_IMAGE_LAYOUT_UNDEFINED,
-                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, MipLevels);
-
-    MyImage.CopyFrom(MainCmdPool, Staging.GetHandle(), static_cast<uint32_t>(TexWidth),
-                     static_cast<uint32_t>(TexHeight));
-
-    Staging.Destroy();
-
-    MyImage.GenerateMipmaps(*GpuDevice, MainCmdPool, VK_FORMAT_R8G8B8A8_UNORM, TexWidth,
-                            TexHeight, MipLevels);
-
-    MyImage.CreateView(VK_FORMAT_R8G8B8A8_UNORM);
-    MyImage.CreateSampler(*GpuDevice);
-    MyImage.SetLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    return MyImage;
-}
-
-namespace
-{
-
-// Blits mip level Level - 1 (MipWidth x MipHeight) down into level Level, then moves
-// level Level - 1 to the shader-read layout.
-}  // namespace
-
 Buffer Renderer::CreateStagedBuffer(VkCommandBuffer CmdBuf, VkDeviceSize Size,
                                     const void* Data, VkBufferUsageFlags Usage)
 {
-    Buffer Staging = CreateBuffer(
-        Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-    memcpy(Staging.Map(Size), Data, Size);
-    Staging.Unmap();
-
-    Buffer Bw = CreateBuffer(Size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | Usage,
-                             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    CopyBuffer(Staging.GetHandle(), Bw.GetHandle(), Size);
-
-    Staging.Destroy();
-
-    return Bw;
+    Buffer Result;
+    Result.CreateWithData(*GpuDevice, MainCmdPool, Size, Data, Usage);
+    return Result;
 }
 
 Buffer Renderer::CreateBuffer(VkDeviceSize Size, VkBufferUsageFlags Usage,
@@ -300,7 +223,7 @@ void Renderer::CreateScanlineFramebuffer()
 
 void Renderer::CreateScDescriptorSet()
 {
-    auto NbTxt = static_cast<uint32_t>(ObjTextures.size());
+    auto NbTxt = static_cast<uint32_t>(MainScene.GetTextures().size());
 
     // In ScBindings order: kMatrices, kObjDescs, kTextures
     DescriptorBuilder()
@@ -312,8 +235,8 @@ void Renderer::CreateScDescriptorSet()
         .Build(GpuDevice->GetHandle(), ScDesc);
 
     ScDesc.Set.Write(ScBindings::kMatrices, MatrixBw.GetHandle());
-    ScDesc.Set.Write(ScBindings::kObjDescs, ObjDescriptionBw.GetHandle());
-    ScDesc.Set.Write(ScBindings::kTextures, ObjTextures);
+    ScDesc.Set.Write(ScBindings::kObjDescs, MainScene.GetDescriptionBuffer().GetHandle());
+    ScDesc.Set.Write(ScBindings::kTextures, MainScene.GetTextures());
 }
 
 void Renderer::CreateScPipeline()
@@ -362,14 +285,6 @@ void Renderer::CreateMatrixBuffer()
 // Create a Vulkan buffer containing pointers to all object buffers
 // (vertex, triangle indices, materials, and material indices. Will be
 // included in a descriptor set for use in shaders.
-void Renderer::CreateObjDescriptionBuffer()
-{
-    VkCommandBuffer CmdBuf = CreateTempCmdBuffer();
-    ObjDescriptionBw =
-        CreateStagedBuffer(CmdBuf, ObjDescList, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-    SubmitTempCmdBuffer(CmdBuf);
-}
-
 void Renderer::Rasterize()
 {
     VkDeviceSize Offset{0};
@@ -393,9 +308,9 @@ void Renderer::Rasterize()
                             ScanlinePipelineLayout.GetHandle(), 0, 1,
                             &ScDesc.Set.GetHandle(), 0, nullptr);
 
-    for (const ObjInst& Inst : ObjInstList)
+    for (const MeshInstance& Inst : MainScene.GetInstances())
     {
-        auto& Object = ObjDataList[Inst.ObjIndex];
+        const Mesh& Object = MainScene.GetMeshes()[Inst.ObjIndex];
 
         // Information pushed at each draw call
         PushConstantRaster PcRaster{

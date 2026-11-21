@@ -1,8 +1,11 @@
 #ifndef RTRT_SRC_VK_BUFFER_H_
 #define RTRT_SRC_VK_BUFFER_H_
 
+#include <vector>
+
 #include <vulkan/vulkan_core.h>
 
+#include "vk/command_pool.h"
 #include "vk/device.h"
 
 namespace rtrt
@@ -23,6 +26,17 @@ public:
     // Creates the buffer and binds memory that has all of Properties.
     void Create(const Device& Gpu, VkDeviceSize Size, VkBufferUsageFlags Usage,
                 VkMemoryPropertyFlags Properties);
+
+    // Creates a device-local buffer and fills it with Size bytes of Data through a
+    // staging buffer, waiting for the copy on Pool's queue.
+    void CreateWithData(const Device& Gpu, const CommandPool& Pool, VkDeviceSize Size,
+                        const void* Data, VkBufferUsageFlags Usage);
+    template <typename T>
+    void CreateWithData(const Device& Gpu, const CommandPool& Pool,
+                        const std::vector<T>& Data, VkBufferUsageFlags Usage)
+    {
+        CreateWithData(Gpu, Pool, sizeof(T) * Data.size(), Data.data(), Usage);
+    }
 
     // Frees the buffer and its memory. Safe to call on an empty buffer.
     void Destroy();

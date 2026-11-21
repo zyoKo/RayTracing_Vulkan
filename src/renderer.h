@@ -10,6 +10,7 @@
 #include "acceleration_wrap.h"
 #include "core/window.h"
 #include "scene/camera.h"
+#include "scene/scene.h"
 #include "shaders/shared_structs.h"
 #include "vk/buffer.h"
 #include "vk/command_buffer.h"
@@ -30,25 +31,6 @@
 
 namespace rtrt
 {
-
-// The OBJ model: Vulkan buffers of object data
-struct ObjData
-{
-    uint32_t NbIndices{0};
-    uint32_t NbVertices{0};
-    glm::mat4 Transform;    // Instance matrix of the object
-    Buffer VertexBuffer;    // Buffer of vertices
-    Buffer IndexBuffer;     // Buffer of triangle indices
-    Buffer MatColorBuffer;  // Buffer of materials
-    Buffer MatIndexBuffer;  // Buffer of each triangle's material index
-};
-
-// Pair each instance with its instance transform
-struct ObjInst
-{
-    glm::mat4 Transform;  // Matrix of the instance
-    uint32_t ObjIndex;    // Model index
-};
 
 // Settings the UI changes between frames.
 struct RenderSettings
@@ -259,16 +241,7 @@ private:
     Image DenoiseBuffer{};
     void CreateDenoiseBuffer();
 
-    // Arrays of objects instances and textures in the scene
-    std::vector<ObjData> ObjDataList{};  // Obj data in Vulkan Buffers
-    std::vector<ObjDesc> ObjDescList{};  // Device-addresses of those buffers
-    std::vector<Image> ObjTextures{};    // All textures of the scene
-    std::vector<ObjInst> ObjInstList{};  // Instances paring an object and a transform
-    Buffer LightBuff{};                  // Buffer of light list
-    void MyLoadModel(const std::string& Filename, const glm::mat4& Transform);
-
-    Buffer ObjDescriptionBw{};  // Device buffer of the OBJ descriptions
-    void CreateObjDescriptionBuffer();
+    Scene MainScene;
 
     DescriptorBundle ScDesc;
     void CreateScDescriptorSet();
@@ -282,7 +255,6 @@ private:
 
     RaytracingBuilder RtBuilder{};
     float MaxAnis = 0;
-    std::vector<Emitter> LightList;
     PushConstantRay PcRay{};  // Push constant for ray tracer
     PushConstantDenoise PcDenoise{};
     uint32_t HandleSize{};
@@ -290,7 +262,7 @@ private:
     uint32_t BaseAlignment{};
     void InitRayTracing();
 
-    BlasInput ObjectToVkGeometryKhr(const ObjData& Model);
+    BlasInput ObjectToVkGeometryKhr(const Mesh& Model);
     void CreateRtAccelerationStructure();
 
     DescriptorBundle RtDesc;
@@ -347,7 +319,6 @@ private:
 
     void CopyBuffer(VkBuffer SrcBuffer, VkBuffer DstBuffer, VkDeviceSize Size);
 
-    Image CreateTextureImage(const std::string& FileName);
     Image CreateBufferImage(VkExtent2D Size);
 
     Image CreateImage(uint32_t Width, uint32_t Height, VkFormat Format,

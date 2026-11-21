@@ -1,5 +1,6 @@
 #include "vk/buffer.h"
 
+#include <cstring>
 #include <utility>
 
 #include "vk_check.h"
@@ -58,6 +59,26 @@ void Buffer::Create(const Device& Gpu, VkDeviceSize Size, VkBufferUsageFlags Usa
     RTRT_CHECK_VK(vkAllocateMemory(DeviceHandle, &AllocInfo, nullptr, &Memory));
 
     RTRT_CHECK_VK(vkBindBufferMemory(DeviceHandle, Handle, Memory, 0));
+}
+
+void Buffer::CreateWithData(const Device& Gpu, const CommandPool& Pool, VkDeviceSize Size,
+                            const void* Data, VkBufferUsageFlags Usage)
+{
+    Buffer Staging;
+    Staging.Create(
+        Gpu, Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    memcpy(Staging.Map(Size), Data, Size);
+    Staging.Unmap();
+
+    Create(Gpu, Size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | Usage,
+           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    VkCommandBuffer Cmd = Pool.BeginSingleUse();
+    VkBufferCopy CopyRegion{};
+    CopyRegion.size = Size;
+    vkCmdCopyBuffer(Cmd, Staging.GetHandle(), Handle, 1, &CopyRegion);
+    Pool.EndSingleUse(Cmd);
 }
 
 void Buffer::Destroy()

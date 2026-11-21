@@ -3,7 +3,7 @@
 // into a structure suitable for the raytracer.
 ////////////////////////////////////////////////////////////////////////
 
-#include "renderer.h"
+#include "scene/scene.h"
 
 #include <cmath>
 #include <cstdio>
@@ -19,6 +19,7 @@
 #include <assimp/version.h>
 #include <glm/glm.hpp>
 
+#include "scene/texture.h"
 #include "shaders/shared_structs.h"
 #include "vk_check.h"
 
@@ -85,36 +86,33 @@ void CollectEmitters(const ModelData& Meshdata, std::vector<Emitter>& LightList)
 }
 
 // Creates the buffers on the device and copies vertices, indices and materials in.
-ObjData UploadModel(Renderer& VK, const ModelData& Meshdata)
+Mesh UploadModel(const Device& Gpu, const CommandPool& Pool, const ModelData& Meshdata)
 {
-    ObjData Object;
+    Mesh Object;
     Object.NbIndices = static_cast<uint32_t>(Meshdata.Indicies.size());
     Object.NbVertices = static_cast<uint32_t>(Meshdata.Vertices.size());
-
-    VkCommandBuffer CmdBuf = VK.CreateTempCmdBuffer();
 
     VkBufferUsageFlags Flag =
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
     VkBufferUsageFlags RtFlags =
         Flag | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
 
-    Object.VertexBuffer = VK.CreateStagedBuffer(
-        CmdBuf, Meshdata.Vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | RtFlags);
-    Object.IndexBuffer = VK.CreateStagedBuffer(
-        CmdBuf, Meshdata.Indicies, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | RtFlags);
-    Object.MatColorBuffer = VK.CreateStagedBuffer(CmdBuf, Meshdata.Materials, Flag);
-    Object.MatIndexBuffer = VK.CreateStagedBuffer(CmdBuf, Meshdata.MatIndx, Flag);
-
-    VK.SubmitTempCmdBuffer(CmdBuf);
+    Object.VertexBuffer.CreateWithData(Gpu, Pool, Meshdata.Vertices,
+                                       VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | RtFlags);
+    Object.IndexBuffer.CreateWithData(Gpu, Pool, Meshdata.Indicies,
+                                      VK_BUFFER_USAGE_INDEX_BUFFER_BIT | RtFlags);
+    Object.MatColorBuffer.CreateWithData(Gpu, Pool, Meshdata.Materials, Flag);
+    Object.MatIndexBuffer.CreateWithData(Gpu, Pool, Meshdata.MatIndx, Flag);
     return Object;
 }
 
 }  // namespace
 
-void Renderer::MyLoadModel(const std::string& Filename, const glm::mat4& Transform)
+void Scene::LoadModel(const Device& Gpu, const CommandPool& Pool,
+                      const std::string& FileName, const glm::mat4& Transform)
 {
     ModelData Meshdata;
-    Meshdata.ReadAssimpFile(Filename, glm::mat4(1.0f));
+    Meshdata.ReadAssimpFile(FileName, glm::mat4(1.0f));
     PrintModelSummary(Meshdata);
 
     // The model's emitters are too dim as authored; boost them.
@@ -126,25 +124,24 @@ void Renderer::MyLoadModel(const std::string& Filename, const glm::mat4& Transfo
         }
     }
 
-    CollectEmitters(Meshdata, LightList);
+    CollectEmitters(Meshdata, Emitters);
 
-    ObjData Object = UploadModel(*this, Meshdata);
+    Mesh Object = UploadModel(Gpu, Pool, Meshdata);
 
     // Creates all textures on the GPU
     // Offset is current size
-    const auto TxtOffset = static_cast<uint32_t>(ObjTextures.size());
+    const auto TxtOffset = static_cast<uint32_t>(Textures.size());
     for (const auto& TexName : Meshdata.Textures)
     {
-        ObjTextures.push_back(CreateTextureImage(TexName));
+        Textures.push_back(LoadTexture(Gpu, Pool, TexName));
     }
 
     // Assuming one instance of an object with its supplied transform.
     // Could provide multiple transform here to make a vector of instances of this object.
-    ObjInst ObjInstance;
-    ObjInstance.Transform = Transform;
-    // Index of current object
-    ObjInstance.ObjIndex = static_cast<uint32_t>(ObjDataList.size());
-    ObjInstList.push_back(ObjInstance);
+    MeshInstance Instance;
+    Instance.Transform = Transform;
+    Instance.ObjIndex = static_cast<uint32_t>(Meshes.size());
+    Instances.push_back(Instance);
 
     // Creating information for device access
     ObjDesc Desc;
@@ -154,8 +151,24 @@ void Renderer::MyLoadModel(const std::string& Filename, const glm::mat4& Transfo
     Desc.MaterialAddress = Object.MatColorBuffer.GetAddress();
     Desc.MaterialIndexAddress = Object.MatIndexBuffer.GetAddress();
 
-    ObjDataList.emplace_back(std::move(Object));
-    ObjDescList.emplace_back(Desc);
+    Meshes.emplace_back(std::move(Object));
+    Descriptions.emplace_back(Desc);
+}
+
+void Scene::CreateDescriptionBuffer(const Device& Gpu, const CommandPool& Pool)
+{
+    DescriptionBuffer.CreateWithData(Gpu, Pool, Descriptions,
+                                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+}
+
+void Scene::Destroy()
+{
+    Textures.clear();
+    Meshes.clear();
+    Descriptions.clear();
+    Instances.clear();
+    Emitters.clear();
+    DescriptionBuffer.Destroy();
 }
 
 namespace

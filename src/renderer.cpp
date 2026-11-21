@@ -9,9 +9,6 @@
 #include <glm/glm.hpp>
 #include <imgui.h>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
-
 #include "vk_check.h"
 
 namespace rtrt
@@ -41,10 +38,11 @@ bool Renderer::Init(Window& Target, Context& Instance, Device& Gpu, Swapchain& C
 
     InitGui();
 
-    MyLoadModel("models/living_room/living_room.obj", glm::mat4(1.0f));
+    MainScene.LoadModel(*GpuDevice, MainCmdPool, "models/living_room/living_room.obj",
+                        glm::mat4(1.0f));
 
     CreateMatrixBuffer();
-    CreateObjDescriptionBuffer();
+    MainScene.CreateDescriptionBuffer(*GpuDevice, MainCmdPool);
     CreateScanlineRenderPass();
     CreateScDescriptorSet();
     CreateScPipeline();

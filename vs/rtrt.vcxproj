@@ -19,6 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\scene\texture.cpp" />
+    <ClCompile Include="..\src\scene\scene.cpp" />
     <ClCompile Include="..\src\vk\framebuffer.cpp" />
     <ClCompile Include="..\src\vk\render_pass.cpp" />
     <ClCompile Include="..\src\vk\pipeline_layout.cpp" />
@@ -49,7 +51,6 @@
     <ClCompile Include="..\src\extensions_vk.cpp" />
     <ClCompile Include="..\src\renderer_denoise.cpp" />
     <ClCompile Include="..\src\renderer_setup.cpp" />
-    <ClCompile Include="..\src\renderer_load_model.cpp" />
     <ClCompile Include="..\src\renderer_raytracing.cpp" />
     <ClCompile Include="..\src\renderer_scanline.cpp" />
     <ClCompile Include="..\libs\imgui-master\backends\imgui_impl_glfw.cpp" />
@@ -201,6 +202,9 @@ cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangVali
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\scene\texture.h" />
+    <ClInclude Include="..\src\scene\mesh.h" />
+    <ClInclude Include="..\src\scene\scene.h" />
     <ClInclude Include="..\src\vk\framebuffer.h" />
     <ClInclude Include="..\src\vk\render_pass.h" />
     <ClInclude Include="..\src\vk\pipeline_layout.h" />

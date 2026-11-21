@@ -48,22 +48,8 @@ void Renderer::DestroyPostResources()
 
 void Renderer::DestroySceneResources()
 {
-    for (auto& T : ObjTextures)
-    {
-        T.Destroy();
-    }
-    // ObjDescList only holds device addresses; the buffers themselves live in
-    // ObjDataList.
-    for (auto& Ob : ObjDataList)
-    {
-        Ob.VertexBuffer.Destroy();
-        Ob.IndexBuffer.Destroy();
-        Ob.MatColorBuffer.Destroy();
-        Ob.MatIndexBuffer.Destroy();
-    }
-
+    MainScene.Destroy();
     MatrixBw.Destroy();
-    ObjDescriptionBw.Destroy();
 }
 
 void Renderer::DestroyScanlineResources()

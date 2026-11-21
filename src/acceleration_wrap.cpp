@@ -502,7 +502,7 @@ void RaytracingBuilder::BuildTlas(
 //----------------------------------------------------------------------------------------
 // Convert an OBJ model into the ray tracing geometry used to build the BLAS
 //
-BlasInput Renderer::ObjectToVkGeometryKhr(const ObjData& Model)
+BlasInput Renderer::ObjectToVkGeometryKhr(const Mesh& Model)
 {
     // BLAS builder requires raw device addresses.
     VkBufferDeviceAddressInfo VertexAddressInfo{
@@ -557,8 +557,8 @@ void Renderer::CreateRtAccelerationStructure()
 {
     // BLAS - Storing each primitive in a geometry
     std::vector<BlasInput> AllBlas;
-    AllBlas.reserve(ObjDataList.size());
-    for (const auto& Obj : ObjDataList)
+    AllBlas.reserve(MainScene.GetMeshes().size());
+    for (const Mesh& Obj : MainScene.GetMeshes())
     {
         BlasInput Blas = ObjectToVkGeometryKhr(Obj);
         // We could add more geometry in each BLAS, but we add only one for now
@@ -570,8 +570,8 @@ void Renderer::CreateRtAccelerationStructure()
 
     // TLAS
     std::vector<VkAccelerationStructureInstanceKHR> Tlas;
-    Tlas.reserve(ObjInstList.size());
-    for (const ObjInst& Inst : ObjInstList)
+    Tlas.reserve(MainScene.GetInstances().size());
+    for (const MeshInstance& Inst : MainScene.GetInstances())
     {
         VkAccelerationStructureInstanceKHR RayInst{};
         // Position of the instance
