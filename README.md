@@ -42,15 +42,6 @@ A real-time path tracer written in C++ on Vulkan's hardware ray tracing pipeline
 |---|---|---|
 | ![Scanline](images/Scanline.png) | ![Path tracing with noise](images/RayTracing_With_Noise.png) | ![Path tracing with denoiser](images/RayTracing_With_Denoiser.png) |
 
-### Denoiser: before and after the window fix
-
-The emissive window panes used to leak into the walls around them, and the wide filter passes spread the brightest samples into square blotches. The denoiser now leaves light sources out of the filter, weights neighbours by colour as well as depth, normal and albedo, and clamps outlier pixels before the first pass.
-
-| Before | After |
-|---|---|
-| ![Denoiser before the fix](images/Denoiser_Before.png) | ![Denoiser after the fix](images/RayTracing_With_Denoiser.png) |
-| ![Window area before the fix](images/Denoiser_Before_Window.png) | ![Window area after the fix](images/Denoiser_After_Window.png) |
-
 ## Requirements
 
 - Windows 10 or 11, 64-bit
@@ -110,3 +101,14 @@ The C++ code follows the [Google C++ Style Guide](https://google.github.io/style
 - All names are PascalCase, including local variables, parameters, class members and struct fields. Members don't use an `m_` prefix or a trailing `_`.
 
 Formatting is set in `.clang-format`. Format the code with the clang-format that comes with Visual Studio (`VC/Tools/Llvm/x64/bin/clang-format.exe`), or with clang-format 14 or newer. Third-party code in `libs/` and the generated `extensions_vk.*` files are excluded.
+
+## Changelog
+
+### Update 1 (2026-11-21): Denoiser fix around emissive windows
+
+The emissive window panes used to leak into the walls around them, and the wide filter passes spread the brightest samples into square blotches. The denoiser now leaves light sources out of the filter, weights neighbours by colour as well as depth, normal and albedo, and clamps outlier pixels before the first pass.
+
+| Before | After |
+|---|---|
+| ![Denoiser before the fix](images/Denoiser_Before.png) | ![Denoiser after the fix](images/RayTracing_With_Denoiser.png) |
+| ![Window area before the fix](images/Denoiser_Before_Window.png) | ![Window area after the fix](images/Denoiser_After_Window.png) |
