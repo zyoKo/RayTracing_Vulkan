@@ -109,6 +109,10 @@ Formatting is set in `.clang-format`. Format the code with the clang-format that
 
 ## Changelog
 
+### 2.1 GLSL shaders built on request ([c2d7368](https://github.com/zyoKo/RayTracing_Vulkan/commit/c2d7368ab42e122535607695c693fe9105e78e22))
+
+The builds and the startup check now compile only the Slang shaders. The GLSL versions are generated when asked for: from the **Build GLSL shaders** button in the new **Supported shader types** section of the settings panel (which switches to GLSL once the build finishes), by starting with `-glsl`, or with `compile_shaders.bat glsl`.
+
 ### 2.0 Slang as the only shader source ([a2a6b92](https://github.com/zyoKo/RayTracing_Vulkan/commit/a2a6b92d0b869668fe6e4843fc82d3ce954052a1))
 
 The hand-written GLSL shaders are gone, so a fix only has to be made once, in Slang. Slang is now the default, and `compile_shaders.bat` generates a GLSL version of every shader in `src/shaders/glsl/` and compiles it for the `-glsl` mode.
