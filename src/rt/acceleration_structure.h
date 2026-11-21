@@ -1,5 +1,5 @@
-#ifndef RTRT_SRC_ACCELERATION_WRAP_H_
-#define RTRT_SRC_ACCELERATION_WRAP_H_
+#ifndef RTRT_SRC_RT_ACCELERATION_STRUCTURE_H_
+#define RTRT_SRC_RT_ACCELERATION_STRUCTURE_H_
 
 #include <string.h>
 
@@ -9,13 +9,13 @@
 #include <vulkan/vulkan_core.h>
 
 #include "vk/buffer.h"
+#include "vk/command_pool.h"
+#include "vk/device.h"
 
 #if VK_KHR_acceleration_structure
 
 namespace rtrt
 {
-
-class Renderer;
 
 // Convert a Mat4x4 to the matrix required by acceleration structures
 inline VkTransformMatrixKHR ToTransformMatrixKhr(const glm::mat4& Matrix)
@@ -30,7 +30,7 @@ inline VkTransformMatrixKHR ToTransformMatrixKhr(const glm::mat4& Matrix)
 }
 
 // An acceleration structure and the buffer that backs it.
-struct AccelerationStructureWrap
+struct AccelStorage
 {
     VkAccelerationStructureKHR Accel;
     Buffer Bw;
@@ -49,15 +49,16 @@ struct BlasInput
 };
 
 // Ray tracing BLAS and TLAS builder
-class RaytracingBuilder
+class AccelerationStructure
 {
 public:
-    RaytracingBuilder() = default;
-    RaytracingBuilder(const RaytracingBuilder&) = delete;
-    RaytracingBuilder& operator=(const RaytracingBuilder&) = delete;
+    AccelerationStructure() = default;
+    AccelerationStructure(const AccelerationStructure&) = delete;
+    AccelerationStructure& operator=(const AccelerationStructure&) = delete;
 
-    // Stores the renderer, device and queue the builds use.
-    void Setup(Renderer* Owner, VkDevice DeviceHandle, uint32_t GraphicsQueueIndex);
+    // Stores the device and the pool the builds record and submit on. Both must
+    // outlive this object.
+    void Setup(const Device& Gpu, const CommandPool& Pool);
 
     // Destroys every BLAS and the TLAS.
     void Destroy();
@@ -101,19 +102,17 @@ public:
     );
 
 protected:
-    Renderer* VK = nullptr;
+    const Device* Gpu = nullptr;
+    const CommandPool* Pool = nullptr;
+    VkDevice DeviceHandle = VK_NULL_HANDLE;
 
     // Scratch memory for the BLAS and TLAS builds.
     Buffer BlasScratch;
     Buffer TlasScratch;
 
     // Bottom-level acceleration structure
-    std::vector<AccelerationStructureWrap> BlasList;
-    AccelerationStructureWrap Tlas;  // Top-level acceleration structure
-
-    // Setup
-    VkDevice Device{VK_NULL_HANDLE};
-    uint32_t QueueIndex{0};
+    std::vector<AccelStorage> BlasList;
+    AccelStorage Tlas;  // Top-level acceleration structure
 
     struct BuildAccelerationStructure
     {
@@ -122,7 +121,7 @@ protected:
         VkAccelerationStructureBuildSizesInfoKHR SizeInfo{
             VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
         const VkAccelerationStructureBuildRangeInfoKHR* RangeInfo;
-        AccelerationStructureWrap As;  // result acceleration structure
+        AccelStorage As;  // result acceleration structure
         VkAccelerationStructureKHR CleanupAs;
         Buffer CleanupBuffer;
     };
@@ -158,4 +157,4 @@ protected:
 #error This include requires VK_KHR_acceleration_structure support in the Vulkan SDK.
 #endif
 
-#endif  // RTRT_SRC_ACCELERATION_WRAP_H_
+#endif  // RTRT_SRC_RT_ACCELERATION_STRUCTURE_H_

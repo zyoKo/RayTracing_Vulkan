@@ -64,7 +64,7 @@ void Renderer::DestroyScanlineResources()
 void Renderer::DestroyRaytracingResources()
 {
     RtColCurrBuffer.Destroy();
-    RtBuilder.Destroy();
+    SceneAccel.Destroy();
     RtDesc.Destroy();
     RtPipelineLayout.Destroy();
     RtPipeline.Destroy();
@@ -170,9 +170,9 @@ void Renderer::CreateSwapchain()
 {
     MainSwapchain->Create(*GpuDevice, GpuContext->GetSurface(), *MainWindow);
 
-    VkCommandBuffer Cmd = CreateTempCmdBuffer();
+    VkCommandBuffer Cmd = MainCmdPool.BeginSingleUse();
     MainSwapchain->RecordInitialTransition(Cmd);
-    SubmitTempCmdBuffer(Cmd);
+    MainCmdPool.EndSingleUse(Cmd);
 }
 
 void Renderer::CreateFrameFence()

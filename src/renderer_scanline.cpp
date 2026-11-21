@@ -87,14 +87,6 @@ void Renderer::ImageLayoutBarrier(VkCommandBuffer Cmdbuffer, VkImage TargetImage
                          nullptr, 1, &ImageMemoryBarrier);
 }
 
-Buffer Renderer::CreateStagedBuffer(VkCommandBuffer CmdBuf, VkDeviceSize Size,
-                                    const void* Data, VkBufferUsageFlags Usage)
-{
-    Buffer Result;
-    Result.CreateWithData(*GpuDevice, MainCmdPool, Size, Data, Usage);
-    return Result;
-}
-
 Buffer Renderer::CreateBuffer(VkDeviceSize Size, VkBufferUsageFlags Usage,
                               VkMemoryPropertyFlags Properties)
 {
@@ -105,13 +97,13 @@ Buffer Renderer::CreateBuffer(VkDeviceSize Size, VkBufferUsageFlags Usage,
 
 void Renderer::CopyBuffer(VkBuffer SrcBuffer, VkBuffer DstBuffer, VkDeviceSize Size)
 {
-    VkCommandBuffer TempCmdBuffer = CreateTempCmdBuffer();
+    VkCommandBuffer TempCmdBuffer = MainCmdPool.BeginSingleUse();
 
     VkBufferCopy CopyRegion{};
     CopyRegion.size = Size;
     vkCmdCopyBuffer(TempCmdBuffer, SrcBuffer, DstBuffer, 1, &CopyRegion);
 
-    SubmitTempCmdBuffer(TempCmdBuffer);
+    MainCmdPool.EndSingleUse(TempCmdBuffer);
 }
 
 void Renderer::CreatePostDescriptor()
@@ -126,10 +118,10 @@ void Renderer::CreateScBuffer()
 {
     ScImageBuffer = CreateBufferImage(MainSwapchain->GetExtent());
 
-    VkCommandBuffer CmdBuf = CreateTempCmdBuffer();
+    VkCommandBuffer CmdBuf = MainCmdPool.BeginSingleUse();
     ImageLayoutBarrier(CmdBuf, ScImageBuffer.GetHandle(), VK_IMAGE_LAYOUT_UNDEFINED,
                        VK_IMAGE_LAYOUT_GENERAL);
-    SubmitTempCmdBuffer(CmdBuf);
+    MainCmdPool.EndSingleUse(CmdBuf);
 }
 
 Image Renderer::CreateBufferImage(VkExtent2D Size)
@@ -276,10 +268,9 @@ void Renderer::CreateScPipeline()
 // Will be included in a descriptor set for use in shaders.
 void Renderer::CreateMatrixBuffer()
 {
-    MatrixBw = CreateBuffer(
-        sizeof(MatrixUniforms),
-        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    MatrixBw.Create(*GpuDevice, sizeof(MatrixUniforms),
+                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 }
 
 // Create a Vulkan buffer containing pointers to all object buffers

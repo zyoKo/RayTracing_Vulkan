@@ -92,7 +92,7 @@ void Renderer::InitRayTracing()
     BaseAlignment = RtProps.shaderGroupBaseAlignment;
 
     // This initializes the acceleration structure helper class
-    RtBuilder.Setup(this, GpuDevice->GetHandle(), GpuDevice->GetQueueFamily());
+    SceneAccel.Setup(*GpuDevice, MainCmdPool);
 }
 
 //----------------------------------------------------------------------------------------
@@ -112,7 +112,7 @@ void Renderer::CreateRtDescriptorSet()
         .AddStorageImage(VK_SHADER_STAGE_RAYGEN_BIT_KHR)
         .Build(GpuDevice->GetHandle(), RtDesc);
 
-    RtDesc.Set.Write(0, RtBuilder.GetAccelerationStructure());
+    RtDesc.Set.Write(0, SceneAccel.GetAccelerationStructure());
     RtDesc.Set.Write(1, RtColCurrBuffer.Descriptor());
     RtDesc.Set.Write(2, RtColPrevBuffer.Descriptor());
     RtDesc.Set.Write(3, RtNdCurrBuffer.Descriptor());
@@ -442,6 +442,97 @@ void Renderer::Raytrace()
     CmdCopyImage(RtColCurrBuffer, RtColPrevBuffer);
     CmdCopyImage(RtKdCurrBuffer, RtKdPrevBuffer);
     CmdCopyImage(RtNdCurrBuffer, RtNdPrevBuffer);
+}
+
+// Converts a mesh into the ray tracing geometry used to build its BLAS.
+BlasInput Renderer::ObjectToVkGeometryKhr(const Mesh& Model)
+{
+    // BLAS builder requires raw device addresses.
+    VkBufferDeviceAddressInfo VertexAddressInfo{
+        VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr,
+        Model.VertexBuffer.GetHandle()};
+    VkDeviceAddress VertexAddress =
+        vkGetBufferDeviceAddress(GpuDevice->GetHandle(), &VertexAddressInfo);
+
+    VkBufferDeviceAddressInfo IndexAddressInfo{
+        VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr,
+        Model.IndexBuffer.GetHandle()};
+    VkDeviceAddress IndexAddress =
+        vkGetBufferDeviceAddress(GpuDevice->GetHandle(), &IndexAddressInfo);
+
+    uint32_t MaxPrimitiveCount = Model.NbIndices / 3;
+
+    // Describe buffer as array of Vertex.
+    VkAccelerationStructureGeometryTrianglesDataKHR Triangles{
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR};
+    Triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;  // vec3 vertex position data.
+    Triangles.vertexData.deviceAddress = VertexAddress;
+    Triangles.vertexStride = sizeof(Vertex);
+    // Describe index data (32-bit unsigned int)
+    Triangles.indexType = VK_INDEX_TYPE_UINT32;
+    Triangles.indexData.deviceAddress = IndexAddress;
+    // Indicate identity transform by setting transformData to null device pointer.
+    Triangles.maxVertex = Model.NbVertices;
+
+    // Identify the above data as containing opaque triangles.
+    VkAccelerationStructureGeometryKHR AsGeom{
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR};
+    AsGeom.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
+    AsGeom.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
+    AsGeom.geometry.triangles = Triangles;
+
+    // The entire array will be used to build the BLAS.
+    VkAccelerationStructureBuildRangeInfoKHR Offset;
+    Offset.firstVertex = 0;
+    Offset.primitiveCount = MaxPrimitiveCount;
+    Offset.primitiveOffset = 0;
+    Offset.transformOffset = 0;
+
+    // Our blas is made from only one geometry, but could be made of many geometries
+    BlasInput Input;
+    Input.AsGeometry.emplace_back(AsGeom);
+    Input.AsBuildOffsetInfo.emplace_back(Offset);
+
+    return Input;
+}
+
+void Renderer::CreateRtAccelerationStructure()
+{
+    // BLAS - Storing each primitive in a geometry
+    std::vector<BlasInput> AllBlas;
+    AllBlas.reserve(MainScene.GetMeshes().size());
+    for (const Mesh& Obj : MainScene.GetMeshes())
+    {
+        BlasInput Blas = ObjectToVkGeometryKhr(Obj);
+        // We could add more geometry in each BLAS, but we add only one for now
+        AllBlas.emplace_back(Blas);
+    }
+
+    SceneAccel.BuildBlas(AllBlas,
+                         VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
+
+    // TLAS
+    std::vector<VkAccelerationStructureInstanceKHR> Tlas;
+    Tlas.reserve(MainScene.GetInstances().size());
+    for (const MeshInstance& Inst : MainScene.GetInstances())
+    {
+        VkAccelerationStructureInstanceKHR RayInst{};
+        // Position of the instance
+        RayInst.transform = ToTransformMatrixKhr(Inst.Transform);
+        RayInst.instanceCustomIndex = Inst.ObjIndex;
+        RayInst.accelerationStructureReference =
+            SceneAccel.GetBlasDeviceAddress(Inst.ObjIndex);
+        RayInst.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+        RayInst.mask = 0xFF;  //  Only be hit if rayMask & instance.mask != 0
+        // Use the same hit group for all objects
+        RayInst.instanceShaderBindingTableRecordOffset = 0;
+        Tlas.emplace_back(RayInst);
+    }
+
+    SceneAccel.BuildTlas(Tlas, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR,
+                         false, false);
+
+    SceneAccel.DestroyScratchBuffers();
 }
 
 }  // namespace rtrt

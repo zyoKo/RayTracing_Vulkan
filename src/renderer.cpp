@@ -98,16 +98,6 @@ void Renderer::DrawFrame()
     RecordMs = (glfwGetTime() - Start) * 1000.0 - GpuWaitMs;
 }
 
-VkCommandBuffer Renderer::CreateTempCmdBuffer()
-{
-    return MainCmdPool.BeginSingleUse();
-}
-
-void Renderer::SubmitTempCmdBuffer(VkCommandBuffer CmdBuffer)
-{
-    MainCmdPool.EndSingleUse(CmdBuffer);
-}
-
 bool Renderer::PrepareFrame()
 {
     // Use a fence to wait until the command buffer has finished execution before using it
@@ -205,9 +195,9 @@ void Renderer::InitGui()
     ImGui_ImplVulkan_Init(&InitInfo, PostRenderPass.GetHandle());
 
     // Upload Fonts
-    VkCommandBuffer Cmdbuf = CreateTempCmdBuffer();
+    VkCommandBuffer Cmdbuf = MainCmdPool.BeginSingleUse();
     ImGui_ImplVulkan_CreateFontsTexture(Cmdbuf);
-    SubmitTempCmdBuffer(Cmdbuf);
+    MainCmdPool.EndSingleUse(Cmdbuf);
     ImGui_ImplVulkan_DestroyFontUploadObjects();  // Staging buffer is no longer needed
 
     ImGui_ImplGlfw_InitForVulkan(MainWindow->GetHandle(), true);

@@ -1,6 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <ClCompile Include="..\src\rt\acceleration_structure.cpp">
+      <Filter>Source Files\rt</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\scene\texture.cpp">
       <Filter>Source Files\scene</Filter>
     </ClCompile>
@@ -140,6 +143,12 @@
     <Filter Include="Header Files\vk">
       <UniqueIdentifier>{fb8e3f73-181d-49b4-b2b4-6b4f41ae4f1d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\rt">
+      <UniqueIdentifier>{ef342462-73b9-4c25-9014-91d48ab755e0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\rt">
+      <UniqueIdentifier>{6c0b04b0-c961-4200-bcdb-d2ed6e18f5ec}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Shader Files">
       <UniqueIdentifier>{26802777-62b4-47ec-a051-4ee8e4be1a67}</UniqueIdentifier>
     </Filter>
@@ -148,6 +157,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\rt\acceleration_structure.h">
+      <Filter>Header Files\rt</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\scene\texture.h">
       <Filter>Header Files\scene</Filter>
     </ClInclude>

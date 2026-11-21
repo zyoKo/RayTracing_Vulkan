@@ -7,8 +7,8 @@
 #include <glm/glm.hpp>
 #include <vulkan/vulkan_core.h>
 
-#include "acceleration_wrap.h"
 #include "core/window.h"
+#include "rt/acceleration_structure.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "shaders/shared_structs.h"
@@ -107,29 +107,6 @@ public:
     double GetRecordMs() const
     {
         return RecordMs;
-    }
-
-    // Helpers the acceleration-structure builder uses.
-    VkDevice GetDevice() const
-    {
-        return GpuDevice->GetHandle();
-    }
-
-    // A one-time command buffer; SubmitTempCmdBuffer runs it, waits and frees it.
-    VkCommandBuffer CreateTempCmdBuffer();
-    void SubmitTempCmdBuffer(VkCommandBuffer CmdBuffer);
-
-    Buffer CreateBuffer(VkDeviceSize Size, VkBufferUsageFlags Usage,
-                        VkMemoryPropertyFlags Properties);
-
-    // A device-local buffer filled through a staging buffer, using CmdBuf for the copy.
-    Buffer CreateStagedBuffer(VkCommandBuffer CmdBuf, VkDeviceSize Size, const void* Data,
-                              VkBufferUsageFlags Usage);
-    template <typename T>
-    Buffer CreateStagedBuffer(VkCommandBuffer CmdBuf, const std::vector<T>& Data,
-                              VkBufferUsageFlags Usage)
-    {
-        return CreateStagedBuffer(CmdBuf, sizeof(T) * Data.size(), Data.data(), Usage);
     }
 
 private:
@@ -253,7 +230,7 @@ private:
     Buffer MatrixBw{};  // Device-Host of the camera matrices
     void CreateMatrixBuffer();
 
-    RaytracingBuilder RtBuilder{};
+    AccelerationStructure SceneAccel;
     float MaxAnis = 0;
     PushConstantRay PcRay{};  // Push constant for ray tracer
     PushConstantDenoise PcDenoise{};
@@ -318,6 +295,8 @@ private:
     void SubmitFrame();
 
     void CopyBuffer(VkBuffer SrcBuffer, VkBuffer DstBuffer, VkDeviceSize Size);
+    Buffer CreateBuffer(VkDeviceSize Size, VkBufferUsageFlags Usage,
+                        VkMemoryPropertyFlags Properties);
 
     Image CreateBufferImage(VkExtent2D Size);
 

@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\rt\acceleration_structure.cpp" />
     <ClCompile Include="..\src\scene\texture.cpp" />
     <ClCompile Include="..\src\scene\scene.cpp" />
     <ClCompile Include="..\src\vk\framebuffer.cpp" />
@@ -44,7 +45,6 @@
     <ClCompile Include="..\src\vk\device.cpp" />
     <ClCompile Include="..\src\vk\context.cpp" />
     <ClCompile Include="..\src\core\window.cpp" />
-    <ClCompile Include="..\src\acceleration_wrap.cpp" />
     <ClCompile Include="..\src\renderer.cpp" />
     <ClCompile Include="..\src\scene\camera.cpp" />
     <ClCompile Include="..\src\scene\camera_controller.cpp" />
@@ -202,6 +202,7 @@ cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangVali
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\rt\acceleration_structure.h" />
     <ClInclude Include="..\src\scene\texture.h" />
     <ClInclude Include="..\src\scene\mesh.h" />
     <ClInclude Include="..\src\scene\scene.h" />
@@ -232,7 +233,6 @@ cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangVali
     <ClInclude Include="..\src\extensions_vk.hpp" />
     <ClInclude Include="..\src\vk_check.h" />
     <ClInclude Include="..\src\renderer.h" />
-    <ClInclude Include="..\src\acceleration_wrap.h" />
   </ItemGroup>
   <PropertyGroup>
     <SlangC>"$(VULKAN_SDK)\Bin\slangc.exe" -target spirv -profile spirv_1_5 -capability SPV_KHR_non_semantic_info+SPV_GOOGLE_user_type+spvDerivativeControl+spvImageQuery+spvImageGatherExtended+spvSparseResidency+spvMinLod+spvFragmentFullyCoveredEXT -matrix-layout-column-major -I shaders -g</SlangC>
