@@ -12,7 +12,6 @@
 #include <imgui.h>
 
 #include "core/shader_check.h"
-#include "vk/command_pool.h"
 #include "vk_check.h"
 
 namespace rtrt
@@ -23,6 +22,7 @@ namespace
 
 constexpr float kSettingsWidth = 340.0f;
 constexpr float kSettingsMinWidth = 260.0f;
+constexpr uint32_t kUiTextureSets = 16;
 
 void StatRow(const FrameStats& Stats, const char* Label, const float* Values)
 {
@@ -53,37 +53,22 @@ void Gui::Init(const Window& Target, const Context& Instance, const Device& Gpu,
     Io.LogFilename = nullptr;
     Io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
 
-    ImguiDescPool.Create(
-        Gpu.GetHandle(),
-        {{VK_DESCRIPTOR_TYPE_SAMPLER, 1}, {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}},
-        2);
-
-    // Setup Platform/Renderer back ends
     ImGui_ImplVulkan_InitInfo InitInfo = {};
+    InitInfo.ApiVersion = VK_API_VERSION_1_3;
     InitInfo.Instance = Instance.GetInstance();
     InitInfo.PhysicalDevice = Gpu.GetPhysical();
     InitInfo.Device = Gpu.GetHandle();
     InitInfo.QueueFamily = Gpu.GetQueueFamily();
     InitInfo.Queue = Gpu.GetQueue();
-    InitInfo.PipelineCache = VK_NULL_HANDLE;
-    InitInfo.DescriptorPool = ImguiDescPool.GetHandle();
+    InitInfo.RenderPass = Pass;
     InitInfo.Subpass = 0;
+    // The backend owns its pool; each texture the UI shows takes one set from it
+    InitInfo.DescriptorPoolSize = kUiTextureSets;
     InitInfo.MinImageCount = 2;
     InitInfo.ImageCount = ImageCount;
     InitInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-    InitInfo.CheckVkResultFn = nullptr;
-    InitInfo.Allocator = nullptr;
 
-    ImGui_ImplVulkan_Init(&InitInfo, Pass);
-
-    // The font atlas is uploaded once, through a pool that only lives for the upload
-    CommandPool UploadPool;
-    UploadPool.Create(Gpu);
-    VkCommandBuffer Cmdbuf = UploadPool.BeginSingleUse();
-    ImGui_ImplVulkan_CreateFontsTexture(Cmdbuf);
-    UploadPool.EndSingleUse(Cmdbuf);
-    ImGui_ImplVulkan_DestroyFontUploadObjects();  // Staging buffer is no longer needed
-
+    ImGui_ImplVulkan_Init(&InitInfo);
     ImGui_ImplGlfw_InitForVulkan(Target.GetHandle(), true);
 }
 
@@ -93,7 +78,6 @@ void Gui::Shutdown()
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
-    ImguiDescPool.Destroy();
 }
 
 bool Gui::WantsTextInput()
@@ -108,6 +92,7 @@ bool Gui::WantsMouse()
 
 void Gui::Draw(Renderer& VK, Camera& View, CameraController& Controller)
 {
+    ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
