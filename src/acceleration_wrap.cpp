@@ -505,12 +505,12 @@ BlasInput Renderer::ObjectToVkGeometryKhr(const ObjData& Model)
     VkBufferDeviceAddressInfo VertexAddressInfo{
         VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, Model.VertexBuffer.Buffer};
     VkDeviceAddress VertexAddress =
-        vkGetBufferDeviceAddress(GpuDevice.GetHandle(), &VertexAddressInfo);
+        vkGetBufferDeviceAddress(GpuDevice->GetHandle(), &VertexAddressInfo);
 
     VkBufferDeviceAddressInfo IndexAddressInfo{
         VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, Model.IndexBuffer.Buffer};
     VkDeviceAddress IndexAddress =
-        vkGetBufferDeviceAddress(GpuDevice.GetHandle(), &IndexAddressInfo);
+        vkGetBufferDeviceAddress(GpuDevice->GetHandle(), &IndexAddressInfo);
 
     uint32_t MaxPrimitiveCount = Model.NbIndices / 3;
 

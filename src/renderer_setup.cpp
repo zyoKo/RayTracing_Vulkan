@@ -12,7 +12,6 @@
 #include <backends/imgui_impl_vulkan.h>
 #include <imgui.h>
 
-#include "app.h"
 #include "vk_check.h"
 
 namespace rtrt
@@ -20,17 +19,17 @@ namespace rtrt
 
 void Renderer::DestroyAllVulkanResources()
 {
-    RTRT_CHECK_VK(vkDeviceWaitIdle(GpuDevice.GetHandle()));
+    RTRT_CHECK_VK(vkDeviceWaitIdle(GpuDevice->GetHandle()));
 
     // All objects created on Device must be destroyed before Device.
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
-    vkDestroyDescriptorPool(GpuDevice.GetHandle(), ImguiDescPool, nullptr);
+    vkDestroyDescriptorPool(GpuDevice->GetHandle(), ImguiDescPool, nullptr);
 
-    MainSwapchain.Destroy();
-    vkDestroyFence(GpuDevice.GetHandle(), WaitFence, nullptr);
-    vkDestroyCommandPool(GpuDevice.GetHandle(), CmdPool, nullptr);
+    MainSwapchain->Destroy();
+    vkDestroyFence(GpuDevice->GetHandle(), WaitFence, nullptr);
+    vkDestroyCommandPool(GpuDevice->GetHandle(), CmdPool, nullptr);
 
     DestroyPostResources();
     DestroySceneResources();
@@ -41,84 +40,84 @@ void Renderer::DestroyAllVulkanResources()
 
 void Renderer::DestroyPostResources()
 {
-    DepthImage.Destroy(GpuDevice.GetHandle());
-    vkDestroyRenderPass(GpuDevice.GetHandle(), PostRenderPass, nullptr);
+    DepthImage.Destroy(GpuDevice->GetHandle());
+    vkDestroyRenderPass(GpuDevice->GetHandle(), PostRenderPass, nullptr);
 
     for (auto& Framebuffer : Framebuffers)
     {
-        vkDestroyFramebuffer(GpuDevice.GetHandle(), Framebuffer, nullptr);
+        vkDestroyFramebuffer(GpuDevice->GetHandle(), Framebuffer, nullptr);
     }
 
-    ScImageBuffer.Destroy(GpuDevice.GetHandle());
-    PostDesc.Destroy(GpuDevice.GetHandle());
+    ScImageBuffer.Destroy(GpuDevice->GetHandle());
+    PostDesc.Destroy(GpuDevice->GetHandle());
 
-    vkDestroyPipelineLayout(GpuDevice.GetHandle(), PostPipelineLayout, nullptr);
-    vkDestroyPipeline(GpuDevice.GetHandle(), PostPipeline, nullptr);
+    vkDestroyPipelineLayout(GpuDevice->GetHandle(), PostPipelineLayout, nullptr);
+    vkDestroyPipeline(GpuDevice->GetHandle(), PostPipeline, nullptr);
 }
 
 void Renderer::DestroySceneResources()
 {
     for (auto T : ObjTextures)
     {
-        T.Destroy(GpuDevice.GetHandle());
+        T.Destroy(GpuDevice->GetHandle());
     }
     // ObjDescList only holds device addresses; the buffers themselves live in
     // ObjDataList.
     for (auto& Ob : ObjDataList)
     {
-        Ob.VertexBuffer.Destroy(GpuDevice.GetHandle());
-        Ob.IndexBuffer.Destroy(GpuDevice.GetHandle());
-        Ob.MatColorBuffer.Destroy(GpuDevice.GetHandle());
-        Ob.MatIndexBuffer.Destroy(GpuDevice.GetHandle());
+        Ob.VertexBuffer.Destroy(GpuDevice->GetHandle());
+        Ob.IndexBuffer.Destroy(GpuDevice->GetHandle());
+        Ob.MatColorBuffer.Destroy(GpuDevice->GetHandle());
+        Ob.MatIndexBuffer.Destroy(GpuDevice->GetHandle());
     }
 
-    MatrixBw.Destroy(GpuDevice.GetHandle());
-    ObjDescriptionBw.Destroy(GpuDevice.GetHandle());
+    MatrixBw.Destroy(GpuDevice->GetHandle());
+    ObjDescriptionBw.Destroy(GpuDevice->GetHandle());
 }
 
 void Renderer::DestroyScanlineResources()
 {
-    vkDestroyRenderPass(GpuDevice.GetHandle(), ScanlineRenderPass, nullptr);
-    vkDestroyFramebuffer(GpuDevice.GetHandle(), ScanlineFramebuffer, nullptr);
-    ScDesc.Destroy(GpuDevice.GetHandle());
-    vkDestroyPipelineLayout(GpuDevice.GetHandle(), ScanlinePipelineLayout, nullptr);
-    vkDestroyPipeline(GpuDevice.GetHandle(), ScanlinePipeline, nullptr);
+    vkDestroyRenderPass(GpuDevice->GetHandle(), ScanlineRenderPass, nullptr);
+    vkDestroyFramebuffer(GpuDevice->GetHandle(), ScanlineFramebuffer, nullptr);
+    ScDesc.Destroy(GpuDevice->GetHandle());
+    vkDestroyPipelineLayout(GpuDevice->GetHandle(), ScanlinePipelineLayout, nullptr);
+    vkDestroyPipeline(GpuDevice->GetHandle(), ScanlinePipeline, nullptr);
 }
 
 void Renderer::DestroyRaytracingResources()
 {
-    RtColCurrBuffer.Destroy(GpuDevice.GetHandle());
+    RtColCurrBuffer.Destroy(GpuDevice->GetHandle());
     RtBuilder.Destroy();
-    RtDesc.Destroy(GpuDevice.GetHandle());
-    vkDestroyPipelineLayout(GpuDevice.GetHandle(), RtPipelineLayout, nullptr);
-    vkDestroyPipeline(GpuDevice.GetHandle(), RtPipeline, nullptr);
-    ShaderBindingTableBw.Destroy(GpuDevice.GetHandle());
+    RtDesc.Destroy(GpuDevice->GetHandle());
+    vkDestroyPipelineLayout(GpuDevice->GetHandle(), RtPipelineLayout, nullptr);
+    vkDestroyPipeline(GpuDevice->GetHandle(), RtPipeline, nullptr);
+    ShaderBindingTableBw.Destroy(GpuDevice->GetHandle());
 
     // History buffers
-    RtColPrevBuffer.Destroy(GpuDevice.GetHandle());
-    RtNdCurrBuffer.Destroy(GpuDevice.GetHandle());
-    RtNdPrevBuffer.Destroy(GpuDevice.GetHandle());
-    RtKdCurrBuffer.Destroy(GpuDevice.GetHandle());
-    RtKdPrevBuffer.Destroy(GpuDevice.GetHandle());
+    RtColPrevBuffer.Destroy(GpuDevice->GetHandle());
+    RtNdCurrBuffer.Destroy(GpuDevice->GetHandle());
+    RtNdPrevBuffer.Destroy(GpuDevice->GetHandle());
+    RtKdCurrBuffer.Destroy(GpuDevice->GetHandle());
+    RtKdPrevBuffer.Destroy(GpuDevice->GetHandle());
 }
 
 void Renderer::DestroyDenoiseResources()
 {
-    DenoiseBuffer.Destroy(GpuDevice.GetHandle());
-    DenoiseDesc.Destroy(GpuDevice.GetHandle());
-    vkDestroyPipelineLayout(GpuDevice.GetHandle(), DenoiseCompPipelineLayout, nullptr);
-    vkDestroyPipeline(GpuDevice.GetHandle(), DenoisePipeline, nullptr);
+    DenoiseBuffer.Destroy(GpuDevice->GetHandle());
+    DenoiseDesc.Destroy(GpuDevice->GetHandle());
+    vkDestroyPipelineLayout(GpuDevice->GetHandle(), DenoiseCompPipelineLayout, nullptr);
+    vkDestroyPipeline(GpuDevice->GetHandle(), DenoisePipeline, nullptr);
 }
 
 bool Renderer::RecreateSizedResources()
 {
-    if (!Application->GetWindow().WaitWhileMinimized())
+    if (!MainWindow->WaitWhileMinimized())
     {
         return false;
     }
 
-    RTRT_CHECK_VK(vkDeviceWaitIdle(GpuDevice.GetHandle()));
-    Application->GetWindow().SetFramebufferResized(false);
+    RTRT_CHECK_VK(vkDeviceWaitIdle(GpuDevice->GetHandle()));
+    MainWindow->SetFramebufferResized(false);
 
     DestroySizedResources();
 
@@ -144,43 +143,43 @@ void Renderer::DestroySizedResources()
 {
     for (auto& Framebuffer : Framebuffers)
     {
-        vkDestroyFramebuffer(GpuDevice.GetHandle(), Framebuffer, nullptr);
+        vkDestroyFramebuffer(GpuDevice->GetHandle(), Framebuffer, nullptr);
     }
     Framebuffers.clear();
-    vkDestroyFramebuffer(GpuDevice.GetHandle(), ScanlineFramebuffer, nullptr);
-    DepthImage.Destroy(GpuDevice.GetHandle());
-    MainSwapchain.Destroy();
+    vkDestroyFramebuffer(GpuDevice->GetHandle(), ScanlineFramebuffer, nullptr);
+    DepthImage.Destroy(GpuDevice->GetHandle());
+    MainSwapchain->Destroy();
 
-    ScImageBuffer.Destroy(GpuDevice.GetHandle());
-    RtColCurrBuffer.Destroy(GpuDevice.GetHandle());
-    RtColPrevBuffer.Destroy(GpuDevice.GetHandle());
-    RtNdCurrBuffer.Destroy(GpuDevice.GetHandle());
-    RtNdPrevBuffer.Destroy(GpuDevice.GetHandle());
-    RtKdCurrBuffer.Destroy(GpuDevice.GetHandle());
-    RtKdPrevBuffer.Destroy(GpuDevice.GetHandle());
-    DenoiseBuffer.Destroy(GpuDevice.GetHandle());
+    ScImageBuffer.Destroy(GpuDevice->GetHandle());
+    RtColCurrBuffer.Destroy(GpuDevice->GetHandle());
+    RtColPrevBuffer.Destroy(GpuDevice->GetHandle());
+    RtNdCurrBuffer.Destroy(GpuDevice->GetHandle());
+    RtNdPrevBuffer.Destroy(GpuDevice->GetHandle());
+    RtKdCurrBuffer.Destroy(GpuDevice->GetHandle());
+    RtKdPrevBuffer.Destroy(GpuDevice->GetHandle());
+    DenoiseBuffer.Destroy(GpuDevice->GetHandle());
 
-    vkDestroyPipeline(GpuDevice.GetHandle(), PostPipeline, nullptr);
-    vkDestroyPipelineLayout(GpuDevice.GetHandle(), PostPipelineLayout, nullptr);
-    vkDestroyPipeline(GpuDevice.GetHandle(), ScanlinePipeline, nullptr);
-    vkDestroyPipelineLayout(GpuDevice.GetHandle(), ScanlinePipelineLayout, nullptr);
+    vkDestroyPipeline(GpuDevice->GetHandle(), PostPipeline, nullptr);
+    vkDestroyPipelineLayout(GpuDevice->GetHandle(), PostPipelineLayout, nullptr);
+    vkDestroyPipeline(GpuDevice->GetHandle(), ScanlinePipeline, nullptr);
+    vkDestroyPipelineLayout(GpuDevice->GetHandle(), ScanlinePipelineLayout, nullptr);
 }
 
 void Renderer::WriteSizedDescriptors()
 {
-    PostDesc.Write(GpuDevice.GetHandle(), 0, ScImageBuffer.Descriptor());
+    PostDesc.Write(GpuDevice->GetHandle(), 0, ScImageBuffer.Descriptor());
 
-    RtDesc.Write(GpuDevice.GetHandle(), 1, RtColCurrBuffer.Descriptor());
-    RtDesc.Write(GpuDevice.GetHandle(), 2, RtColPrevBuffer.Descriptor());
-    RtDesc.Write(GpuDevice.GetHandle(), 3, RtNdCurrBuffer.Descriptor());
-    RtDesc.Write(GpuDevice.GetHandle(), 4, RtNdPrevBuffer.Descriptor());
-    RtDesc.Write(GpuDevice.GetHandle(), 5, RtKdCurrBuffer.Descriptor());
-    RtDesc.Write(GpuDevice.GetHandle(), 6, RtKdPrevBuffer.Descriptor());
+    RtDesc.Write(GpuDevice->GetHandle(), 1, RtColCurrBuffer.Descriptor());
+    RtDesc.Write(GpuDevice->GetHandle(), 2, RtColPrevBuffer.Descriptor());
+    RtDesc.Write(GpuDevice->GetHandle(), 3, RtNdCurrBuffer.Descriptor());
+    RtDesc.Write(GpuDevice->GetHandle(), 4, RtNdPrevBuffer.Descriptor());
+    RtDesc.Write(GpuDevice->GetHandle(), 5, RtKdCurrBuffer.Descriptor());
+    RtDesc.Write(GpuDevice->GetHandle(), 6, RtKdPrevBuffer.Descriptor());
 
-    DenoiseDesc.Write(GpuDevice.GetHandle(), 0, ScImageBuffer.Descriptor());
-    DenoiseDesc.Write(GpuDevice.GetHandle(), 1, DenoiseBuffer.Descriptor());
-    DenoiseDesc.Write(GpuDevice.GetHandle(), 2, RtKdCurrBuffer.Descriptor());
-    DenoiseDesc.Write(GpuDevice.GetHandle(), 3, RtNdCurrBuffer.Descriptor());
+    DenoiseDesc.Write(GpuDevice->GetHandle(), 0, ScImageBuffer.Descriptor());
+    DenoiseDesc.Write(GpuDevice->GetHandle(), 1, DenoiseBuffer.Descriptor());
+    DenoiseDesc.Write(GpuDevice->GetHandle(), 2, RtKdCurrBuffer.Descriptor());
+    DenoiseDesc.Write(GpuDevice->GetHandle(), 3, RtNdCurrBuffer.Descriptor());
 }
 
 // Create a command pool, used to allocate command buffers, which in
@@ -192,9 +191,9 @@ void Renderer::CreateCommandPool()
 {
     VkCommandPoolCreateInfo PoolCreateInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     PoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    PoolCreateInfo.queueFamilyIndex = GpuDevice.GetQueueFamily();
+    PoolCreateInfo.queueFamilyIndex = GpuDevice->GetQueueFamily();
     RTRT_CHECK_VK(
-        vkCreateCommandPool(GpuDevice.GetHandle(), &PoolCreateInfo, nullptr, &CmdPool));
+        vkCreateCommandPool(GpuDevice->GetHandle(), &PoolCreateInfo, nullptr, &CmdPool));
 
     // Create a command buffer
     VkCommandBufferAllocateInfo AllocateInfo{
@@ -203,16 +202,16 @@ void Renderer::CreateCommandPool()
     AllocateInfo.commandBufferCount = 1;
     AllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     RTRT_CHECK_VK(
-        vkAllocateCommandBuffers(GpuDevice.GetHandle(), &AllocateInfo, &CommandBuffer));
+        vkAllocateCommandBuffers(GpuDevice->GetHandle(), &AllocateInfo, &CommandBuffer));
     // Nothing to destroy -- the pool owns the command buffer.
 }
 
 void Renderer::CreateSwapchain()
 {
-    MainSwapchain.Create(GpuDevice, GpuContext.GetSurface(), Application->GetWindow());
+    MainSwapchain->Create(*GpuDevice, GpuContext->GetSurface(), *MainWindow);
 
     VkCommandBuffer Cmd = CreateTempCmdBuffer();
-    MainSwapchain.RecordInitialTransition(Cmd);
+    MainSwapchain->RecordInitialTransition(Cmd);
     SubmitTempCmdBuffer(Cmd);
 }
 
@@ -221,7 +220,7 @@ void Renderer::CreateFrameFence()
     VkFenceCreateInfo FenceCreateInfo{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
     FenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     RTRT_CHECK_VK(
-        vkCreateFence(GpuDevice.GetHandle(), &FenceCreateInfo, nullptr, &WaitFence));
+        vkCreateFence(GpuDevice->GetHandle(), &FenceCreateInfo, nullptr, &WaitFence));
 }
 
 void Renderer::CreateDepthResource()
@@ -231,7 +230,7 @@ void Renderer::CreateDepthResource()
     // Note DepthImage is type ImageWrap; a tiny wrapper around
     // several related Vulkan objects.
     DepthImage = CreateImageWrap(
-        MainSwapchain.GetExtent().width, MainSwapchain.GetExtent().height,
+        MainSwapchain->GetExtent().width, MainSwapchain->GetExtent().height,
         VK_FORMAT_X8_D24_UNORM_PACK32, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MipLevels);
     DepthImage.ImageView = CreateImageView(
@@ -268,21 +267,21 @@ ImageWrap Renderer::CreateImageWrap(uint32_t Width, uint32_t Height, VkFormat Fo
     ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     RTRT_CHECK_VK(
-        vkCreateImage(GpuDevice.GetHandle(), &ImageInfo, nullptr, &MyImage.Image));
+        vkCreateImage(GpuDevice->GetHandle(), &ImageInfo, nullptr, &MyImage.Image));
 
     VkMemoryRequirements MemRequirements;
-    vkGetImageMemoryRequirements(GpuDevice.GetHandle(), MyImage.Image, &MemRequirements);
+    vkGetImageMemoryRequirements(GpuDevice->GetHandle(), MyImage.Image, &MemRequirements);
 
     VkMemoryAllocateInfo AllocInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
     AllocInfo.allocationSize = MemRequirements.size;
     AllocInfo.memoryTypeIndex =
-        GpuDevice.FindMemoryType(MemRequirements.memoryTypeBits, Properties);
+        GpuDevice->FindMemoryType(MemRequirements.memoryTypeBits, Properties);
 
     RTRT_CHECK_VK(
-        vkAllocateMemory(GpuDevice.GetHandle(), &AllocInfo, nullptr, &MyImage.Memory));
+        vkAllocateMemory(GpuDevice->GetHandle(), &AllocInfo, nullptr, &MyImage.Memory));
 
     RTRT_CHECK_VK(
-        vkBindImageMemory(GpuDevice.GetHandle(), MyImage.Image, MyImage.Memory, 0));
+        vkBindImageMemory(GpuDevice->GetHandle(), MyImage.Image, MyImage.Memory, 0));
 
     MyImage.ImageView = VK_NULL_HANDLE;
     MyImage.Sampler = VK_NULL_HANDLE;
@@ -305,7 +304,7 @@ VkImageView Renderer::CreateImageView(VkImage Image, VkFormat Format,
 
     VkImageView ImageView;
     RTRT_CHECK_VK(
-        vkCreateImageView(GpuDevice.GetHandle(), &ViewInfo, nullptr, &ImageView));
+        vkCreateImageView(GpuDevice->GetHandle(), &ViewInfo, nullptr, &ImageView));
     return ImageView;
 }
 
@@ -356,7 +355,7 @@ void Renderer::CreatePostRenderPass()
     RenderPassInfo.dependencyCount = static_cast<uint32_t>(SubpassDependencies.size());
     RenderPassInfo.pDependencies = SubpassDependencies.data();
 
-    RTRT_CHECK_VK(vkCreateRenderPass(GpuDevice.GetHandle(), &RenderPassInfo, nullptr,
+    RTRT_CHECK_VK(vkCreateRenderPass(GpuDevice->GetHandle(), &RenderPassInfo, nullptr,
                                      &PostRenderPass));
 }
 
@@ -369,21 +368,21 @@ void Renderer::CreatePostFrameBuffers()
     // Create frame buffers for every swap chain image
     VkFramebufferCreateInfo FramebufferInfo{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
     FramebufferInfo.renderPass = PostRenderPass;
-    FramebufferInfo.width = MainSwapchain.GetExtent().width;
-    FramebufferInfo.height = MainSwapchain.GetExtent().height;
+    FramebufferInfo.width = MainSwapchain->GetExtent().width;
+    FramebufferInfo.height = MainSwapchain->GetExtent().height;
     FramebufferInfo.layers = 1;
     FramebufferInfo.attachmentCount = 2;
     FramebufferInfo.pAttachments = Fbattachments.data();
 
     // Each of the three swapchain images gets an associated frame
     // buffer, all sharing one depth buffer.
-    Framebuffers.resize(MainSwapchain.GetImageCount());
-    for (uint32_t I = 0; I < MainSwapchain.GetImageCount(); I++)
+    Framebuffers.resize(MainSwapchain->GetImageCount());
+    for (uint32_t I = 0; I < MainSwapchain->GetImageCount(); I++)
     {
         // A color attachment from the swap chain
-        Fbattachments[0] = MainSwapchain.GetView(I);
+        Fbattachments[0] = MainSwapchain->GetView(I);
         Fbattachments[1] = DepthImage.ImageView;  // A depth attachment
-        RTRT_CHECK_VK(vkCreateFramebuffer(GpuDevice.GetHandle(), &FramebufferInfo,
+        RTRT_CHECK_VK(vkCreateFramebuffer(GpuDevice->GetHandle(), &FramebufferInfo,
                                           nullptr, &Framebuffers[I]));
     }
 }
@@ -400,7 +399,7 @@ void Renderer::CreatePostPipeline()
     CreateInfo.pushConstantRangeCount = 1;
     CreateInfo.pPushConstantRanges = &PushConstant;
 
-    RTRT_CHECK_VK(vkCreatePipelineLayout(GpuDevice.GetHandle(), &CreateInfo, nullptr,
+    RTRT_CHECK_VK(vkCreatePipelineLayout(GpuDevice->GetHandle(), &CreateInfo, nullptr,
                                          &PostPipelineLayout));
 
     // No geometry in this pipeline's draw.
@@ -468,13 +467,13 @@ VkPipeline Renderer::CreateGraphicsPipeline(
     PipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
     VkPipeline Pipeline = VK_NULL_HANDLE;
-    RTRT_CHECK_VK(vkCreateGraphicsPipelines(GpuDevice.GetHandle(), VK_NULL_HANDLE, 1,
+    RTRT_CHECK_VK(vkCreateGraphicsPipelines(GpuDevice->GetHandle(), VK_NULL_HANDLE, 1,
                                             &PipelineInfo, nullptr, &Pipeline));
 
     // The pipeline has fully compiled copies of the shaders, so these
     // intermediate (SPV) versions can be destroyed.
-    vkDestroyShaderModule(GpuDevice.GetHandle(), FragShaderModule, nullptr);
-    vkDestroyShaderModule(GpuDevice.GetHandle(), VertShaderModule, nullptr);
+    vkDestroyShaderModule(GpuDevice->GetHandle(), FragShaderModule, nullptr);
+    vkDestroyShaderModule(GpuDevice->GetHandle(), VertShaderModule, nullptr);
     return Pipeline;
 }
 
@@ -489,14 +488,14 @@ Renderer::FixedFunctionState Renderer::MakeFixedFunctionState() const
 
     State.Viewport.x = 0.0f;
     State.Viewport.y = 0.0f;
-    State.Viewport.width = static_cast<float>(MainSwapchain.GetExtent().width);
-    State.Viewport.height = static_cast<float>(MainSwapchain.GetExtent().height);
+    State.Viewport.width = static_cast<float>(MainSwapchain->GetExtent().width);
+    State.Viewport.height = static_cast<float>(MainSwapchain->GetExtent().height);
     State.Viewport.minDepth = 0.0f;
     State.Viewport.maxDepth = 1.0f;
 
     State.Scissor.offset = {0, 0};
     State.Scissor.extent =
-        VkExtent2D{MainSwapchain.GetExtent().width, MainSwapchain.GetExtent().height};
+        VkExtent2D{MainSwapchain->GetExtent().width, MainSwapchain->GetExtent().height};
 
     State.Rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     State.Rasterizer.depthClampEnable = VK_FALSE;
@@ -558,25 +557,25 @@ void Renderer::SetShaderLanguage(bool UseSlangShaders)
     UseSlang = UseSlangShaders;
 
     // The last frame may still be using the old pipelines
-    RTRT_CHECK_VK(vkDeviceWaitIdle(GpuDevice.GetHandle()));
+    RTRT_CHECK_VK(vkDeviceWaitIdle(GpuDevice->GetHandle()));
 
-    vkDestroyPipeline(GpuDevice.GetHandle(), PostPipeline, nullptr);
-    vkDestroyPipelineLayout(GpuDevice.GetHandle(), PostPipelineLayout, nullptr);
+    vkDestroyPipeline(GpuDevice->GetHandle(), PostPipeline, nullptr);
+    vkDestroyPipelineLayout(GpuDevice->GetHandle(), PostPipelineLayout, nullptr);
     CreatePostPipeline();
 
-    vkDestroyPipeline(GpuDevice.GetHandle(), ScanlinePipeline, nullptr);
-    vkDestroyPipelineLayout(GpuDevice.GetHandle(), ScanlinePipelineLayout, nullptr);
+    vkDestroyPipeline(GpuDevice->GetHandle(), ScanlinePipeline, nullptr);
+    vkDestroyPipelineLayout(GpuDevice->GetHandle(), ScanlinePipelineLayout, nullptr);
     CreateScPipeline();
 
     // The SBT holds group handles of the old pipeline, so it is rebuilt with it
-    ShaderBindingTableBw.Destroy(GpuDevice.GetHandle());
-    vkDestroyPipeline(GpuDevice.GetHandle(), RtPipeline, nullptr);
-    vkDestroyPipelineLayout(GpuDevice.GetHandle(), RtPipelineLayout, nullptr);
+    ShaderBindingTableBw.Destroy(GpuDevice->GetHandle());
+    vkDestroyPipeline(GpuDevice->GetHandle(), RtPipeline, nullptr);
+    vkDestroyPipelineLayout(GpuDevice->GetHandle(), RtPipelineLayout, nullptr);
     CreateRtPipeline();
     CreateRtShaderBindingTable();
 
-    vkDestroyPipeline(GpuDevice.GetHandle(), DenoisePipeline, nullptr);
-    vkDestroyPipelineLayout(GpuDevice.GetHandle(), DenoiseCompPipelineLayout, nullptr);
+    vkDestroyPipeline(GpuDevice->GetHandle(), DenoisePipeline, nullptr);
+    vkDestroyPipelineLayout(GpuDevice->GetHandle(), DenoiseCompPipelineLayout, nullptr);
     CreateDenoiseCompPipeline();
 }
 
@@ -612,14 +611,14 @@ void Renderer::PostProcess()
     PassBeginInfo.clearValueCount = 2;
     PassBeginInfo.pClearValues = ClearValues.data();
     PassBeginInfo.renderPass = PostRenderPass;
-    PassBeginInfo.framebuffer = Framebuffers[MainSwapchain.GetImageIndex()];
-    PassBeginInfo.renderArea = {{0, 0}, MainSwapchain.GetExtent()};
+    PassBeginInfo.framebuffer = Framebuffers[MainSwapchain->GetImageIndex()];
+    PassBeginInfo.renderArea = {{0, 0}, MainSwapchain->GetExtent()};
 
     vkCmdBeginRenderPass(CommandBuffer, &PassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
     {  // extra indent for renderpass commands
 
-        auto AspectRatio = static_cast<float>(MainSwapchain.GetExtent().width) /
-                           static_cast<float>(MainSwapchain.GetExtent().height);
+        auto AspectRatio = static_cast<float>(MainSwapchain->GetExtent().width) /
+                           static_cast<float>(MainSwapchain->GetExtent().height);
         vkCmdBindPipeline(CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PostPipeline);
         vkCmdBindDescriptorSets(CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 PostPipelineLayout, 0, 1, &PostDesc.GetSet(), 0, nullptr);

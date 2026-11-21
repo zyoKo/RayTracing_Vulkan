@@ -15,7 +15,7 @@ constexpr uint32_t kGroupSize = 128;
 
 void Renderer::CreateDenoiseBuffer()
 {
-    DenoiseBuffer = CreateBufferImage(MainSwapchain.GetExtent());
+    DenoiseBuffer = CreateBufferImage(MainSwapchain->GetExtent());
     TransitionImageLayout(DenoiseBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 }
@@ -23,20 +23,20 @@ void Renderer::CreateDenoiseBuffer()
 void Renderer::CreateDenoiseDescriptorSet()
 {
     DenoiseDesc.SetBindings(
-        GpuDevice.GetHandle(),
+        GpuDevice->GetHandle(),
         {{0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT},
          {1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT},
          {2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT},
          {3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT}});
 
     // The input image
-    DenoiseDesc.Write(GpuDevice.GetHandle(), 0, ScImageBuffer.Descriptor());
+    DenoiseDesc.Write(GpuDevice->GetHandle(), 0, ScImageBuffer.Descriptor());
     // The output image
-    DenoiseDesc.Write(GpuDevice.GetHandle(), 1, DenoiseBuffer.Descriptor());
+    DenoiseDesc.Write(GpuDevice->GetHandle(), 1, DenoiseBuffer.Descriptor());
     // The color buffer
-    DenoiseDesc.Write(GpuDevice.GetHandle(), 2, RtKdCurrBuffer.Descriptor());
+    DenoiseDesc.Write(GpuDevice->GetHandle(), 2, RtKdCurrBuffer.Descriptor());
     // The normal:depth buffer
-    DenoiseDesc.Write(GpuDevice.GetHandle(), 3, RtNdCurrBuffer.Descriptor());
+    DenoiseDesc.Write(GpuDevice->GetHandle(), 3, RtNdCurrBuffer.Descriptor());
 }
 
 void Renderer::CreateDenoiseCompPipeline()
@@ -49,7 +49,7 @@ void Renderer::CreateDenoiseCompPipeline()
     PlCreateInfo.pSetLayouts = &DenoiseDesc.GetLayout();
     PlCreateInfo.pushConstantRangeCount = 1;
     PlCreateInfo.pPushConstantRanges = &PcInfo;
-    RTRT_CHECK_VK(vkCreatePipelineLayout(GpuDevice.GetHandle(), &PlCreateInfo, nullptr,
+    RTRT_CHECK_VK(vkCreatePipelineLayout(GpuDevice->GetHandle(), &PlCreateInfo, nullptr,
                                          &DenoiseCompPipelineLayout));
 
     VkComputePipelineCreateInfo CpCreateInfo{
@@ -59,9 +59,9 @@ void Renderer::CreateDenoiseCompPipeline()
     CpCreateInfo.stage = CreateShaderStageInfo(
         LoadShader("spv/denoise.comp.spv", "spv/denoise.comp.slang.spv"),
         VK_SHADER_STAGE_COMPUTE_BIT);
-    RTRT_CHECK_VK(vkCreateComputePipelines(GpuDevice.GetHandle(), {}, 1, &CpCreateInfo,
+    RTRT_CHECK_VK(vkCreateComputePipelines(GpuDevice->GetHandle(), {}, 1, &CpCreateInfo,
                                            nullptr, &DenoisePipeline));
-    vkDestroyShaderModule(GpuDevice.GetHandle(), CpCreateInfo.stage.module, nullptr);
+    vkDestroyShaderModule(GpuDevice->GetHandle(), CpCreateInfo.stage.module, nullptr);
 }
 
 void Renderer::Denoise()
@@ -101,8 +101,8 @@ void Renderer::Denoise()
         // One 128x1 workgroup per row segment; kGroupSize must match
         // local_size_x in denoise.comp.
         vkCmdDispatch(CommandBuffer,
-                      (MainSwapchain.GetExtent().width + kGroupSize - 1) / kGroupSize,
-                      MainSwapchain.GetExtent().height, 1);
+                      (MainSwapchain->GetExtent().width + kGroupSize - 1) / kGroupSize,
+                      MainSwapchain->GetExtent().height, 1);
 
         // Wait until denoise shader is done writing to DenoiseBuffer
         ImgMemBarrier.image = DenoiseBuffer.Image;

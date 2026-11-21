@@ -157,13 +157,13 @@ void Renderer::MyLoadModel(const std::string& Filename, const glm::mat4& Transfo
     ObjDesc Desc;
     Desc.TxtOffset = TxtOffset;
     Desc.VertexAddress =
-        GetBufferDeviceAddress(GpuDevice.GetHandle(), Object.VertexBuffer.Buffer);
+        GetBufferDeviceAddress(GpuDevice->GetHandle(), Object.VertexBuffer.Buffer);
     Desc.IndexAddress =
-        GetBufferDeviceAddress(GpuDevice.GetHandle(), Object.IndexBuffer.Buffer);
+        GetBufferDeviceAddress(GpuDevice->GetHandle(), Object.IndexBuffer.Buffer);
     Desc.MaterialAddress =
-        GetBufferDeviceAddress(GpuDevice.GetHandle(), Object.MatColorBuffer.Buffer);
+        GetBufferDeviceAddress(GpuDevice->GetHandle(), Object.MatColorBuffer.Buffer);
     Desc.MaterialIndexAddress =
-        GetBufferDeviceAddress(GpuDevice.GetHandle(), Object.MatIndexBuffer.Buffer);
+        GetBufferDeviceAddress(GpuDevice->GetHandle(), Object.MatIndexBuffer.Buffer);
 
     ObjDataList.emplace_back(Object);
     ObjDescList.emplace_back(Desc);

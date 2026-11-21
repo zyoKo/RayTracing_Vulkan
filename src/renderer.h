@@ -9,8 +9,10 @@
 
 #include "acceleration_wrap.h"
 #include "buffer_wrap.h"
+#include "core/window.h"
 #include "descriptor_wrap.h"
 #include "image_wrap.h"
+#include "scene/camera.h"
 #include "shaders/shared_structs.h"
 #include "vk/context.h"
 #include "vk/device.h"
@@ -39,8 +41,6 @@ struct ObjInst
     uint32_t ObjIndex;    // Model index
 };
 
-class App;
-
 // Settings the UI changes between frames.
 struct RenderSettings
 {
@@ -57,13 +57,14 @@ struct RenderSettings
 class Renderer
 {
 public:
-    explicit Renderer(App* Owner);
+    Renderer() = default;
     Renderer(const Renderer&) = delete;
     Renderer& operator=(const Renderer&) = delete;
 
-    // Creates the device, loads the scene and builds every pipeline. False if no GPU
-    // supports the required extensions.
-    bool Init();
+    // Loads the scene and builds the swapchain, every pipeline and the ImGui backend.
+    // The objects passed in must outlive the renderer.
+    bool Init(Window& Target, Context& Instance, Device& Gpu, Swapchain& Chain,
+              const Camera& View, bool UseSlangShaders);
 
     // Records, submits and presents one frame.
     void DrawFrame();
@@ -120,7 +121,7 @@ public:
     // Helpers the acceleration-structure builder uses.
     VkDevice GetDevice() const
     {
-        return GpuDevice.GetHandle();
+        return GpuDevice->GetHandle();
     }
 
     // A one-time command buffer; SubmitTempCmdBuffer runs it, waits and frees it.
@@ -142,10 +143,11 @@ public:
     }
 
 private:
-    App* Application;
-    Context GpuContext;
-    Device GpuDevice;
-    Swapchain MainSwapchain;
+    Window* MainWindow = nullptr;
+    Context* GpuContext = nullptr;
+    Device* GpuDevice = nullptr;
+    Swapchain* MainSwapchain = nullptr;
+    const Camera* MainCamera = nullptr;
 
     RenderSettings Settings;
     // Frames rendered since the history was last reset

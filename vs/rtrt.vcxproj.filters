@@ -1,6 +1,12 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <ClCompile Include="..\src\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\core\application.cpp">
+      <Filter>Source Files\core</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\vk\swapchain.cpp">
       <Filter>Source Files\vk</Filter>
     </ClCompile>
@@ -12,9 +18,6 @@
     </ClCompile>
     <ClCompile Include="..\src\vk\context.cpp">
       <Filter>Source Files\vk</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\app.cpp">
-      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\scene\camera.cpp">
       <Filter>Source Files\scene</Filter>
@@ -97,6 +100,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\core\application.h">
+      <Filter>Header Files\core</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\vk\swapchain.h">
       <Filter>Header Files\vk</Filter>
     </ClInclude>
@@ -108,9 +114,6 @@
     </ClInclude>
     <ClInclude Include="..\src\vk\context.h">
       <Filter>Header Files\vk</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\app.h">
-      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\buffer_wrap.h">
       <Filter>Header Files</Filter>

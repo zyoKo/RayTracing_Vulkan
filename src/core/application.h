@@ -1,5 +1,5 @@
-#ifndef RTRT_SRC_APP_H_
-#define RTRT_SRC_APP_H_
+#ifndef RTRT_SRC_CORE_APPLICATION_H_
+#define RTRT_SRC_CORE_APPLICATION_H_
 
 #include <algorithm>
 #include <cfloat>
@@ -8,6 +8,9 @@
 #include "renderer.h"
 #include "scene/camera.h"
 #include "scene/camera_controller.h"
+#include "vk/context.h"
+#include "vk/device.h"
+#include "vk/swapchain.h"
 
 namespace rtrt
 {
@@ -59,17 +62,22 @@ struct FrameStats
     }
 };
 
-// The window, its input and the ImGui windows drawn on top of the renderer.
-class App
+// Owns the window, the Vulkan objects, the camera and the renderer, runs the frame
+// loop, and draws the ImGui windows on top of the renderer.
+class Application
 {
 public:
-    App() = default;
-    App(const App&) = delete;
-    App& operator=(const App&) = delete;
+    Application() = default;
+    Application(const Application&) = delete;
+    Application& operator=(const Application&) = delete;
 
-    // Reads the command line and opens the window. False on a bad argument or when
-    // GLFW, the window or Vulkan isn't available.
+    // Reads the command line, opens the window and sets up Vulkan and the renderer.
+    // False on a bad argument, or when GLFW, Vulkan or a ray tracing GPU is missing.
     bool Init(int Argc, char** Argv);
+
+    // Runs the frame loop until the window closes, then frees the Vulkan objects.
+    // Returns the process exit code.
+    int Run();
 
     // Moves the camera for the keys and mouse button held down since the last frame.
     void UpdateCamera();
@@ -79,26 +87,6 @@ public:
 
     // Adds one frame's timings, in milliseconds, to the performance history.
     void RecordFrameTimes(float FrameMs, float CpuMs, float DrawMs, float GpuWaitMs);
-
-    Window& GetWindow()
-    {
-        return MainWindow;
-    }
-
-    const Camera& GetCamera() const
-    {
-        return MainCamera;
-    }
-
-    bool GetDoApiDump() const
-    {
-        return DoApiDump;
-    }
-
-    bool GetUseSlang() const
-    {
-        return UseSlang;
-    }
 
 private:
     void OnKey(int Key, int Action);
@@ -119,6 +107,9 @@ private:
     void DrawShaderSettings(Renderer& VK);
 
     Window MainWindow;
+    Context GpuContext;
+    Device GpuDevice;
+    Swapchain MainSwapchain;
     bool DoApiDump = false;
     // -slang: start with the Slang shaders
     bool UseSlang = false;
@@ -128,8 +119,9 @@ private:
     Camera MainCamera;
     CameraController MainController;
     FrameStats Stats;
+    Renderer MainRenderer;
 };
 
 }  // namespace rtrt
 
-#endif  // RTRT_SRC_APP_H_
+#endif  // RTRT_SRC_CORE_APPLICATION_H_

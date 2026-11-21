@@ -1,4 +1,4 @@
-#include "app.h"
+#include "core/application.h"
 
 #include <algorithm>
 #include <cfloat>
@@ -54,7 +54,7 @@ bool ImGuiWantsMouse()
 
 }  // namespace
 
-void App::OnMouseButton(double X, double Y)
+void Application::OnMouseButton(double X, double Y)
 {
     if (ImGuiWantsMouse())
     {
@@ -63,7 +63,7 @@ void App::OnMouseButton(double X, double Y)
     MainController.OnMouseButton(static_cast<float>(X), static_cast<float>(Y));
 }
 
-void App::OnCursorPos(double X, double Y)
+void Application::OnCursorPos(double X, double Y)
 {
     if (ImGuiWantsMouse())
     {
@@ -72,7 +72,7 @@ void App::OnCursorPos(double X, double Y)
     MainController.OnCursorPos(static_cast<float>(X), static_cast<float>(Y), MainCamera);
 }
 
-void App::OnKey(int Key, int Action)
+void Application::OnKey(int Key, int Action)
 {
     // Keys typed into a settings field (Ctrl+click on a slider) belong to that field.
     if (ImGuiWantsTextInput())
@@ -91,7 +91,7 @@ void App::OnKey(int Key, int Action)
     }
 }
 
-void App::DrawGui(Renderer& VK)
+void Application::DrawGui(Renderer& VK)
 {
     if (ShowGui)
     {
@@ -103,12 +103,13 @@ void App::DrawGui(Renderer& VK)
     }
 }
 
-void App::RecordFrameTimes(float FrameMs, float CpuMs, float DrawMs, float GpuWaitMs)
+void Application::RecordFrameTimes(float FrameMs, float CpuMs, float DrawMs,
+                                   float GpuWaitMs)
 {
     Stats.Push(FrameMs, CpuMs, DrawMs, GpuWaitMs);
 }
 
-void App::DrawPerfWindow()
+void Application::DrawPerfWindow()
 {
     ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(420, 330), ImGuiCond_FirstUseEver);
@@ -154,7 +155,7 @@ void App::DrawPerfWindow()
     ImGui::End();
 }
 
-void App::DrawSettingsWindow(Renderer& VK)
+void Application::DrawSettingsWindow(Renderer& VK)
 {
     // Pinned to the right edge at full height; only the width can change.
     const ImVec2 Display = ImGui::GetIO().DisplaySize;
@@ -201,7 +202,7 @@ void App::DrawSettingsWindow(Renderer& VK)
     ImGui::End();
 }
 
-bool App::DrawModeSettings(Renderer& VK)
+bool Application::DrawModeSettings(Renderer& VK)
 {
     RenderSettings& Settings = VK.GetSettings();
     bool ResetHistory = false;
@@ -222,7 +223,7 @@ bool App::DrawModeSettings(Renderer& VK)
     return ResetHistory;
 }
 
-bool App::DrawPathTracerSettings(Renderer& VK)
+bool Application::DrawPathTracerSettings(Renderer& VK)
 {
     if (!ImGui::CollapsingHeader("Path tracer", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -238,7 +239,7 @@ bool App::DrawPathTracerSettings(Renderer& VK)
     return ResetHistory;
 }
 
-bool App::DrawHistorySettings(Renderer& VK)
+bool Application::DrawHistorySettings(Renderer& VK)
 {
     if (!ImGui::CollapsingHeader("Temporal history", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -254,7 +255,7 @@ bool App::DrawHistorySettings(Renderer& VK)
     return ImGui::Button("Reset history");
 }
 
-void App::DrawDenoiserSettings(Renderer& VK)
+void Application::DrawDenoiserSettings(Renderer& VK)
 {
     if (!ImGui::CollapsingHeader("Denoiser", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -273,7 +274,7 @@ void App::DrawDenoiserSettings(Renderer& VK)
                        ImGuiSliderFlags_Logarithmic);
 }
 
-void App::DrawDisplaySettings(Renderer& VK)
+void Application::DrawDisplaySettings(Renderer& VK)
 {
     if (!ImGui::CollapsingHeader("Display", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -285,7 +286,7 @@ void App::DrawDisplaySettings(Renderer& VK)
     ImGui::SliderFloat("Gamma", &Settings.Gamma, 1.0f, 3.0f, "%.2f");
 }
 
-void App::DrawCameraSettings()
+void Application::DrawCameraSettings()
 {
     if (!ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -305,7 +306,7 @@ void App::DrawCameraSettings()
     }
 }
 
-void App::DrawShaderSettings(Renderer& VK)
+void Application::DrawShaderSettings(Renderer& VK)
 {
     if (!ImGui::CollapsingHeader("Shaders", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -323,14 +324,14 @@ void App::DrawShaderSettings(Renderer& VK)
     }
 }
 
-void App::UpdateCamera()
+void Application::UpdateCamera()
 {
     // Letters typed into a settings field (Ctrl+click on a slider) must not move the
     // camera.
     MainController.Update(MainWindow, !ImGuiWantsTextInput(), MainCamera);
 }
 
-bool App::Init(int Argc, char** Argv)
+bool Application::Init(int Argc, char** Argv)
 {
     int ArgIndex = 1;
     while (ArgIndex < Argc)
@@ -360,51 +361,38 @@ bool App::Init(int Argc, char** Argv)
     MainWindow.SetMouseButtonHandler([this](int, int, double X, double Y)
                                      { OnMouseButton(X, Y); });
     MainWindow.SetCursorPosHandler([this](double X, double Y) { OnCursorPos(X, Y); });
-    return true;
+
+    return GpuContext.Init(MainWindow, DoApiDump) && GpuDevice.Init(GpuContext) &&
+           MainRenderer.Init(MainWindow, GpuContext, GpuDevice, MainSwapchain, MainCamera,
+                             UseSlang);
 }
 
-}  // namespace rtrt
-
-//----------------------------------------------------------------------------------------
-int main(int Argc, char** Argv)
+int Application::Run()
 {
-    rtrt::App Application;
-    if (!Application.Init(Argc, Argv))
-    {
-        return 1;
-    }
-
-    rtrt::Renderer VK(&Application);
-    if (!VK.Init())
-    {
-        return 1;
-    }
-
-    // The draw loop
     printf("looping =======================================\n");
     double FrameStart = glfwGetTime();
-    while (!Application.GetWindow().ShouldClose())
+    while (!MainWindow.ShouldClose())
     {
-        Application.GetWindow().PollEvents();
-        Application.UpdateCamera();
+        MainWindow.PollEvents();
+        UpdateCamera();
 
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        Application.DrawGui(VK);
+        DrawGui(MainRenderer);
 
         const double CpuEnd = glfwGetTime();
-        VK.DrawFrame();
+        MainRenderer.DrawFrame();
 
         const double FrameEnd = glfwGetTime();
-        Application.RecordFrameTimes(static_cast<float>((FrameEnd - FrameStart) * 1000.0),
-                                     static_cast<float>((CpuEnd - FrameStart) * 1000.0),
-                                     static_cast<float>(VK.GetRecordMs()),
-                                     static_cast<float>(VK.GetGpuWaitMs()));
+        RecordFrameTimes(static_cast<float>((FrameEnd - FrameStart) * 1000.0),
+                         static_cast<float>((CpuEnd - FrameStart) * 1000.0),
+                         static_cast<float>(MainRenderer.GetRecordMs()),
+                         static_cast<float>(MainRenderer.GetGpuWaitMs()));
         FrameStart = FrameEnd;
     }
 
-    // Cleanup
-
-    VK.DestroyAllVulkanResources();
+    MainRenderer.DestroyAllVulkanResources();
     return 0;
 }
+
+}  // namespace rtrt

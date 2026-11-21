@@ -12,27 +12,20 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-#include "app.h"
 #include "vk_check.h"
 
 namespace rtrt
 {
 
-Renderer::Renderer(App* Owner) : Application(Owner)
+bool Renderer::Init(Window& Target, Context& Instance, Device& Gpu, Swapchain& Chain,
+                    const Camera& View, bool UseSlangShaders)
 {
-}
-
-bool Renderer::Init()
-{
-    UseSlang = Application->GetUseSlang();  // -slang picks the starting shader language
-    if (!GpuContext.Init(Application->GetWindow(), Application->GetDoApiDump()))
-    {
-        return false;
-    }
-    if (!GpuDevice.Init(GpuContext))
-    {
-        return false;
-    }
+    MainWindow = &Target;
+    GpuContext = &Instance;
+    GpuDevice = &Gpu;
+    MainSwapchain = &Chain;
+    MainCamera = &View;
+    UseSlang = UseSlangShaders;
 
     CreateCommandPool();  // -> CmdPool
 
@@ -118,7 +111,7 @@ VkCommandBuffer Renderer::CreateTempCmdBuffer()
     AllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     VkCommandBuffer CmdBuffer;
     RTRT_CHECK_VK(
-        vkAllocateCommandBuffers(GpuDevice.GetHandle(), &AllocateInfo, &CmdBuffer));
+        vkAllocateCommandBuffers(GpuDevice->GetHandle(), &AllocateInfo, &CmdBuffer));
 
     VkCommandBufferBeginInfo BeginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     BeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -133,9 +126,9 @@ void Renderer::SubmitTempCmdBuffer(VkCommandBuffer CmdBuffer)
     VkSubmitInfo SubmitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
     SubmitInfo.commandBufferCount = 1;
     SubmitInfo.pCommandBuffers = &CmdBuffer;
-    RTRT_CHECK_VK(vkQueueSubmit(GpuDevice.GetQueue(), 1, &SubmitInfo, {}));
-    RTRT_CHECK_VK(vkQueueWaitIdle(GpuDevice.GetQueue()));
-    vkFreeCommandBuffers(GpuDevice.GetHandle(), CmdPool, 1, &CmdBuffer);
+    RTRT_CHECK_VK(vkQueueSubmit(GpuDevice->GetQueue(), 1, &SubmitInfo, {}));
+    RTRT_CHECK_VK(vkQueueWaitIdle(GpuDevice->GetQueue()));
+    vkFreeCommandBuffers(GpuDevice->GetHandle(), CmdPool, 1, &CmdBuffer);
 }
 
 bool Renderer::PrepareFrame()
@@ -148,26 +141,26 @@ bool Renderer::PrepareFrame()
     while (WaitResult == VK_TIMEOUT)
     {
         WaitResult =
-            vkWaitForFences(GpuDevice.GetHandle(), 1, &WaitFence, VK_TRUE, 1'000'000);
+            vkWaitForFences(GpuDevice->GetHandle(), 1, &WaitFence, VK_TRUE, 1'000'000);
     }
     CheckVkResult(WaitResult, "vkWaitForFences", __FILE__, __LINE__);
     GpuWaitMs = (glfwGetTime() - WaitStart) * 1000.0;
 
-    if (Application->GetWindow().GetFramebufferResized() && !RecreateSizedResources())
+    if (MainWindow->GetFramebufferResized() && !RecreateSizedResources())
     {
         return false;
     }
 
     // A suboptimal acquire still signals the acquire semaphore, so that frame is drawn
     // and the swapchain is rebuilt after its present.
-    VkResult Result = MainSwapchain.AcquireNextImage();
+    VkResult Result = MainSwapchain->AcquireNextImage();
     while (Result == VK_ERROR_OUT_OF_DATE_KHR)
     {
         if (!RecreateSizedResources())
         {
             return false;
         }
-        Result = MainSwapchain.AcquireNextImage();
+        Result = MainSwapchain->AcquireNextImage();
     }
     CheckVkResult(Result, "vkAcquireNextImageKHR", __FILE__, __LINE__);
     return true;
@@ -175,14 +168,14 @@ bool Renderer::PrepareFrame()
 
 void Renderer::SubmitFrame()
 {
-    RTRT_CHECK_VK(vkResetFences(GpuDevice.GetHandle(), 1, &WaitFence));
+    RTRT_CHECK_VK(vkResetFences(GpuDevice->GetHandle(), 1, &WaitFence));
 
     // Pipeline stage at which the queue submission will wait (via pWaitSemaphores)
     const VkPipelineStageFlags WaitStageMask =
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
-    const VkSemaphore Acquired = MainSwapchain.GetAcquireSemaphore();
-    const VkSemaphore Rendered = MainSwapchain.GetRenderedSemaphore();
+    const VkSemaphore Acquired = MainSwapchain->GetAcquireSemaphore();
+    const VkSemaphore Rendered = MainSwapchain->GetRenderedSemaphore();
 
     VkSubmitInfo FrameSubmitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
     FrameSubmitInfo.pWaitDstStageMask = &WaitStageMask;
@@ -192,12 +185,12 @@ void Renderer::SubmitFrame()
     FrameSubmitInfo.pSignalSemaphores = &Rendered;
     FrameSubmitInfo.commandBufferCount = 1;
     FrameSubmitInfo.pCommandBuffers = &CommandBuffer;
-    RTRT_CHECK_VK(vkQueueSubmit(GpuDevice.GetQueue(), 1, &FrameSubmitInfo, WaitFence));
+    RTRT_CHECK_VK(vkQueueSubmit(GpuDevice->GetQueue(), 1, &FrameSubmitInfo, WaitFence));
 
-    VkResult Result = MainSwapchain.Present(GpuDevice.GetQueue());
+    VkResult Result = MainSwapchain->Present(GpuDevice->GetQueue());
     if (Result == VK_ERROR_OUT_OF_DATE_KHR || Result == VK_SUBOPTIMAL_KHR)
     {
-        Application->GetWindow().SetFramebufferResized(true);
+        MainWindow->SetFramebufferResized(true);
     }
     else
     {
@@ -213,8 +206,8 @@ VkShaderModule Renderer::CreateShaderModule(const std::string& Code)
     CreateInfo.pCode = reinterpret_cast<const uint32_t*>(Code.data());
 
     VkShaderModule ShaderModule = VK_NULL_HANDLE;
-    RTRT_CHECK_VK(
-        vkCreateShaderModule(GpuDevice.GetHandle(), &CreateInfo, nullptr, &ShaderModule));
+    RTRT_CHECK_VK(vkCreateShaderModule(GpuDevice->GetHandle(), &CreateInfo, nullptr,
+                                       &ShaderModule));
 
     return ShaderModule;
 }
@@ -246,21 +239,21 @@ void Renderer::InitGui()
     PoolInfo.maxSets = 2;
     PoolInfo.poolSizeCount = 2;
     PoolInfo.pPoolSizes = PoolSize.data();
-    RTRT_CHECK_VK(vkCreateDescriptorPool(GpuDevice.GetHandle(), &PoolInfo, nullptr,
+    RTRT_CHECK_VK(vkCreateDescriptorPool(GpuDevice->GetHandle(), &PoolInfo, nullptr,
                                          &ImguiDescPool));
 
     // Setup Platform/Renderer back ends
     ImGui_ImplVulkan_InitInfo InitInfo = {};
-    InitInfo.Instance = GpuContext.GetInstance();
-    InitInfo.PhysicalDevice = GpuDevice.GetPhysical();
-    InitInfo.Device = GpuDevice.GetHandle();
-    InitInfo.QueueFamily = GpuDevice.GetQueueFamily();
-    InitInfo.Queue = GpuDevice.GetQueue();
+    InitInfo.Instance = GpuContext->GetInstance();
+    InitInfo.PhysicalDevice = GpuDevice->GetPhysical();
+    InitInfo.Device = GpuDevice->GetHandle();
+    InitInfo.QueueFamily = GpuDevice->GetQueueFamily();
+    InitInfo.Queue = GpuDevice->GetQueue();
     InitInfo.PipelineCache = VK_NULL_HANDLE;
     InitInfo.DescriptorPool = ImguiDescPool;
     InitInfo.Subpass = SubpassID;
     InitInfo.MinImageCount = 2;
-    InitInfo.ImageCount = MainSwapchain.GetImageCount();
+    InitInfo.ImageCount = MainSwapchain->GetImageCount();
     InitInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
     InitInfo.CheckVkResultFn = nullptr;
     InitInfo.Allocator = nullptr;
@@ -273,7 +266,7 @@ void Renderer::InitGui()
     SubmitTempCmdBuffer(Cmdbuf);
     ImGui_ImplVulkan_DestroyFontUploadObjects();  // Staging buffer is no longer needed
 
-    ImGui_ImplGlfw_InitForVulkan(Application->GetWindow().GetHandle(), true);
+    ImGui_ImplGlfw_InitForVulkan(MainWindow->GetHandle(), true);
 }
 
 }  // namespace rtrt

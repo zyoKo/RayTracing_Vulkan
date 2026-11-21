@@ -19,11 +19,12 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\main.cpp" />
+    <ClCompile Include="..\src\core\application.cpp" />
     <ClCompile Include="..\src\vk\swapchain.cpp" />
     <ClCompile Include="..\src\vk\physical_device.cpp" />
     <ClCompile Include="..\src\vk\device.cpp" />
     <ClCompile Include="..\src\vk\context.cpp" />
-    <ClCompile Include="..\src\app.cpp" />
     <ClCompile Include="..\src\core\window.cpp" />
     <ClCompile Include="..\src\descriptor_wrap.cpp" />
     <ClCompile Include="..\src\acceleration_wrap.cpp" />
@@ -185,11 +186,11 @@ cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangVali
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\core\application.h" />
     <ClInclude Include="..\src\vk\swapchain.h" />
     <ClInclude Include="..\src\vk\physical_device.h" />
     <ClInclude Include="..\src\vk\device.h" />
     <ClInclude Include="..\src\vk\context.h" />
-    <ClInclude Include="..\src\app.h" />
     <ClInclude Include="..\src\buffer_wrap.h" />
     <ClInclude Include="..\src\scene\camera.h" />
     <ClInclude Include="..\src\scene\camera_controller.h" />
