@@ -47,7 +47,7 @@ public:
     // Frees everything. Safe to call on an empty image.
     void Destroy();
 
-    // The sampler, view and layout as a descriptor for DescriptorWrap::Write.
+    // The sampler, view and layout as a descriptor for DescriptorSet::Write.
     VkDescriptorImageInfo Descriptor() const
     {
         return VkDescriptorImageInfo({ImageSampler.GetHandle(), View, Layout});

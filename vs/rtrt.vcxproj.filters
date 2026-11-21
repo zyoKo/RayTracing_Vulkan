@@ -1,6 +1,18 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <ClCompile Include="..\src\vk\descriptor_builder.cpp">
+      <Filter>Source Files\vk</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\vk\descriptor_set.cpp">
+      <Filter>Source Files\vk</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\vk\descriptor_pool.cpp">
+      <Filter>Source Files\vk</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\vk\descriptor_set_layout.cpp">
+      <Filter>Source Files\vk</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\vk\shader.cpp">
       <Filter>Source Files\vk</Filter>
     </ClCompile>
@@ -51,9 +63,6 @@
     </ClCompile>
     <ClCompile Include="..\src\core\window.cpp">
       <Filter>Source Files\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\descriptor_wrap.cpp">
-      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\extensions_vk.cpp">
       <Filter>Source Files</Filter>
@@ -124,6 +133,18 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\vk\descriptor_builder.h">
+      <Filter>Header Files\vk</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\vk\descriptor_set.h">
+      <Filter>Header Files\vk</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\vk\descriptor_pool.h">
+      <Filter>Header Files\vk</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\vk\descriptor_set_layout.h">
+      <Filter>Header Files\vk</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\vk\shader.h">
       <Filter>Header Files\vk</Filter>
     </ClInclude>
@@ -171,9 +192,6 @@
     </ClInclude>
     <ClInclude Include="..\src\core\window.h">
       <Filter>Header Files\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\descriptor_wrap.h">
-      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\extensions_vk.hpp">
       <Filter>Header Files</Filter>

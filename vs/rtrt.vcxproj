@@ -19,6 +19,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\vk\descriptor_builder.cpp" />
+    <ClCompile Include="..\src\vk\descriptor_set.cpp" />
+    <ClCompile Include="..\src\vk\descriptor_pool.cpp" />
+    <ClCompile Include="..\src\vk\descriptor_set_layout.cpp" />
     <ClCompile Include="..\src\vk\shader.cpp" />
     <ClCompile Include="..\src\vk\semaphore.cpp" />
     <ClCompile Include="..\src\vk\fence.cpp" />
@@ -34,7 +38,6 @@
     <ClCompile Include="..\src\vk\device.cpp" />
     <ClCompile Include="..\src\vk\context.cpp" />
     <ClCompile Include="..\src\core\window.cpp" />
-    <ClCompile Include="..\src\descriptor_wrap.cpp" />
     <ClCompile Include="..\src\acceleration_wrap.cpp" />
     <ClCompile Include="..\src\renderer.cpp" />
     <ClCompile Include="..\src\scene\camera.cpp" />
@@ -194,6 +197,10 @@ cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangVali
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\vk\descriptor_builder.h" />
+    <ClInclude Include="..\src\vk\descriptor_set.h" />
+    <ClInclude Include="..\src\vk\descriptor_pool.h" />
+    <ClInclude Include="..\src\vk\descriptor_set_layout.h" />
     <ClInclude Include="..\src\vk\shader.h" />
     <ClInclude Include="..\src\vk\semaphore.h" />
     <ClInclude Include="..\src\vk\fence.h" />
@@ -210,7 +217,6 @@ cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangVali
     <ClInclude Include="..\src\scene\camera.h" />
     <ClInclude Include="..\src\scene\camera_controller.h" />
     <ClInclude Include="..\src\core\window.h" />
-    <ClInclude Include="..\src\descriptor_wrap.h" />
     <ClInclude Include="..\src\extensions_vk.hpp" />
     <ClInclude Include="..\src\vk_check.h" />
     <ClInclude Include="..\src\renderer.h" />

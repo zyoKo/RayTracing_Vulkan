@@ -183,14 +183,10 @@ void Renderer::InitGui()
     Io.LogFilename = nullptr;
     Io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
 
-    std::vector<VkDescriptorPoolSize> PoolSize{
-        {VK_DESCRIPTOR_TYPE_SAMPLER, 1}, {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
-    VkDescriptorPoolCreateInfo PoolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
-    PoolInfo.maxSets = 2;
-    PoolInfo.poolSizeCount = 2;
-    PoolInfo.pPoolSizes = PoolSize.data();
-    RTRT_CHECK_VK(vkCreateDescriptorPool(GpuDevice->GetHandle(), &PoolInfo, nullptr,
-                                         &ImguiDescPool));
+    ImguiDescPool.Create(
+        GpuDevice->GetHandle(),
+        {{VK_DESCRIPTOR_TYPE_SAMPLER, 1}, {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}},
+        2);
 
     // Setup Platform/Renderer back ends
     ImGui_ImplVulkan_InitInfo InitInfo = {};
@@ -200,7 +196,7 @@ void Renderer::InitGui()
     InitInfo.QueueFamily = GpuDevice->GetQueueFamily();
     InitInfo.Queue = GpuDevice->GetQueue();
     InitInfo.PipelineCache = VK_NULL_HANDLE;
-    InitInfo.DescriptorPool = ImguiDescPool;
+    InitInfo.DescriptorPool = ImguiDescPool.GetHandle();
     InitInfo.Subpass = SubpassID;
     InitInfo.MinImageCount = 2;
     InitInfo.ImageCount = MainSwapchain->GetImageCount();

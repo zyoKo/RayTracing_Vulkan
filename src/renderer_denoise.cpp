@@ -22,21 +22,21 @@ void Renderer::CreateDenoiseBuffer()
 
 void Renderer::CreateDenoiseDescriptorSet()
 {
-    DenoiseDesc.SetBindings(
-        GpuDevice->GetHandle(),
-        {{0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT},
-         {1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT},
-         {2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT},
-         {3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT}});
+    DescriptorBuilder()
+        .AddStorageImage(VK_SHADER_STAGE_COMPUTE_BIT)
+        .AddStorageImage(VK_SHADER_STAGE_COMPUTE_BIT)
+        .AddStorageImage(VK_SHADER_STAGE_COMPUTE_BIT)
+        .AddStorageImage(VK_SHADER_STAGE_COMPUTE_BIT)
+        .Build(GpuDevice->GetHandle(), DenoiseDesc);
 
     // The input image
-    DenoiseDesc.Write(GpuDevice->GetHandle(), 0, ScImageBuffer.Descriptor());
+    DenoiseDesc.Set.Write(0, ScImageBuffer.Descriptor());
     // The output image
-    DenoiseDesc.Write(GpuDevice->GetHandle(), 1, DenoiseBuffer.Descriptor());
+    DenoiseDesc.Set.Write(1, DenoiseBuffer.Descriptor());
     // The color buffer
-    DenoiseDesc.Write(GpuDevice->GetHandle(), 2, RtKdCurrBuffer.Descriptor());
+    DenoiseDesc.Set.Write(2, RtKdCurrBuffer.Descriptor());
     // The normal:depth buffer
-    DenoiseDesc.Write(GpuDevice->GetHandle(), 3, RtNdCurrBuffer.Descriptor());
+    DenoiseDesc.Set.Write(3, RtNdCurrBuffer.Descriptor());
 }
 
 void Renderer::CreateDenoiseCompPipeline()
@@ -46,7 +46,7 @@ void Renderer::CreateDenoiseCompPipeline()
     VkPipelineLayoutCreateInfo PlCreateInfo{
         VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     PlCreateInfo.setLayoutCount = 1;
-    PlCreateInfo.pSetLayouts = &DenoiseDesc.GetLayout();
+    PlCreateInfo.pSetLayouts = &DenoiseDesc.Layout.GetHandle();
     PlCreateInfo.pushConstantRangeCount = 1;
     PlCreateInfo.pPushConstantRanges = &PcInfo;
     RTRT_CHECK_VK(vkCreatePipelineLayout(GpuDevice->GetHandle(), &PlCreateInfo, nullptr,
@@ -93,8 +93,8 @@ void Renderer::Denoise()
         vkCmdBindPipeline(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_COMPUTE,
                           DenoisePipeline);
         vkCmdBindDescriptorSets(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_COMPUTE,
-                                DenoiseCompPipelineLayout, 0, 1, &DenoiseDesc.GetSet(), 0,
-                                nullptr);
+                                DenoiseCompPipelineLayout, 0, 1,
+                                &DenoiseDesc.Set.GetHandle(), 0, nullptr);
         vkCmdPushConstants(FrameCmd.GetHandle(), DenoiseCompPipelineLayout,
                            VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantDenoise),
                            &PcDenoise);

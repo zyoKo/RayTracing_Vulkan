@@ -19,7 +19,7 @@ void Renderer::DestroyAllVulkanResources()
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
-    vkDestroyDescriptorPool(GpuDevice->GetHandle(), ImguiDescPool, nullptr);
+    ImguiDescPool.Destroy();
 
     MainSwapchain->Destroy();
     FrameFence.Destroy();
@@ -43,7 +43,7 @@ void Renderer::DestroyPostResources()
     }
 
     ScImageBuffer.Destroy();
-    PostDesc.Destroy(GpuDevice->GetHandle());
+    PostDesc.Destroy();
 
     vkDestroyPipelineLayout(GpuDevice->GetHandle(), PostPipelineLayout, nullptr);
     vkDestroyPipeline(GpuDevice->GetHandle(), PostPipeline, nullptr);
@@ -73,7 +73,7 @@ void Renderer::DestroyScanlineResources()
 {
     vkDestroyRenderPass(GpuDevice->GetHandle(), ScanlineRenderPass, nullptr);
     vkDestroyFramebuffer(GpuDevice->GetHandle(), ScanlineFramebuffer, nullptr);
-    ScDesc.Destroy(GpuDevice->GetHandle());
+    ScDesc.Destroy();
     vkDestroyPipelineLayout(GpuDevice->GetHandle(), ScanlinePipelineLayout, nullptr);
     vkDestroyPipeline(GpuDevice->GetHandle(), ScanlinePipeline, nullptr);
 }
@@ -82,7 +82,7 @@ void Renderer::DestroyRaytracingResources()
 {
     RtColCurrBuffer.Destroy();
     RtBuilder.Destroy();
-    RtDesc.Destroy(GpuDevice->GetHandle());
+    RtDesc.Destroy();
     vkDestroyPipelineLayout(GpuDevice->GetHandle(), RtPipelineLayout, nullptr);
     vkDestroyPipeline(GpuDevice->GetHandle(), RtPipeline, nullptr);
     ShaderBindingTableBw.Destroy();
@@ -98,7 +98,7 @@ void Renderer::DestroyRaytracingResources()
 void Renderer::DestroyDenoiseResources()
 {
     DenoiseBuffer.Destroy();
-    DenoiseDesc.Destroy(GpuDevice->GetHandle());
+    DenoiseDesc.Destroy();
     vkDestroyPipelineLayout(GpuDevice->GetHandle(), DenoiseCompPipelineLayout, nullptr);
     vkDestroyPipeline(GpuDevice->GetHandle(), DenoisePipeline, nullptr);
 }
@@ -161,19 +161,19 @@ void Renderer::DestroySizedResources()
 
 void Renderer::WriteSizedDescriptors()
 {
-    PostDesc.Write(GpuDevice->GetHandle(), 0, ScImageBuffer.Descriptor());
+    PostDesc.Set.Write(0, ScImageBuffer.Descriptor());
 
-    RtDesc.Write(GpuDevice->GetHandle(), 1, RtColCurrBuffer.Descriptor());
-    RtDesc.Write(GpuDevice->GetHandle(), 2, RtColPrevBuffer.Descriptor());
-    RtDesc.Write(GpuDevice->GetHandle(), 3, RtNdCurrBuffer.Descriptor());
-    RtDesc.Write(GpuDevice->GetHandle(), 4, RtNdPrevBuffer.Descriptor());
-    RtDesc.Write(GpuDevice->GetHandle(), 5, RtKdCurrBuffer.Descriptor());
-    RtDesc.Write(GpuDevice->GetHandle(), 6, RtKdPrevBuffer.Descriptor());
+    RtDesc.Set.Write(1, RtColCurrBuffer.Descriptor());
+    RtDesc.Set.Write(2, RtColPrevBuffer.Descriptor());
+    RtDesc.Set.Write(3, RtNdCurrBuffer.Descriptor());
+    RtDesc.Set.Write(4, RtNdPrevBuffer.Descriptor());
+    RtDesc.Set.Write(5, RtKdCurrBuffer.Descriptor());
+    RtDesc.Set.Write(6, RtKdPrevBuffer.Descriptor());
 
-    DenoiseDesc.Write(GpuDevice->GetHandle(), 0, ScImageBuffer.Descriptor());
-    DenoiseDesc.Write(GpuDevice->GetHandle(), 1, DenoiseBuffer.Descriptor());
-    DenoiseDesc.Write(GpuDevice->GetHandle(), 2, RtKdCurrBuffer.Descriptor());
-    DenoiseDesc.Write(GpuDevice->GetHandle(), 3, RtNdCurrBuffer.Descriptor());
+    DenoiseDesc.Set.Write(0, ScImageBuffer.Descriptor());
+    DenoiseDesc.Set.Write(1, DenoiseBuffer.Descriptor());
+    DenoiseDesc.Set.Write(2, RtKdCurrBuffer.Descriptor());
+    DenoiseDesc.Set.Write(3, RtNdCurrBuffer.Descriptor());
 }
 
 // Create a command pool, used to allocate command buffers, which in
@@ -314,7 +314,7 @@ void Renderer::CreatePostPipeline()
     // Creating the pipeline layout
     VkPipelineLayoutCreateInfo CreateInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     CreateInfo.setLayoutCount = 1;
-    CreateInfo.pSetLayouts = &PostDesc.GetLayout();
+    CreateInfo.pSetLayouts = &PostDesc.Layout.GetHandle();
 
     VkPushConstantRange PushConstant{VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                                      sizeof(PushConstantPost)};
@@ -496,7 +496,8 @@ void Renderer::PostProcess()
         vkCmdBindPipeline(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                           PostPipeline);
         vkCmdBindDescriptorSets(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                PostPipelineLayout, 0, 1, &PostDesc.GetSet(), 0, nullptr);
+                                PostPipelineLayout, 0, 1, &PostDesc.Set.GetHandle(), 0,
+                                nullptr);
 
         // The rasterizer has no G-buffer images, so the debug views only apply to the ray
         // tracer.

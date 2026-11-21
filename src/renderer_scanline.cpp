@@ -344,10 +344,10 @@ void Renderer::TransitionImageLayout(VkImage TargetImage, VkFormat Format,
 
 void Renderer::CreatePostDescriptor()
 {
-    PostDesc.SetBindings(GpuDevice->GetHandle(),
-                         {{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
-                           VK_SHADER_STAGE_FRAGMENT_BIT}});
-    PostDesc.Write(GpuDevice->GetHandle(), 0, ScImageBuffer.Descriptor());
+    DescriptorBuilder()
+        .AddCombinedImageSampler(VK_SHADER_STAGE_FRAGMENT_BIT)
+        .Build(GpuDevice->GetHandle(), PostDesc);
+    PostDesc.Set.Write(0, ScImageBuffer.Descriptor());
 }
 
 void Renderer::CreateScBuffer()
@@ -463,20 +463,18 @@ void Renderer::CreateScDescriptorSet()
 {
     auto NbTxt = static_cast<uint32_t>(ObjTextures.size());
 
-    ScDesc.SetBindings(
-        GpuDevice->GetHandle(),
-        {{ScBindings::kMatrices, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
-          VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR},
-         {ScBindings::kObjDescs, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
-          VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT |
-              VK_SHADER_STAGE_RAYGEN_BIT_KHR},
-         {ScBindings::kTextures, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, NbTxt,
-          VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR}});
+    // In ScBindings order: kMatrices, kObjDescs, kTextures
+    DescriptorBuilder()
+        .AddUniformBuffer(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+        .AddStorageBuffer(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT |
+                          VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+        .AddCombinedImageSampler(
+            VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR, NbTxt)
+        .Build(GpuDevice->GetHandle(), ScDesc);
 
-    ScDesc.Write(GpuDevice->GetHandle(), ScBindings::kMatrices, MatrixBw.GetHandle());
-    ScDesc.Write(GpuDevice->GetHandle(), ScBindings::kObjDescs,
-                 ObjDescriptionBw.GetHandle());
-    ScDesc.Write(GpuDevice->GetHandle(), ScBindings::kTextures, ObjTextures);
+    ScDesc.Set.Write(ScBindings::kMatrices, MatrixBw.GetHandle());
+    ScDesc.Set.Write(ScBindings::kObjDescs, ObjDescriptionBw.GetHandle());
+    ScDesc.Set.Write(ScBindings::kTextures, ObjTextures);
 }
 
 void Renderer::CreateScPipeline()
@@ -488,7 +486,7 @@ void Renderer::CreateScPipeline()
     // Creating the Pipeline Layout
     VkPipelineLayoutCreateInfo CreateInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     CreateInfo.setLayoutCount = 1;
-    CreateInfo.pSetLayouts = &ScDesc.GetLayout();
+    CreateInfo.pSetLayouts = &ScDesc.Layout.GetHandle();
     CreateInfo.pushConstantRangeCount = 1;
     CreateInfo.pPushConstantRanges = &PushConstantRanges;
     RTRT_CHECK_VK(vkCreatePipelineLayout(GpuDevice->GetHandle(), &CreateInfo, nullptr,
@@ -558,7 +556,8 @@ void Renderer::Rasterize()
     vkCmdBindPipeline(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                       ScanlinePipeline);
     vkCmdBindDescriptorSets(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            ScanlinePipelineLayout, 0, 1, &ScDesc.GetSet(), 0, nullptr);
+                            ScanlinePipelineLayout, 0, 1, &ScDesc.Set.GetHandle(), 0,
+                            nullptr);
 
     for (const ObjInst& Inst : ObjInstList)
     {

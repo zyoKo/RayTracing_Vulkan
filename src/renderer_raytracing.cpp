@@ -100,27 +100,25 @@ void Renderer::InitRayTracing()
 //
 void Renderer::CreateRtDescriptorSet()
 {
-    RtDesc.SetBindings(
-        GpuDevice->GetHandle(),
-        {{0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1,  // TLAS
-          VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR},
-         {1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1,  // Output image
-          VK_SHADER_STAGE_RAYGEN_BIT_KHR},
-         {2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_RAYGEN_BIT_KHR},
-         {3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_RAYGEN_BIT_KHR},
-         {4, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_RAYGEN_BIT_KHR},
-         {5, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_RAYGEN_BIT_KHR},
-         {6, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_RAYGEN_BIT_KHR}});
+    // TLAS, then the output image and the six history images
+    DescriptorBuilder()
+        .AddAccelerationStructure(VK_SHADER_STAGE_RAYGEN_BIT_KHR |
+                                  VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
+        .AddStorageImage(VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+        .AddStorageImage(VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+        .AddStorageImage(VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+        .AddStorageImage(VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+        .AddStorageImage(VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+        .AddStorageImage(VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+        .Build(GpuDevice->GetHandle(), RtDesc);
 
-    // Note: This will grow to include more buffers.
-
-    RtDesc.Write(GpuDevice->GetHandle(), 0, RtBuilder.GetAccelerationStructure());
-    RtDesc.Write(GpuDevice->GetHandle(), 1, RtColCurrBuffer.Descriptor());
-    RtDesc.Write(GpuDevice->GetHandle(), 2, RtColPrevBuffer.Descriptor());
-    RtDesc.Write(GpuDevice->GetHandle(), 3, RtNdCurrBuffer.Descriptor());
-    RtDesc.Write(GpuDevice->GetHandle(), 4, RtNdPrevBuffer.Descriptor());
-    RtDesc.Write(GpuDevice->GetHandle(), 5, RtKdCurrBuffer.Descriptor());
-    RtDesc.Write(GpuDevice->GetHandle(), 6, RtKdPrevBuffer.Descriptor());
+    RtDesc.Set.Write(0, RtBuilder.GetAccelerationStructure());
+    RtDesc.Set.Write(1, RtColCurrBuffer.Descriptor());
+    RtDesc.Set.Write(2, RtColPrevBuffer.Descriptor());
+    RtDesc.Set.Write(3, RtNdCurrBuffer.Descriptor());
+    RtDesc.Set.Write(4, RtNdPrevBuffer.Descriptor());
+    RtDesc.Set.Write(5, RtKdCurrBuffer.Descriptor());
+    RtDesc.Set.Write(6, RtKdPrevBuffer.Descriptor());
 }
 
 // Pipeline for the ray tracer: all shaders, raygen, chit, miss
@@ -224,8 +222,8 @@ void Renderer::CreateRtPipelineLayout()
 
     // Descriptor sets: one specific to ray tracing, and one shared with the rasterization
     // pipeline
-    std::vector<VkDescriptorSetLayout> RtDescSetLayouts = {RtDesc.GetLayout(),
-                                                           ScDesc.GetLayout()};
+    std::vector<VkDescriptorSetLayout> RtDescSetLayouts = {RtDesc.Layout.GetHandle(),
+                                                           ScDesc.Layout.GetHandle()};
     PipelineLayoutCreateInfo.setLayoutCount =
         static_cast<uint32_t>(RtDescSetLayouts.size());
     PipelineLayoutCreateInfo.pSetLayouts = RtDescSetLayouts.data();
@@ -415,7 +413,7 @@ void Renderer::Raytrace()
 
     // Bind the descriptor sets (the ray tracing specific one, and the
     // full model descriptor)
-    std::vector<VkDescriptorSet> DescSets{RtDesc.GetSet(), ScDesc.GetSet()};
+    std::vector<VkDescriptorSet> DescSets{RtDesc.Set.GetHandle(), ScDesc.Set.GetHandle()};
     vkCmdBindDescriptorSets(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
                             RtPipelineLayout, 0, static_cast<uint32_t>(DescSets.size()),
                             DescSets.data(), 0, nullptr);

@@ -9,13 +9,14 @@
 
 #include "acceleration_wrap.h"
 #include "core/window.h"
-#include "descriptor_wrap.h"
 #include "scene/camera.h"
 #include "shaders/shared_structs.h"
 #include "vk/buffer.h"
 #include "vk/command_buffer.h"
 #include "vk/command_pool.h"
 #include "vk/context.h"
+#include "vk/descriptor_builder.h"
+#include "vk/descriptor_pool.h"
 #include "vk/device.h"
 #include "vk/fence.h"
 #include "vk/image.h"
@@ -221,7 +222,7 @@ private:
         VkRenderPass RenderPass);
     FixedFunctionState MakeFixedFunctionState() const;
 
-    VkDescriptorPool ImguiDescPool{VK_NULL_HANDLE};
+    DescriptorPool ImguiDescPool;
     void InitGui();
 
     VkRenderPass ScanlineRenderPass{VK_NULL_HANDLE};
@@ -264,7 +265,7 @@ private:
     Buffer ObjDescriptionBw{};  // Device buffer of the OBJ descriptions
     void CreateObjDescriptionBuffer();
 
-    DescriptorWrap ScDesc{};
+    DescriptorBundle ScDesc;
     void CreateScDescriptorSet();
 
     VkPipelineLayout ScanlinePipelineLayout{};
@@ -287,7 +288,7 @@ private:
     BlasInput ObjectToVkGeometryKhr(const ObjData& Model);
     void CreateRtAccelerationStructure();
 
-    DescriptorWrap RtDesc{};
+    DescriptorBundle RtDesc;
     void CreateRtDescriptorSet();
 
     VkPipelineLayout RtPipelineLayout{};
@@ -312,10 +313,10 @@ private:
                          const std::vector<uint8_t>& Handles, uint32_t MissCount,
                          uint32_t HitCount);
 
-    DescriptorWrap PostDesc{};
+    DescriptorBundle PostDesc;
     void CreatePostDescriptor();
 
-    DescriptorWrap DenoiseDesc{};
+    DescriptorBundle DenoiseDesc;
     void CreateDenoiseDescriptorSet();
 
     VkPipelineLayout DenoiseCompPipelineLayout{};
