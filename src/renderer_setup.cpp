@@ -47,11 +47,8 @@ void Renderer::DestroySceneResources()
 
 void Renderer::DestroyScanlineResources()
 {
-    ScanlineRenderPass.Destroy();
-    ScanlineFramebuffer.Destroy();
+    Scanline.Destroy();
     ScDesc.Destroy();
-    ScanlinePipelineLayout.Destroy();
-    ScanlinePipeline.Destroy();
 }
 
 void Renderer::DestroyRaytracingResources()
@@ -95,14 +92,11 @@ bool Renderer::RecreateSizedResources()
     CreateDepthResource();
     CreateScBuffer();
     Post.OnResize(PassCtx, ScImageBuffer, DepthImage);
-    CreateScanlineFramebuffer();
+    Scanline.OnResize(PassCtx, ScImageBuffer, DepthImage, ScDesc.Layout.GetHandle());
     CreateRtBuffers();
     CreateDenoiseBuffer();
 
     WriteSizedDescriptors();
-
-    // The scanline pipeline bakes in the viewport size
-    CreateScPipeline();
 
     ResetRtAccumulation();
     return true;
@@ -111,7 +105,7 @@ bool Renderer::RecreateSizedResources()
 void Renderer::DestroySizedResources()
 {
     Post.ReleaseSized();
-    ScanlineFramebuffer.Destroy();
+    Scanline.ReleaseSized();
     DepthImage.Destroy();
     MainSwapchain->Destroy();
 
@@ -123,9 +117,6 @@ void Renderer::DestroySizedResources()
     RtKdCurrBuffer.Destroy();
     RtKdPrevBuffer.Destroy();
     DenoiseBuffer.Destroy();
-
-    ScanlinePipeline.Destroy();
-    ScanlinePipelineLayout.Destroy();
 }
 
 void Renderer::WriteSizedDescriptors()
@@ -211,9 +202,7 @@ void Renderer::SetShaderLanguage(bool UseSlangShaders)
 
     Post.RebuildPipeline(PassCtx);
 
-    ScanlinePipeline.Destroy();
-    ScanlinePipelineLayout.Destroy();
-    CreateScPipeline();
+    Scanline.RebuildPipeline(PassCtx, ScDesc.Layout.GetHandle());
 
     // The SBT holds group handles of the old pipeline, so it is rebuilt with it
     RtSbt.Destroy();

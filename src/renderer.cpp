@@ -40,9 +40,8 @@ bool Renderer::Init(Window& Target, Context& Instance, Device& Gpu, Swapchain& C
 
     CreateMatrixBuffer();
     MainScene.CreateDescriptionBuffer(*GpuDevice, MainCmdPool);
-    CreateScanlineRenderPass();
     CreateScDescriptorSet();
-    CreateScPipeline();
+    Scanline.Create(PassCtx, ScImageBuffer, DepthImage, ScDesc.Layout.GetHandle());
 
     // //init ray tracing capabilities
     CreateRtBuffers();
@@ -83,7 +82,8 @@ void Renderer::DrawFrame()
         }
         else
         {
-            Rasterize();
+            Scanline.Record(FrameCmd.GetHandle(), PassCtx, ScDesc.Set.GetHandle(),
+                            MainScene);
         }
 
         // The rasterizer has no G-buffer images, so the debug views only apply to the

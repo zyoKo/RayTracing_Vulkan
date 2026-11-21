@@ -11,6 +11,7 @@
 #include "renderer/graphics_pipeline.h"
 #include "renderer/pass_context.h"
 #include "renderer/post_pass.h"
+#include "renderer/scanline_pass.h"
 #include "rt/acceleration_structure.h"
 #include "rt/shader_binding_table.h"
 #include "scene/camera.h"
@@ -121,6 +122,7 @@ private:
     const Camera* MainCamera = nullptr;
     PassContext PassCtx;
     PostPass Post;
+    ScanlinePass Scanline;
 
     RenderSettings Settings;
     // Frames rendered since the history was last reset
@@ -154,11 +156,6 @@ private:
     DescriptorPool ImguiDescPool;
     void InitGui();
 
-    RenderPass ScanlineRenderPass;
-    Framebuffer ScanlineFramebuffer;
-    void CreateScanlineRenderPass();
-    void CreateScanlineFramebuffer();
-
     Image ScImageBuffer{};
     void CreateScBuffer();
 
@@ -187,10 +184,6 @@ private:
 
     DescriptorBundle ScDesc;
     void CreateScDescriptorSet();
-
-    PipelineLayout ScanlinePipelineLayout;
-    Pipeline ScanlinePipeline;
-    void CreateScPipeline();
 
     Buffer MatrixBw{};  // Device-Host of the camera matrices
     void CreateMatrixBuffer();
@@ -229,7 +222,6 @@ private:
 
     glm::mat4 PriorViewProj{};
     void UpdateCameraBuffer();
-    void Rasterize();
     void Raytrace();
     void Denoise();
 

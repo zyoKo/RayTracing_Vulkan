@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\renderer\scanline_pass.cpp" />
     <ClCompile Include="..\src\renderer\post_pass.cpp" />
     <ClCompile Include="..\src\renderer\graphics_pipeline.cpp" />
     <ClCompile Include="..\src\rt\shader_binding_table.cpp" />
@@ -205,6 +206,7 @@ cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangVali
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\renderer\scanline_pass.h" />
     <ClInclude Include="..\src\renderer\pass_context.h" />
     <ClInclude Include="..\src\renderer\post_pass.h" />
     <ClInclude Include="..\src\renderer\graphics_pipeline.h" />

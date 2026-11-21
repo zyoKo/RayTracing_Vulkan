@@ -38,78 +38,6 @@ Image Renderer::CreateBufferImage(VkExtent2D Size)
     return MyImage;
 }
 
-// The scanline renderpass outputs to ScImageBuffer (as wrapped by
-// ScanlineFramebuffer.GetHandle())
-void Renderer::CreateScanlineRenderPass()
-{
-    VkAttachmentDescription ColorAttachment{};
-    ColorAttachment.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-    ColorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    ColorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    ColorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    ColorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    ColorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    ColorAttachment.initialLayout = VK_IMAGE_LAYOUT_GENERAL;
-    ColorAttachment.finalLayout = VK_IMAGE_LAYOUT_GENERAL;
-
-    VkAttachmentDescription DepthAttachment{};
-    DepthAttachment.format = VK_FORMAT_X8_D24_UNORM_PACK32;
-    DepthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    DepthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    DepthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    DepthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    DepthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    DepthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    DepthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentReference ColorAttachmentRef{};
-    ColorAttachmentRef.attachment = 0;
-    ColorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentReference DepthAttachmentRef{};
-    DepthAttachmentRef.attachment = 1;
-    DepthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    VkSubpassDescription Subpass{};
-    Subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    Subpass.colorAttachmentCount = 1;
-    Subpass.pColorAttachments = &ColorAttachmentRef;
-    Subpass.pDepthStencilAttachment = &DepthAttachmentRef;
-
-    VkSubpassDependency Dependency{};
-    Dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    Dependency.dstSubpass = 0;
-    Dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
-                              VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    Dependency.srcAccessMask = 0;
-    Dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
-                              VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    Dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
-                               VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-    std::array<VkAttachmentDescription, 2> AttachmentsDsc = {ColorAttachment,
-                                                             DepthAttachment};
-    VkRenderPassCreateInfo RenderPassInfo{};
-    RenderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    RenderPassInfo.attachmentCount = static_cast<uint32_t>(AttachmentsDsc.size());
-    RenderPassInfo.pAttachments = AttachmentsDsc.data();
-    RenderPassInfo.subpassCount = 1;
-    RenderPassInfo.pSubpasses = &Subpass;
-    RenderPassInfo.dependencyCount = 1;
-    RenderPassInfo.pDependencies = &Dependency;
-
-    ScanlineRenderPass.Create(GpuDevice->GetHandle(), RenderPassInfo);
-
-    CreateScanlineFramebuffer();
-}
-
-void Renderer::CreateScanlineFramebuffer()
-{
-    ScanlineFramebuffer.Create(GpuDevice->GetHandle(), ScanlineRenderPass.GetHandle(),
-                               {ScImageBuffer.GetView(), DepthImage.GetView()},
-                               MainSwapchain->GetExtent());
-}
-
 void Renderer::CreateScDescriptorSet()
 {
     auto NbTxt = static_cast<uint32_t>(MainScene.GetTextures().size());
@@ -128,40 +56,6 @@ void Renderer::CreateScDescriptorSet()
     ScDesc.Set.Write(ScBindings::kTextures, MainScene.GetTextures());
 }
 
-void Renderer::CreateScPipeline()
-{
-    VkPushConstantRange PushConstantRanges = {
-        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-        sizeof(PushConstantRaster)};
-
-    ScanlinePipelineLayout.Create(GpuDevice->GetHandle(), {ScDesc.Layout.GetHandle()},
-                                  {PushConstantRanges});
-
-    VkVertexInputBindingDescription BindingDescription{0, sizeof(Vertex),
-                                                       VK_VERTEX_INPUT_RATE_VERTEX};
-
-    std::vector<VkVertexInputAttributeDescription> AttributeDescriptions{
-        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, static_cast<uint32_t>(offsetof(Vertex, Pos))},
-        {1, 0, VK_FORMAT_R32G32B32_SFLOAT, static_cast<uint32_t>(offsetof(Vertex, Nrm))},
-        {2, 0, VK_FORMAT_R32G32_SFLOAT,
-         static_cast<uint32_t>(offsetof(Vertex, TexCoord))}};
-
-    VkPipelineVertexInputStateCreateInfo VertexInputInfo{};
-    VertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    VertexInputInfo.vertexBindingDescriptionCount = 1;
-    VertexInputInfo.pVertexBindingDescriptions = &BindingDescription;
-    VertexInputInfo.vertexAttributeDescriptionCount =
-        static_cast<uint32_t>(AttributeDescriptions.size());
-    VertexInputInfo.pVertexAttributeDescriptions = AttributeDescriptions.data();
-
-    const GraphicsShaders Shaders{"spv/scanline.vert.spv", "spv/scanline.vert.slang.spv",
-                                  "spv/scanline.frag.spv", "spv/scanline.frag.slang.spv"};
-    ScanlinePipeline = CreateFullWindowPipeline(
-        GpuDevice->GetHandle(), UseSlang, Shaders, VertexInputInfo,
-        ScanlinePipelineLayout.GetHandle(), ScanlineRenderPass.GetHandle(),
-        MainSwapchain->GetExtent());
-}
-
 // Create a Vulkan buffer to hold the camera matrices, products and inverses.
 // Will be included in a descriptor set for use in shaders.
 void Renderer::CreateMatrixBuffer()
@@ -174,57 +68,6 @@ void Renderer::CreateMatrixBuffer()
 // Create a Vulkan buffer containing pointers to all object buffers
 // (vertex, triangle indices, materials, and material indices. Will be
 // included in a descriptor set for use in shaders.
-void Renderer::Rasterize()
-{
-    VkDeviceSize Offset{0};
-
-    std::array<VkClearValue, 2> ClearValues{};
-    ClearValues[0].color = {{0, 0, 0, 1}};
-    ClearValues[1].depthStencil = {1.0f, 0};
-
-    VkRenderPassBeginInfo PassBeginInfo{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
-    PassBeginInfo.clearValueCount = 2;
-    PassBeginInfo.pClearValues = ClearValues.data();
-    PassBeginInfo.renderPass = ScanlineRenderPass.GetHandle();
-    PassBeginInfo.framebuffer = ScanlineFramebuffer.GetHandle();
-    PassBeginInfo.renderArea = {{0, 0}, MainSwapchain->GetExtent()};
-    vkCmdBeginRenderPass(FrameCmd.GetHandle(), &PassBeginInfo,
-                         VK_SUBPASS_CONTENTS_INLINE);
-
-    vkCmdBindPipeline(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS,
-                      ScanlinePipeline.GetHandle());
-    vkCmdBindDescriptorSets(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            ScanlinePipelineLayout.GetHandle(), 0, 1,
-                            &ScDesc.Set.GetHandle(), 0, nullptr);
-
-    for (const MeshInstance& Inst : MainScene.GetInstances())
-    {
-        const Mesh& Object = MainScene.GetMeshes()[Inst.ObjIndex];
-
-        // Information pushed at each draw call
-        PushConstantRaster PcRaster{
-            Inst.Transform,      // Object's instance transform.
-            {0.5f, 2.5f, 3.0f},  // light position;  Should not be hard-coded here!
-            Inst.ObjIndex,       // instance Id
-            1.0f                 // light intensity;  Should not be hard-coded here!
-        };
-
-        PcRaster.ObjIndex = Inst.ObjIndex;  // Telling which object is drawn
-        PcRaster.ModelMatrix = Inst.Transform;
-
-        vkCmdPushConstants(FrameCmd.GetHandle(), ScanlinePipelineLayout.GetHandle(),
-                           VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-                           sizeof(PushConstantRaster), &PcRaster);
-        const VkBuffer VertexBuffer = Object.VertexBuffer.GetHandle();
-        vkCmdBindVertexBuffers(FrameCmd.GetHandle(), 0, 1, &VertexBuffer, &Offset);
-        vkCmdBindIndexBuffer(FrameCmd.GetHandle(), Object.IndexBuffer.GetHandle(), 0,
-                             VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(FrameCmd.GetHandle(), Object.NbIndices, 1, 0, 0, 0);
-    }
-
-    vkCmdEndRenderPass(FrameCmd.GetHandle());
-}
-
 void Renderer::UpdateCameraBuffer()
 {
     // Prepare new UBO contents on host.
