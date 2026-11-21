@@ -8,7 +8,7 @@
 #include <glm/glm.hpp>
 #include <vulkan/vulkan_core.h>
 
-#include "buffer_wrap.h"
+#include "vk/buffer.h"
 
 #if VK_KHR_acceleration_structure
 
@@ -33,7 +33,7 @@ inline VkTransformMatrixKHR ToTransformMatrixKhr(const glm::mat4& Matrix)
 struct AccelerationStructureWrap
 {
     VkAccelerationStructureKHR Accel;
-    BufferWrap Bw;
+    Buffer Bw;
 };
 
 // Inputs used to build Bottom-level acceleration structure.
@@ -104,8 +104,8 @@ protected:
     Renderer* VK = nullptr;
 
     // Scratch memory for the BLAS and TLAS builds.
-    BufferWrap BlasScratch;
-    BufferWrap TlasScratch;
+    Buffer BlasScratch;
+    Buffer TlasScratch;
 
     // Bottom-level acceleration structure
     std::vector<AccelerationStructureWrap> BlasList;
@@ -124,6 +124,7 @@ protected:
         const VkAccelerationStructureBuildRangeInfoKHR* RangeInfo;
         AccelerationStructureWrap As;  // result acceleration structure
         VkAccelerationStructureKHR CleanupAs;
+        Buffer CleanupBuffer;
     };
 
     // Fills the geometry info of each BLAS and asks the device for its sizes. Returns
@@ -133,8 +134,7 @@ protected:
                                 std::vector<BuildAccelerationStructure>& BuildAs,
                                 uint32_t& NbCompactions);
     // Allocates Scratch for builds and returns its device address.
-    VkDeviceAddress CreateScratch(BufferWrap& Scratch, VkDeviceSize Size,
-                                  const char* Name);
+    VkDeviceAddress CreateScratch(Buffer& Scratch, VkDeviceSize Size, const char* Name);
     // Builds (and compacts, if QueryPool is set) the BLAS in batches of about 256 MB.
     void BuildBlasBatches(std::vector<BuildAccelerationStructure>& BuildAs,
                           VkDeviceAddress ScratchAddress, VkQueryPool QueryPool);

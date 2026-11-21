@@ -274,18 +274,18 @@ void Renderer::CreateRtShaderBindingTable()
     VkDeviceSize SbtSize =
         RgenRegion.size + MissRegion.size + HitRegion.size + CallRegion.size;
 
-    BufferWrap Staging = CreateBufferWrap(
+    Buffer Staging = CreateBuffer(
         SbtSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    ShaderBindingTableBw = CreateBufferWrap(
-        SbtSize,
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-            VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    ShaderBindingTableBw = CreateBuffer(SbtSize,
+                                        VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                                            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                                            VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR,
+                                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     // Find the SBT addresses of each group
     VkBufferDeviceAddressInfo Info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
-    Info.buffer = ShaderBindingTableBw.Buffer;
+    Info.buffer = ShaderBindingTableBw.GetHandle();
     VkDeviceAddress SbtAddress = vkGetBufferDeviceAddress(GpuDevice->GetHandle(), &Info);
 
     RgenRegion.deviceAddress = SbtAddress;
@@ -294,9 +294,9 @@ void Renderer::CreateRtShaderBindingTable()
 
     WriteSbtHandles(Staging, SbtSize, Handles, MissCount, HitCount);
 
-    CopyBuffer(Staging.Buffer, ShaderBindingTableBw.Buffer, SbtSize);
+    CopyBuffer(Staging.GetHandle(), ShaderBindingTableBw.GetHandle(), SbtSize);
 
-    Staging.Destroy(GpuDevice->GetHandle());
+    Staging.Destroy();
 }
 
 void Renderer::ComputeSbtRegions(uint32_t MissCount, uint32_t HitCount)
@@ -334,7 +334,7 @@ void Renderer::ComputeSbtRegions(uint32_t MissCount, uint32_t HitCount)
     PrintSbtRegion("call", CallRegion);
 }
 
-void Renderer::WriteSbtHandles(const BufferWrap& Staging, VkDeviceSize SbtSize,
+void Renderer::WriteSbtHandles(const Buffer& Staging, VkDeviceSize SbtSize,
                                const std::vector<uint8_t>& Handles, uint32_t MissCount,
                                uint32_t HitCount)
 {
@@ -342,10 +342,7 @@ void Renderer::WriteSbtHandles(const BufferWrap& Staging, VkDeviceSize SbtSize,
     auto GetHandle = [&](int I) { return Handles.data() + I * HandleSize; };
 
     // Map the SBT buffer and write in the handles.
-    void* MappedMemory = nullptr;
-    RTRT_CHECK_VK(vkMapMemory(GpuDevice->GetHandle(), Staging.Memory, 0, SbtSize, 0,
-                              &MappedMemory));
-    uint8_t* MappedMemAddress = static_cast<uint8_t*>(MappedMemory);
+    uint8_t* MappedMemAddress = static_cast<uint8_t*>(Staging.Map(SbtSize));
     VkDeviceSize Offset = 0;
 
     // Raygen
@@ -368,7 +365,7 @@ void Renderer::WriteSbtHandles(const BufferWrap& Staging, VkDeviceSize SbtSize,
         Offset += HitRegion.stride;
     }
 
-    vkUnmapMemory(GpuDevice->GetHandle(), Staging.Memory);
+    Staging.Unmap();
 }
 
 void Renderer::CmdCopyImage(ImageWrap& Src, ImageWrap& Dst)

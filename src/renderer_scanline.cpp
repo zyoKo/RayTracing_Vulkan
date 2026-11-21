@@ -111,15 +111,12 @@ ImageWrap Renderer::CreateTextureImage(const std::string& FileName)
                    stbi_failure_reason());
     }
 
-    BufferWrap Staging = CreateBufferWrap(
+    Buffer Staging = CreateBuffer(
         ImageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-    void* Data;
-    RTRT_CHECK_VK(
-        vkMapMemory(GpuDevice->GetHandle(), Staging.Memory, 0, ImageSize, 0, &Data));
-    memcpy(Data, Pixels, static_cast<size_t>(ImageSize));
-    vkUnmapMemory(GpuDevice->GetHandle(), Staging.Memory);
+    memcpy(Staging.Map(ImageSize), Pixels, static_cast<size_t>(ImageSize));
+    Staging.Unmap();
 
     stbi_image_free(Pixels);
 
@@ -136,10 +133,10 @@ ImageWrap Renderer::CreateTextureImage(const std::string& FileName)
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                           MipLevels);
 
-    CopyBufferToImage(Staging.Buffer, MyImage.Image, static_cast<uint32_t>(TexWidth),
+    CopyBufferToImage(Staging.GetHandle(), MyImage.Image, static_cast<uint32_t>(TexWidth),
                       static_cast<uint32_t>(TexHeight));
 
-    Staging.Destroy(GpuDevice->GetHandle());
+    Staging.Destroy();
 
     GenerateMipmaps(MyImage.Image, VK_FORMAT_R8G8B8A8_UNORM, TexWidth, TexHeight,
                     MipLevels);
@@ -254,60 +251,30 @@ void Renderer::GenerateMipmaps(VkImage Image, VkFormat ImageFormat, int32_t TexW
     SubmitTempCmdBuffer(TempCmdBuffer);
 }
 
-BufferWrap Renderer::CreateStagedBufferWrap(VkCommandBuffer CmdBuf, VkDeviceSize Size,
-                                            const void* Data, VkBufferUsageFlags Usage)
+Buffer Renderer::CreateStagedBuffer(VkCommandBuffer CmdBuf, VkDeviceSize Size,
+                                    const void* Data, VkBufferUsageFlags Usage)
 {
-    BufferWrap Staging = CreateBufferWrap(
+    Buffer Staging = CreateBuffer(
         Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-    void* Dest;
-    RTRT_CHECK_VK(vkMapMemory(GpuDevice->GetHandle(), Staging.Memory, 0, Size, 0, &Dest));
-    memcpy(Dest, Data, Size);
-    vkUnmapMemory(GpuDevice->GetHandle(), Staging.Memory);
+    memcpy(Staging.Map(Size), Data, Size);
+    Staging.Unmap();
 
-    BufferWrap Bw = CreateBufferWrap(Size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | Usage,
-                                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    CopyBuffer(Staging.Buffer, Bw.Buffer, Size);
+    Buffer Bw = CreateBuffer(Size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | Usage,
+                             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    CopyBuffer(Staging.GetHandle(), Bw.GetHandle(), Size);
 
-    Staging.Destroy(GpuDevice->GetHandle());
+    Staging.Destroy();
 
     return Bw;
 }
 
-BufferWrap Renderer::CreateBufferWrap(VkDeviceSize Size, VkBufferUsageFlags Usage,
-                                      VkMemoryPropertyFlags Properties)
+Buffer Renderer::CreateBuffer(VkDeviceSize Size, VkBufferUsageFlags Usage,
+                              VkMemoryPropertyFlags Properties)
 {
-    BufferWrap Result;
-
-    VkBufferCreateInfo BufferInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-    BufferInfo.size = Size;
-    BufferInfo.usage = Usage;
-    BufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    RTRT_CHECK_VK(
-        vkCreateBuffer(GpuDevice->GetHandle(), &BufferInfo, nullptr, &Result.Buffer));
-
-    VkMemoryRequirements MemRequirements;
-    vkGetBufferMemoryRequirements(GpuDevice->GetHandle(), Result.Buffer,
-                                  &MemRequirements);
-
-    VkMemoryAllocateFlagsInfo MemFlags = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
-                                          nullptr, VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT,
-                                          0};
-
-    VkMemoryAllocateInfo AllocInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-    AllocInfo.pNext = &MemFlags;
-    AllocInfo.allocationSize = MemRequirements.size;
-    AllocInfo.memoryTypeIndex =
-        GpuDevice->FindMemoryType(MemRequirements.memoryTypeBits, Properties);
-
-    RTRT_CHECK_VK(
-        vkAllocateMemory(GpuDevice->GetHandle(), &AllocInfo, nullptr, &Result.Memory));
-
-    RTRT_CHECK_VK(
-        vkBindBufferMemory(GpuDevice->GetHandle(), Result.Buffer, Result.Memory, 0));
-
+    Buffer Result;
+    Result.Create(*GpuDevice, Size, Usage, Properties);
     return Result;
 }
 
@@ -529,8 +496,9 @@ void Renderer::CreateScDescriptorSet()
          {ScBindings::kTextures, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, NbTxt,
           VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR}});
 
-    ScDesc.Write(GpuDevice->GetHandle(), ScBindings::kMatrices, MatrixBw.Buffer);
-    ScDesc.Write(GpuDevice->GetHandle(), ScBindings::kObjDescs, ObjDescriptionBw.Buffer);
+    ScDesc.Write(GpuDevice->GetHandle(), ScBindings::kMatrices, MatrixBw.GetHandle());
+    ScDesc.Write(GpuDevice->GetHandle(), ScBindings::kObjDescs,
+                 ObjDescriptionBw.GetHandle());
     ScDesc.Write(GpuDevice->GetHandle(), ScBindings::kTextures, ObjTextures);
 }
 
@@ -576,7 +544,7 @@ void Renderer::CreateScPipeline()
 // Will be included in a descriptor set for use in shaders.
 void Renderer::CreateMatrixBuffer()
 {
-    MatrixBw = CreateBufferWrap(
+    MatrixBw = CreateBuffer(
         sizeof(MatrixUniforms),
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -589,7 +557,7 @@ void Renderer::CreateObjDescriptionBuffer()
 {
     VkCommandBuffer CmdBuf = CreateTempCmdBuffer();
     ObjDescriptionBw =
-        CreateStagedBufferWrap(CmdBuf, ObjDescList, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        CreateStagedBuffer(CmdBuf, ObjDescList, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
     SubmitTempCmdBuffer(CmdBuf);
 }
 
@@ -631,8 +599,9 @@ void Renderer::Rasterize()
         vkCmdPushConstants(CommandBuffer, ScanlinePipelineLayout,
                            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                            sizeof(PushConstantRaster), &PcRaster);
-        vkCmdBindVertexBuffers(CommandBuffer, 0, 1, &Object.VertexBuffer.Buffer, &Offset);
-        vkCmdBindIndexBuffer(CommandBuffer, Object.IndexBuffer.Buffer, 0,
+        const VkBuffer VertexBuffer = Object.VertexBuffer.GetHandle();
+        vkCmdBindVertexBuffers(CommandBuffer, 0, 1, &VertexBuffer, &Offset);
+        vkCmdBindIndexBuffer(CommandBuffer, Object.IndexBuffer.GetHandle(), 0,
                              VK_INDEX_TYPE_UINT32);
         vkCmdDrawIndexed(CommandBuffer, Object.NbIndices, 1, 0, 0, 0);
     }
@@ -657,7 +626,7 @@ void Renderer::UpdateCameraBuffer()
     HostUBO.ProjInverse = glm::inverse(Proj);
 
     // UBO on the device, and what stages access it.
-    VkBuffer DeviceUBO = MatrixBw.Buffer;
+    VkBuffer DeviceUBO = MatrixBw.GetHandle();
     auto UboUsageStages = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
                           VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
 
@@ -674,7 +643,7 @@ void Renderer::UpdateCameraBuffer()
 
     // Schedule the host-to-device upload. (hostUBO is copied into the cmd
     // buffer so it is okay to deallocate when the function returns).
-    vkCmdUpdateBuffer(CommandBuffer, MatrixBw.Buffer, 0, sizeof(MatrixUniforms),
+    vkCmdUpdateBuffer(CommandBuffer, MatrixBw.GetHandle(), 0, sizeof(MatrixUniforms),
                       &HostUBO);
 
     // Making sure the updated UBO will be visible.

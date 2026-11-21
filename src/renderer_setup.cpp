@@ -65,14 +65,14 @@ void Renderer::DestroySceneResources()
     // ObjDataList.
     for (auto& Ob : ObjDataList)
     {
-        Ob.VertexBuffer.Destroy(GpuDevice->GetHandle());
-        Ob.IndexBuffer.Destroy(GpuDevice->GetHandle());
-        Ob.MatColorBuffer.Destroy(GpuDevice->GetHandle());
-        Ob.MatIndexBuffer.Destroy(GpuDevice->GetHandle());
+        Ob.VertexBuffer.Destroy();
+        Ob.IndexBuffer.Destroy();
+        Ob.MatColorBuffer.Destroy();
+        Ob.MatIndexBuffer.Destroy();
     }
 
-    MatrixBw.Destroy(GpuDevice->GetHandle());
-    ObjDescriptionBw.Destroy(GpuDevice->GetHandle());
+    MatrixBw.Destroy();
+    ObjDescriptionBw.Destroy();
 }
 
 void Renderer::DestroyScanlineResources()
@@ -91,7 +91,7 @@ void Renderer::DestroyRaytracingResources()
     RtDesc.Destroy(GpuDevice->GetHandle());
     vkDestroyPipelineLayout(GpuDevice->GetHandle(), RtPipelineLayout, nullptr);
     vkDestroyPipeline(GpuDevice->GetHandle(), RtPipeline, nullptr);
-    ShaderBindingTableBw.Destroy(GpuDevice->GetHandle());
+    ShaderBindingTableBw.Destroy();
 
     // History buffers
     RtColPrevBuffer.Destroy(GpuDevice->GetHandle());
@@ -568,7 +568,7 @@ void Renderer::SetShaderLanguage(bool UseSlangShaders)
     CreateScPipeline();
 
     // The SBT holds group handles of the old pipeline, so it is rebuilt with it
-    ShaderBindingTableBw.Destroy(GpuDevice->GetHandle());
+    ShaderBindingTableBw.Destroy();
     vkDestroyPipeline(GpuDevice->GetHandle(), RtPipeline, nullptr);
     vkDestroyPipelineLayout(GpuDevice->GetHandle(), RtPipelineLayout, nullptr);
     CreateRtPipeline();

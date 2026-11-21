@@ -8,12 +8,12 @@
 #include <vulkan/vulkan_core.h>
 
 #include "acceleration_wrap.h"
-#include "buffer_wrap.h"
 #include "core/window.h"
 #include "descriptor_wrap.h"
 #include "image_wrap.h"
 #include "scene/camera.h"
 #include "shaders/shared_structs.h"
+#include "vk/buffer.h"
 #include "vk/context.h"
 #include "vk/device.h"
 #include "vk/swapchain.h"
@@ -27,11 +27,11 @@ struct ObjData
 {
     uint32_t NbIndices{0};
     uint32_t NbVertices{0};
-    glm::mat4 Transform;        // Instance matrix of the object
-    BufferWrap VertexBuffer;    // Buffer of vertices
-    BufferWrap IndexBuffer;     // Buffer of triangle indices
-    BufferWrap MatColorBuffer;  // Buffer of materials
-    BufferWrap MatIndexBuffer;  // Buffer of each triangle's material index
+    glm::mat4 Transform;    // Instance matrix of the object
+    Buffer VertexBuffer;    // Buffer of vertices
+    Buffer IndexBuffer;     // Buffer of triangle indices
+    Buffer MatColorBuffer;  // Buffer of materials
+    Buffer MatIndexBuffer;  // Buffer of each triangle's material index
 };
 
 // Pair each instance with its instance transform
@@ -128,18 +128,17 @@ public:
     VkCommandBuffer CreateTempCmdBuffer();
     void SubmitTempCmdBuffer(VkCommandBuffer CmdBuffer);
 
-    BufferWrap CreateBufferWrap(VkDeviceSize Size, VkBufferUsageFlags Usage,
-                                VkMemoryPropertyFlags Properties);
+    Buffer CreateBuffer(VkDeviceSize Size, VkBufferUsageFlags Usage,
+                        VkMemoryPropertyFlags Properties);
 
     // A device-local buffer filled through a staging buffer, using CmdBuf for the copy.
-    BufferWrap CreateStagedBufferWrap(VkCommandBuffer CmdBuf, VkDeviceSize Size,
-                                      const void* Data, VkBufferUsageFlags Usage);
+    Buffer CreateStagedBuffer(VkCommandBuffer CmdBuf, VkDeviceSize Size, const void* Data,
+                              VkBufferUsageFlags Usage);
     template <typename T>
-    BufferWrap CreateStagedBufferWrap(VkCommandBuffer CmdBuf, const std::vector<T>& Data,
-                                      VkBufferUsageFlags Usage)
+    Buffer CreateStagedBuffer(VkCommandBuffer CmdBuf, const std::vector<T>& Data,
+                              VkBufferUsageFlags Usage)
     {
-        return CreateStagedBufferWrap(CmdBuf, sizeof(T) * Data.size(), Data.data(),
-                                      Usage);
+        return CreateStagedBuffer(CmdBuf, sizeof(T) * Data.size(), Data.data(), Usage);
     }
 
 private:
@@ -260,10 +259,10 @@ private:
     std::vector<ObjDesc> ObjDescList{};    // Device-addresses of those buffers
     std::vector<ImageWrap> ObjTextures{};  // All textures of the scene
     std::vector<ObjInst> ObjInstList{};    // Instances paring an object and a transform
-    BufferWrap LightBuff{};                // Buffer of light list
+    Buffer LightBuff{};                    // Buffer of light list
     void MyLoadModel(const std::string& Filename, const glm::mat4& Transform);
 
-    BufferWrap ObjDescriptionBw{};  // Device buffer of the OBJ descriptions
+    Buffer ObjDescriptionBw{};  // Device buffer of the OBJ descriptions
     void CreateObjDescriptionBuffer();
 
     DescriptorWrap ScDesc{};
@@ -273,7 +272,7 @@ private:
     VkPipeline ScanlinePipeline{};
     void CreateScPipeline();
 
-    BufferWrap MatrixBw{};  // Device-Host of the camera matrices
+    Buffer MatrixBw{};  // Device-Host of the camera matrices
     void CreateMatrixBuffer();
 
     RaytracingBuilder RtBuilder{};
@@ -300,7 +299,7 @@ private:
                           std::vector<VkRayTracingShaderGroupCreateInfoKHR>& Groups);
     void CreateRtPipelineLayout();
 
-    BufferWrap ShaderBindingTableBw;
+    Buffer ShaderBindingTableBw;
     VkStridedDeviceAddressRegionKHR RgenRegion{};
     VkStridedDeviceAddressRegionKHR MissRegion{};
     VkStridedDeviceAddressRegionKHR HitRegion{};
@@ -309,7 +308,7 @@ private:
     // Fills the stride and size of each region from the device's handle alignment.
     void ComputeSbtRegions(uint32_t MissCount, uint32_t HitCount);
     // Copies the raygen, miss and hit handles into the mapped staging buffer.
-    void WriteSbtHandles(const BufferWrap& Staging, VkDeviceSize SbtSize,
+    void WriteSbtHandles(const Buffer& Staging, VkDeviceSize SbtSize,
                          const std::vector<uint8_t>& Handles, uint32_t MissCount,
                          uint32_t HitCount);
 

@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <assimp/Importer.hpp>
@@ -48,14 +49,6 @@ const aiScene* ImportScene(Assimp::Importer& Importer, const std::string& Path);
 
 void RecurseModelNodes(ModelData* Meshdata, const aiScene* Aiscene, const aiNode* Node,
                        const aiMatrix4x4& ParentTr, const int Level = 0);
-
-// Returns an address (as VkDeviceAddress=uint64_t) of a buffer on the GPU.
-VkDeviceAddress GetBufferDeviceAddress(VkDevice DeviceHandle, VkBuffer Buffer)
-{
-    VkBufferDeviceAddressInfo Info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
-    Info.buffer = Buffer;
-    return vkGetBufferDeviceAddress(DeviceHandle, &Info);
-}
 
 }  // namespace
 
@@ -105,12 +98,12 @@ ObjData UploadModel(Renderer& VK, const ModelData& Meshdata)
     VkBufferUsageFlags RtFlags =
         Flag | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
 
-    Object.VertexBuffer = VK.CreateStagedBufferWrap(
+    Object.VertexBuffer = VK.CreateStagedBuffer(
         CmdBuf, Meshdata.Vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | RtFlags);
-    Object.IndexBuffer = VK.CreateStagedBufferWrap(
+    Object.IndexBuffer = VK.CreateStagedBuffer(
         CmdBuf, Meshdata.Indicies, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | RtFlags);
-    Object.MatColorBuffer = VK.CreateStagedBufferWrap(CmdBuf, Meshdata.Materials, Flag);
-    Object.MatIndexBuffer = VK.CreateStagedBufferWrap(CmdBuf, Meshdata.MatIndx, Flag);
+    Object.MatColorBuffer = VK.CreateStagedBuffer(CmdBuf, Meshdata.Materials, Flag);
+    Object.MatIndexBuffer = VK.CreateStagedBuffer(CmdBuf, Meshdata.MatIndx, Flag);
 
     VK.SubmitTempCmdBuffer(CmdBuf);
     return Object;
@@ -156,16 +149,12 @@ void Renderer::MyLoadModel(const std::string& Filename, const glm::mat4& Transfo
     // Creating information for device access
     ObjDesc Desc;
     Desc.TxtOffset = TxtOffset;
-    Desc.VertexAddress =
-        GetBufferDeviceAddress(GpuDevice->GetHandle(), Object.VertexBuffer.Buffer);
-    Desc.IndexAddress =
-        GetBufferDeviceAddress(GpuDevice->GetHandle(), Object.IndexBuffer.Buffer);
-    Desc.MaterialAddress =
-        GetBufferDeviceAddress(GpuDevice->GetHandle(), Object.MatColorBuffer.Buffer);
-    Desc.MaterialIndexAddress =
-        GetBufferDeviceAddress(GpuDevice->GetHandle(), Object.MatIndexBuffer.Buffer);
+    Desc.VertexAddress = Object.VertexBuffer.GetAddress();
+    Desc.IndexAddress = Object.IndexBuffer.GetAddress();
+    Desc.MaterialAddress = Object.MatColorBuffer.GetAddress();
+    Desc.MaterialIndexAddress = Object.MatIndexBuffer.GetAddress();
 
-    ObjDataList.emplace_back(Object);
+    ObjDataList.emplace_back(std::move(Object));
     ObjDescList.emplace_back(Desc);
 }
 
