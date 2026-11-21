@@ -8,7 +8,7 @@
 namespace rtrt
 {
 
-// GLSL and Slang SPIR-V files for a vertex and a fragment shader.
+// Slang and generated-GLSL SPIR-V files for a vertex and a fragment shader.
 struct GraphicsShaders
 {
     const char* VertGlsl;

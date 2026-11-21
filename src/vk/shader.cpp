@@ -40,18 +40,13 @@ void Shader::Load(VkDevice LogicalDevice, const char* GlslSpv, const char* Slang
     Destroy();
     DeviceHandle = LogicalDevice;
 
-    std::string Code;
-    if (UseSlang)
-    {
-        Code = LoadFile(SlangSpv);
-        if (Code.empty())
-        {
-            printf("Slang shader %s not found; using %s\n", SlangSpv, GlslSpv);
-        }
-    }
+    const char* Primary = UseSlang ? SlangSpv : GlslSpv;
+    const char* Fallback = UseSlang ? GlslSpv : SlangSpv;
+    std::string Code = LoadFile(Primary);
     if (Code.empty())
     {
-        Code = LoadFile(GlslSpv);
+        printf("Shader %s not found; using %s\n", Primary, Fallback);
+        Code = LoadFile(Fallback);
     }
 
     VkShaderModuleCreateInfo CreateInfo{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};

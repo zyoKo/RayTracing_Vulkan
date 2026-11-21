@@ -8,8 +8,9 @@
 namespace rtrt
 {
 
-// A shader module loaded from either the GLSL or the Slang SPIR-V of one shader. Frees
-// itself when destroyed; moves hand the handle over.
+// A shader module loaded from the Slang SPIR-V of one shader, or from the SPIR-V
+// compiled from Slang's generated GLSL. Frees itself when destroyed; moves hand the
+// handle over.
 class Shader
 {
 public:
@@ -20,7 +21,8 @@ public:
     Shader(Shader&& Other) noexcept;
     Shader& operator=(Shader&& Other) noexcept;
 
-    // Loads SlangSpv when UseSlang is set and the file exists, otherwise GlslSpv.
+    // Loads SlangSpv when UseSlang is set, otherwise GlslSpv. Falls back to the other
+    // file when the chosen one is missing.
     void Load(VkDevice LogicalDevice, const char* GlslSpv, const char* SlangSpv,
               bool UseSlang);
 

@@ -19,13 +19,13 @@ headers = core/window.h scene/camera.h scene/camera_controller.h extensions_vk.h
 
 src = core/window.cpp scene/camera.cpp scene/camera_controller.cpp extensions_vk.cpp vk/context.cpp vk/device.cpp vk/physical_device.cpp vk/swapchain.cpp core/application.cpp core/shader_check.cpp main.cpp vk/buffer.cpp vk/image.cpp vk/sampler.cpp vk/command_pool.cpp vk/command_buffer.cpp vk/fence.cpp vk/semaphore.cpp vk/shader.cpp vk/descriptor_set_layout.cpp vk/descriptor_pool.cpp vk/descriptor_set.cpp vk/descriptor_builder.cpp vk/pipeline.cpp vk/pipeline_layout.cpp vk/render_pass.cpp vk/framebuffer.cpp scene/scene.cpp scene/texture.cpp rt/acceleration_structure.cpp rt/shader_binding_table.cpp renderer/graphics_pipeline.cpp renderer/post_pass.cpp renderer/scanline_pass.cpp renderer/ray_trace_pass.cpp renderer/render_image.cpp renderer/denoise_pass.cpp ui/gui.cpp renderer/renderer.cpp
 
-shader_spvs = spv/post.frag.spv  spv/post.vert.spv spv/scanline.vert.spv spv/scanline.frag.spv spv/post.frag.spv spv/post.vert.spv spv/raytrace.rgen.spv spv/raytrace.rmiss.spv spv/raytrace.rchit.spv spv/raytraceShadow.rmiss.spv spv/denoise.comp.spv $(slang_spvs)
+names = denoise.comp post.vert post.frag scanline.vert scanline.frag raytrace.rgen raytrace.rmiss raytraceShadow.rmiss raytrace.rchit
 
-slang_spvs = spv/denoise.comp.slang.spv spv/post.vert.slang.spv spv/post.frag.slang.spv spv/scanline.vert.slang.spv spv/scanline.frag.slang.spv spv/raytrace.rgen.slang.spv spv/raytrace.rmiss.slang.spv spv/raytraceShadow.rmiss.slang.spv spv/raytrace.rchit.slang.spv
+shader_spvs = $(patsubst %,spv/%.slang.spv,$(names)) $(patsubst %,spv/%.spv,$(names))
 
-SLANGC = slangc -target spirv -profile spirv_1_5 -capability SPV_KHR_non_semantic_info+SPV_GOOGLE_user_type+spvDerivativeControl+spvImageQuery+spvImageGatherExtended+spvSparseResidency+spvMinLod+spvFragmentFullyCoveredEXT -matrix-layout-column-major -I shaders -g
-
-shader_src =  shaders/shared_structs.h   shaders/post.frag shaders/post.vert   shaders/scanline.vert shaders/scanline.frag shaders/raytrace.rgen shaders/raytrace.rmiss shaders/raytrace.rchit shaders/denoise.comp shaders/raytraceShadow.rmiss
+SLANG_FLAGS = -matrix-layout-column-major -I shaders
+SLANGC_SPIRV = slangc $(SLANG_FLAGS) -target spirv -profile spirv_1_5 -capability SPV_KHR_non_semantic_info+SPV_GOOGLE_user_type+spvDerivativeControl+spvImageQuery+spvImageGatherExtended+spvSparseResidency+spvMinLod+spvFragmentFullyCoveredEXT -g
+SLANGC_GLSL = slangc $(SLANG_FLAGS) -target glsl -profile glsl_460 -warnings-disable 41012
 
 imgui_src = $(LIBDIR)/imgui-master/backends/imgui_impl_glfw.cpp $(LIBDIR)/imgui-master/backends/imgui_impl_vulkan.cpp $(LIBDIR)/imgui-master/imgui.cpp $(LIBDIR)/imgui-master/imgui_demo.cpp $(LIBDIR)/imgui-master/imgui_draw.cpp $(LIBDIR)/imgui-master/imgui_widgets.cpp
 
@@ -35,60 +35,32 @@ objects = $(patsubst %.cpp,%.o,$(src)) $(patsubst %.cpp,%.o,$(imgui_src))
 $(target): $(objects) $(shader_spvs)
 	g++  $(CXXFLAGS) -o $@  $(objects) $(LIBS)
 
-spv/denoise.comp.spv: shaders/denoise.comp shaders/shared_structs.h
+# Slang is the shader source. Each entry point is compiled to spv/<name>.slang.spv, and
+# also translated to GLSL in shaders/glsl/ and compiled from there to spv/<name>.spv.
+# Slang writes buffer pointers as std430 in GLSL; the C++ data is scalar, so sed fixes it.
+# $(1): output name, $(2): Slang file, $(3): entry point
+define shader_rules
+spv/$(1).slang.spv: shaders/$(2) shaders/shared_structs.h shaders/rng.slang
 	mkdir -p spv
-	glslangValidator -g --target-env vulkan1.2 -o $@  $<
-spv/denoise.comp.slang.spv: shaders/denoise.slang shaders/shared_structs.h
+	$$(SLANGC_SPIRV) $$< -entry $(3) -o $$@
+shaders/glsl/$(1): shaders/$(2) shaders/shared_structs.h shaders/rng.slang
+	mkdir -p shaders/glsl
+	$$(SLANGC_GLSL) $$< -entry $(3) -o $$@
+	sed -i -e 's/buffer_reference, std430/buffer_reference, scalar/' -e 's/^#version 460$$$$/&\n#extension GL_EXT_scalar_block_layout : require/' $$@
+spv/$(1).spv: shaders/glsl/$(1)
 	mkdir -p spv
-	$(SLANGC) $< -entry main -o $@
-spv/post.vert.slang.spv: shaders/post.slang shaders/shared_structs.h
-	mkdir -p spv
-	$(SLANGC) $< -entry vertexMain -o $@
-spv/post.frag.slang.spv: shaders/post.slang shaders/shared_structs.h
-	mkdir -p spv
-	$(SLANGC) $< -entry fragmentMain -o $@
-spv/scanline.vert.slang.spv: shaders/scanline.slang shaders/shared_structs.h
-	mkdir -p spv
-	$(SLANGC) $< -entry vertexMain -o $@
-spv/scanline.frag.slang.spv: shaders/scanline.slang shaders/shared_structs.h
-	mkdir -p spv
-	$(SLANGC) $< -entry fragmentMain -o $@
-spv/raytrace.rgen.slang.spv: shaders/raytrace.slang shaders/shared_structs.h shaders/rng.slang
-	mkdir -p spv
-	$(SLANGC) $< -entry rayGenMain -o $@
-spv/raytrace.rmiss.slang.spv: shaders/raytrace.slang shaders/shared_structs.h shaders/rng.slang
-	mkdir -p spv
-	$(SLANGC) $< -entry missMain -o $@
-spv/raytraceShadow.rmiss.slang.spv: shaders/raytrace.slang shaders/shared_structs.h shaders/rng.slang
-	mkdir -p spv
-	$(SLANGC) $< -entry shadowMissMain -o $@
-spv/raytrace.rchit.slang.spv: shaders/raytrace.slang shaders/shared_structs.h shaders/rng.slang
-	mkdir -p spv
-	$(SLANGC) $< -entry closestHitMain -o $@
-spv/post.frag.spv: shaders/post.frag shaders/shared_structs.h
-	mkdir -p spv
-	glslangValidator -g --target-env vulkan1.2 -o $@  $<
-spv/post.vert.spv: shaders/post.vert shaders/shared_structs.h
-	mkdir -p spv
-	glslangValidator -g --target-env vulkan1.2 -o $@  $<
-spv/raytrace.rchit.spv: shaders/raytrace.rchit shaders/shared_structs.h
-	mkdir -p spv
-	glslangValidator -g --target-env vulkan1.2 -o $@  $<
-spv/raytrace.rgen.spv: shaders/raytrace.rgen shaders/shared_structs.h
-	mkdir -p spv
-	glslangValidator -g --target-env vulkan1.2 -o $@  $<
-spv/raytrace.rmiss.spv: shaders/raytrace.rmiss shaders/shared_structs.h
-	mkdir -p spv
-	glslangValidator -g --target-env vulkan1.2 -o $@  $<
-spv/raytraceShadow.rmiss.spv: shaders/raytraceShadow.rmiss shaders/shared_structs.h
-	mkdir -p spv
-	glslangValidator -g --target-env vulkan1.2 -o $@  $<
-spv/scanline.frag.spv: shaders/scanline.frag shaders/shared_structs.h
-	mkdir -p spv
-	glslangValidator -g --target-env vulkan1.2 -o $@  $<
-spv/scanline.vert.spv: shaders/scanline.vert shaders/shared_structs.h
-	mkdir -p spv
-	glslangValidator -g --target-env vulkan1.2 -o $@  $<
+	glslangValidator -V --target-env vulkan1.2 -o $$@ $$<
+endef
+
+$(eval $(call shader_rules,denoise.comp,denoise.slang,main))
+$(eval $(call shader_rules,post.vert,post.slang,vertexMain))
+$(eval $(call shader_rules,post.frag,post.slang,fragmentMain))
+$(eval $(call shader_rules,scanline.vert,scanline.slang,vertexMain))
+$(eval $(call shader_rules,scanline.frag,scanline.slang,fragmentMain))
+$(eval $(call shader_rules,raytrace.rgen,raytrace.slang,rayGenMain))
+$(eval $(call shader_rules,raytrace.rmiss,raytrace.slang,missMain))
+$(eval $(call shader_rules,raytraceShadow.rmiss,raytrace.slang,shadowMissMain))
+$(eval $(call shader_rules,raytrace.rchit,raytrace.slang,closestHitMain))
 
 test:
 	ls -1 spv

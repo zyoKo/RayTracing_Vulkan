@@ -15,8 +15,8 @@ struct PassContext
     const Device* Gpu = nullptr;
     const CommandPool* Pool = nullptr;
     const Swapchain* Chain = nullptr;
-    // Load the Slang SPIR-V instead of the GLSL
-    bool UseSlang = false;
+    // Load the Slang SPIR-V instead of the one built from generated GLSL
+    bool UseSlang = true;
 };
 
 }  // namespace rtrt

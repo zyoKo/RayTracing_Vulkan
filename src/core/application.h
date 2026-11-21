@@ -43,8 +43,8 @@ private:
     Device GpuDevice;
     Swapchain MainSwapchain;
     bool DoApiDump = false;
-    // -slang: start with the Slang shaders
-    bool UseSlang = false;
+    // -glsl: start with the shaders compiled from Slang's generated GLSL
+    bool UseSlang = true;
 
     Camera MainCamera;
     CameraController MainController;

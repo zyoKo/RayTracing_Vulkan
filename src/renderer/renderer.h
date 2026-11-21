@@ -61,7 +61,7 @@ public:
     // Puts every UI setting back to its starting value.
     void SetDefaultSettings();
 
-    // Switches between the GLSL and Slang SPIR-V and rebuilds every pipeline.
+    // Switches between the Slang and generated-GLSL SPIR-V and rebuilds every pipeline.
     void SetShaderLanguage(bool UseSlangShaders);
 
     // Throws away the accumulated path-tracing history.
@@ -128,7 +128,7 @@ private:
     int FrameCount = 0;
     bool ResetHistory = false;
 
-    bool UseSlang = false;
+    bool UseSlang = true;
 
     double GpuWaitMs = 0.0;
     double RecordMs = 0.0;

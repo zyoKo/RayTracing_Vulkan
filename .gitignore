@@ -408,3 +408,6 @@ imgui.ini
 
 # Compiled shaders, built by the Visual Studio build or src/compile_shaders.bat
 src/spv/
+
+# GLSL generated from the Slang shaders by src/compile_shaders.bat
+src/shaders/glsl/

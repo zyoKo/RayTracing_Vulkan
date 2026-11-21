@@ -17,20 +17,20 @@ constexpr const char* kShaderNames[] = {
     "denoise.comp",  "raytrace.rgen", "raytrace.rmiss", "raytraceShadow.rmiss",
     "raytrace.rchit"};
 
-std::vector<std::string> MissingShaders(bool IncludeSlang)
+std::vector<std::string> MissingShaders(bool IncludeGlsl)
 {
     std::vector<std::string> Missing;
     for (const char* Name : kShaderNames)
     {
         const std::string Glsl = std::string("spv/") + Name + ".spv";
         const std::string Slang = std::string("spv/") + Name + ".slang.spv";
-        if (!std::filesystem::exists(Glsl))
-        {
-            Missing.push_back(Glsl);
-        }
-        if (IncludeSlang && !std::filesystem::exists(Slang))
+        if (!std::filesystem::exists(Slang))
         {
             Missing.push_back(Slang);
+        }
+        if (IncludeGlsl && !std::filesystem::exists(Glsl))
+        {
+            Missing.push_back(Glsl);
         }
     }
     return Missing;

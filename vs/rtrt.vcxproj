@@ -65,145 +65,37 @@
     <ClCompile Include="..\libs\imgui-master\imgui_widgets.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\src\shaders\post.vert">
-      <FileType>Document</FileType>
-      <LinkObjects>false</LinkObjects>
-      <AdditionalInputs>..\src\shaders\shared_structs.h</AdditionalInputs>
-      <Command>cd /d "$(ProjectDir)..\src"
-cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangValidator.exe -V --target-env vulkan1.2 -o spv\%(Filename)%(Extension).spv   shaders\%(Filename)%(Extension)"</Command>
-      <Message>Compiling shader %(Identity)</Message>
-      <Outputs>..\src\spv\%(Filename)%(Extension).spv</Outputs>
-      <BuildInParallel>true</BuildInParallel>
-    </CustomBuild>
-    <CustomBuild Include="..\src\shaders\post.frag">
-      <FileType>Document</FileType>
-      <LinkObjects>false</LinkObjects>
-      <AdditionalInputs>..\src\shaders\shared_structs.h</AdditionalInputs>
-      <Command>cd /d "$(ProjectDir)..\src"
-cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangValidator.exe -V --target-env vulkan1.2 -o spv\%(Filename)%(Extension).spv   shaders\%(Filename)%(Extension)"</Command>
-      <Message>Compiling shader %(Identity)</Message>
-      <Outputs>..\src\spv\%(Filename)%(Extension).spv</Outputs>
-      <BuildInParallel>true</BuildInParallel>
-    </CustomBuild>
-    <CustomBuild Include="..\src\shaders\scanline.vert">
-      <FileType>Document</FileType>
-      <LinkObjects>false</LinkObjects>
-      <AdditionalInputs>..\src\shaders\shared_structs.h</AdditionalInputs>
-      <Command>cd /d "$(ProjectDir)..\src"
-cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangValidator.exe -V  --target-env vulkan1.2 -o spv\%(Filename)%(Extension).spv   shaders\%(Filename)%(Extension)"</Command>
-      <Message>Compiling shader %(Identity)</Message>
-      <Outputs>..\src\spv\%(Filename)%(Extension).spv</Outputs>
-      <BuildInParallel>true</BuildInParallel>
-    </CustomBuild>
-    <CustomBuild Include="..\src\shaders\scanline.frag">
-      <FileType>Document</FileType>
-      <LinkObjects>false</LinkObjects>
-      <AdditionalInputs>..\src\shaders\shared_structs.h</AdditionalInputs>
-      <Command>cd /d "$(ProjectDir)..\src"
-cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangValidator.exe -V --target-env vulkan1.2 -o spv\%(Filename)%(Extension).spv   shaders\%(Filename)%(Extension)"</Command>
-      <Message>Compiling shader %(Identity)</Message>
-      <Outputs>..\src\spv\%(Filename)%(Extension).spv</Outputs>
-      <BuildInParallel>true</BuildInParallel>
-    </CustomBuild>
-    <CustomBuild Include="..\src\shaders\denoise.comp">
-      <FileType>Document</FileType>
-      <LinkObjects>false</LinkObjects>
-      <AdditionalInputs>..\src\shaders\shared_structs.h</AdditionalInputs>
-      <Command>cd /d "$(ProjectDir)..\src"
-cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangValidator.exe -V --target-env vulkan1.2 -o spv\%(Filename)%(Extension).spv   shaders\%(Filename)%(Extension)"</Command>
-      <Message>Compiling shader %(Identity)</Message>
-      <Outputs>..\src\spv\%(Filename)%(Extension).spv</Outputs>
-      <BuildInParallel>true</BuildInParallel>
-    </CustomBuild>
     <CustomBuild Include="..\src\shaders\denoise.slang">
       <FileType>Document</FileType>
       <LinkObjects>false</LinkObjects>
-      <AdditionalInputs>..\src\shaders\shared_structs.h</AdditionalInputs>
-      <Command>cd /d "$(ProjectDir)..\src"
-$(SlangC) shaders\%(Filename)%(Extension) -entry main -o spv\denoise.comp.slang.spv</Command>
+      <AdditionalInputs>..\src\shaders\shared_structs.h;..\src\compile_shaders.bat</AdditionalInputs>
+      <Command>cd /d "$(ProjectDir)..\src" &amp;&amp; call .\compile_shaders.bat %(Filename)%(Extension)</Command>
       <Message>Compiling Slang shader %(Identity)</Message>
-      <Outputs>..\src\spv\denoise.comp.slang.spv</Outputs>
-      <BuildInParallel>true</BuildInParallel>
+      <Outputs>..\src\spv\denoise.comp.slang.spv;..\src\spv\denoise.comp.spv</Outputs>
     </CustomBuild>
     <CustomBuild Include="..\src\shaders\post.slang">
       <FileType>Document</FileType>
       <LinkObjects>false</LinkObjects>
-      <AdditionalInputs>..\src\shaders\shared_structs.h</AdditionalInputs>
-      <Command>cd /d "$(ProjectDir)..\src"
-$(SlangC) shaders\%(Filename)%(Extension) -entry vertexMain -o spv\post.vert.slang.spv
-if errorlevel 1 exit /b 1
-$(SlangC) shaders\%(Filename)%(Extension) -entry fragmentMain -o spv\post.frag.slang.spv</Command>
+      <AdditionalInputs>..\src\shaders\shared_structs.h;..\src\compile_shaders.bat</AdditionalInputs>
+      <Command>cd /d "$(ProjectDir)..\src" &amp;&amp; call .\compile_shaders.bat %(Filename)%(Extension)</Command>
       <Message>Compiling Slang shader %(Identity)</Message>
-      <Outputs>..\src\spv\post.vert.slang.spv;..\src\spv\post.frag.slang.spv</Outputs>
-      <BuildInParallel>true</BuildInParallel>
+      <Outputs>..\src\spv\post.vert.slang.spv;..\src\spv\post.vert.spv;..\src\spv\post.frag.slang.spv;..\src\spv\post.frag.spv</Outputs>
     </CustomBuild>
     <CustomBuild Include="..\src\shaders\scanline.slang">
       <FileType>Document</FileType>
       <LinkObjects>false</LinkObjects>
-      <AdditionalInputs>..\src\shaders\shared_structs.h</AdditionalInputs>
-      <Command>cd /d "$(ProjectDir)..\src"
-$(SlangC) shaders\%(Filename)%(Extension) -entry vertexMain -o spv\scanline.vert.slang.spv
-if errorlevel 1 exit /b 1
-$(SlangC) shaders\%(Filename)%(Extension) -entry fragmentMain -o spv\scanline.frag.slang.spv</Command>
+      <AdditionalInputs>..\src\shaders\shared_structs.h;..\src\compile_shaders.bat</AdditionalInputs>
+      <Command>cd /d "$(ProjectDir)..\src" &amp;&amp; call .\compile_shaders.bat %(Filename)%(Extension)</Command>
       <Message>Compiling Slang shader %(Identity)</Message>
-      <Outputs>..\src\spv\scanline.vert.slang.spv;..\src\spv\scanline.frag.slang.spv</Outputs>
-      <BuildInParallel>true</BuildInParallel>
+      <Outputs>..\src\spv\scanline.vert.slang.spv;..\src\spv\scanline.vert.spv;..\src\spv\scanline.frag.slang.spv;..\src\spv\scanline.frag.spv</Outputs>
     </CustomBuild>
     <CustomBuild Include="..\src\shaders\raytrace.slang">
       <FileType>Document</FileType>
       <LinkObjects>false</LinkObjects>
-      <AdditionalInputs>..\src\shaders\shared_structs.h;..\src\shaders\rng.slang</AdditionalInputs>
-      <Command>cd /d "$(ProjectDir)..\src"
-$(SlangC) shaders\%(Filename)%(Extension) -entry rayGenMain -o spv\raytrace.rgen.slang.spv
-if errorlevel 1 exit /b 1
-$(SlangC) shaders\%(Filename)%(Extension) -entry missMain -o spv\raytrace.rmiss.slang.spv
-if errorlevel 1 exit /b 1
-$(SlangC) shaders\%(Filename)%(Extension) -entry shadowMissMain -o spv\raytraceShadow.rmiss.slang.spv
-if errorlevel 1 exit /b 1
-$(SlangC) shaders\%(Filename)%(Extension) -entry closestHitMain -o spv\raytrace.rchit.slang.spv</Command>
+      <AdditionalInputs>..\src\shaders\shared_structs.h;..\src\shaders\rng.slang;..\src\compile_shaders.bat</AdditionalInputs>
+      <Command>cd /d "$(ProjectDir)..\src" &amp;&amp; call .\compile_shaders.bat %(Filename)%(Extension)</Command>
       <Message>Compiling Slang shader %(Identity)</Message>
-      <Outputs>..\src\spv\raytrace.rgen.slang.spv;..\src\spv\raytrace.rmiss.slang.spv;..\src\spv\raytraceShadow.rmiss.slang.spv;..\src\spv\raytrace.rchit.slang.spv</Outputs>
-      <BuildInParallel>true</BuildInParallel>
-    </CustomBuild>
-    <CustomBuild Include="..\src\shaders\raytrace.rchit">
-      <FileType>Document</FileType>
-      <LinkObjects>false</LinkObjects>
-      <AdditionalInputs>..\src\shaders\shared_structs.h</AdditionalInputs>
-      <Command>cd /d "$(ProjectDir)..\src"
-cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangValidator.exe -V --target-env vulkan1.2 -o spv\%(Filename)%(Extension).spv   shaders\%(Filename)%(Extension)"</Command>
-      <Message>Compiling shader %(Identity)</Message>
-      <Outputs>..\src\spv\%(Filename)%(Extension).spv</Outputs>
-      <BuildInParallel>true</BuildInParallel>
-    </CustomBuild>
-    <CustomBuild Include="..\src\shaders\raytrace.rgen">
-      <FileType>Document</FileType>
-      <LinkObjects>false</LinkObjects>
-      <AdditionalInputs>..\src\shaders\shared_structs.h</AdditionalInputs>
-      <Command>cd /d "$(ProjectDir)..\src"
-cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangValidator.exe -V --target-env vulkan1.2 -o spv\%(Filename)%(Extension).spv   shaders\%(Filename)%(Extension)"</Command>
-      <Message>Compiling shader %(Identity)</Message>
-      <Outputs>..\src\spv\%(Filename)%(Extension).spv</Outputs>
-      <BuildInParallel>true</BuildInParallel>
-    </CustomBuild>
-    <CustomBuild Include="..\src\shaders\raytrace.rmiss">
-      <FileType>Document</FileType>
-      <LinkObjects>false</LinkObjects>
-      <AdditionalInputs>..\src\shaders\shared_structs.h</AdditionalInputs>
-      <Command>cd /d "$(ProjectDir)..\src"
-cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangValidator.exe -V --target-env vulkan1.2 -o spv\%(Filename)%(Extension).spv   shaders\%(Filename)%(Extension)"</Command>
-      <Message>Compiling shader %(Identity)</Message>
-      <Outputs>..\src\spv\%(Filename)%(Extension).spv</Outputs>
-      <BuildInParallel>true</BuildInParallel>
-    </CustomBuild>
-    <CustomBuild Include="..\src\shaders\raytraceShadow.rmiss">
-      <FileType>Document</FileType>
-      <LinkObjects>false</LinkObjects>
-      <AdditionalInputs>..\src\shaders\shared_structs.h</AdditionalInputs>
-      <Command>cd /d "$(ProjectDir)..\src"
-cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangValidator.exe -V --target-env vulkan1.2 -o spv\%(Filename)%(Extension).spv   shaders\%(Filename)%(Extension)"</Command>
-      <Message>Compiling shader %(Identity)</Message>
-      <Outputs>..\src\spv\%(Filename)%(Extension).spv</Outputs>
-      <BuildInParallel>true</BuildInParallel>
+      <Outputs>..\src\spv\raytrace.rgen.slang.spv;..\src\spv\raytrace.rgen.spv;..\src\spv\raytrace.rmiss.slang.spv;..\src\spv\raytrace.rmiss.spv;..\src\spv\raytraceShadow.rmiss.slang.spv;..\src\spv\raytraceShadow.rmiss.spv;..\src\spv\raytrace.rchit.slang.spv;..\src\spv\raytrace.rchit.spv</Outputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
@@ -249,9 +141,6 @@ cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangVali
     <ClInclude Include="..\src\extensions_vk.hpp" />
     <ClInclude Include="..\src\vk_check.h" />
   </ItemGroup>
-  <PropertyGroup>
-    <SlangC>"$(VULKAN_SDK)\Bin\slangc.exe" -target spirv -profile spirv_1_5 -capability SPV_KHR_non_semantic_info+SPV_GOOGLE_user_type+spvDerivativeControl+spvImageQuery+spvImageGatherExtended+spvSparseResidency+spvMinLod+spvFragmentFullyCoveredEXT -matrix-layout-column-major -I shaders -g</SlangC>
-  </PropertyGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>

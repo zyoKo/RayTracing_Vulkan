@@ -23,15 +23,12 @@ typealias mat4 = float4x4;
 #endif
 
 // clang-format off
-#ifdef __cplusplus // Descriptor binding helper for C++, GLSL and Slang
+#ifdef __cplusplus // Descriptor binding helper for C++ and Slang
 #define RTRT_START_ENUM(a) enum a {
 #define RTRT_END_ENUM() }
-#elif defined(__SLANG__)
+#else
 #define RTRT_START_ENUM(a)  static const uint
 #define RTRT_END_ENUM()
-#else
-#define RTRT_START_ENUM(a)  const uint
-#define RTRT_END_ENUM() 
 #endif
 
 RTRT_START_ENUM(ScBindings)
@@ -105,14 +102,14 @@ struct PushConstantRaster
 #define RTRT_ALIGNAS(N)
 #endif
 
-// For structures used by both C++ and GLSL, byte alignment
+// For structures used by both C++ and the shaders, byte alignment
 // differs between the two languages.  Ints, uints, and floats align
 // nicely, but bool's do not.
 //  Use RTRT_ALIGNAS(4) to align bools.
 //  Use RTRT_ALIGNAS(4) or not for ints, uints, and floats as they naturally align to 4 byte boundaries.
 //  Use RTRT_ALIGNAS(16) for vec3 and vec4, and probably mat4 (untested).
 // PushConstantRay ends with a sentinel (AlignmentTest) that the C++ side
-// sets to 1234 and raytrace.rgen checks, filling the screen with an error
+// sets to 1234 and the ray generation shader checks, filling the screen with an error
 // color on mismatch. A misaligned layout also trips validation error
 // VUID-VkRayTracingPipelineCreateInfoKHR-layout-03427.
 

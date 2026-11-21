@@ -329,14 +329,14 @@ void Gui::DrawShaderSettings(Renderer& VK)
         return;
     }
 
-    if (ImGui::RadioButton("GLSL", !VK.GetUseSlang()))
-    {
-        VK.SetShaderLanguage(false);
-    }
-    ImGui::SameLine();
     if (ImGui::RadioButton("Slang", VK.GetUseSlang()))
     {
         VK.SetShaderLanguage(true);
+    }
+    ImGui::SameLine();
+    if (ImGui::RadioButton("GLSL (generated)", !VK.GetUseSlang()))
+    {
+        VK.SetShaderLanguage(false);
     }
 }
 

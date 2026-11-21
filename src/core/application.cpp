@@ -74,9 +74,9 @@ bool Application::Init(int Argc, char** Argv)
         {
             DoApiDump = true;
         }
-        else if (Arg == "-slang")
+        else if (Arg == "-glsl")
         {
-            UseSlang = true;
+            UseSlang = false;
         }
         else
         {

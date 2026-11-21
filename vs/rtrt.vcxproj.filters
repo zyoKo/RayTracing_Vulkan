@@ -314,34 +314,6 @@
     <ClInclude Include="..\src\shaders\shared_structs.h" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\src\shaders\post.frag">
-      <Filter>Shader Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\src\shaders\post.vert">
-      <Filter>Shader Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\src\shaders\scanline.frag">
-      <Filter>Shader Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\src\shaders\scanline.vert">
-      <Filter>Shader Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\src\shaders\raytraceShadow.rmiss">
-      <Filter>Shader Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\src\shaders\raytrace.rchit">
-      <Filter>Shader Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\src\shaders\raytrace.rgen">
-      <Filter>Shader Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\src\shaders\raytrace.rmiss">
-      <Filter>Shader Files</Filter>
-    </CustomBuild>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\src\shaders\rng.glsl" />
-    <None Include="..\src\shaders\denoise.comp" />
     <None Include="..\src\shaders\denoise.slang" />
     <None Include="..\src\shaders\post.slang" />
     <None Include="..\src\shaders\scanline.slang" />
