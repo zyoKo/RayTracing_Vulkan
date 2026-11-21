@@ -85,6 +85,17 @@ private:
     VkImageLayout Layout = VK_IMAGE_LAYOUT_UNDEFINED;
 };
 
+// Records a barrier that moves every level and layer of Target from OldLayout to
+// NewLayout, with access masks and stages picked from the two layouts.
+void CmdImageBarrier(VkCommandBuffer Cmd, VkImage Target, VkImageLayout OldLayout,
+                     VkImageLayout NewLayout,
+                     VkImageAspectFlags AspectMask = VK_IMAGE_ASPECT_COLOR_BIT);
+
+// Records a copy of Size texels from Src to Dst. Both images are in the general layout
+// before and after.
+void CmdCopyImage(VkCommandBuffer Cmd, const Image& Src, const Image& Dst,
+                  VkExtent2D Size);
+
 }  // namespace rtrt
 
 #endif  // RTRT_SRC_VK_IMAGE_H_

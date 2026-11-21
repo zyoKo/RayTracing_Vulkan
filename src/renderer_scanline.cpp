@@ -11,82 +11,6 @@
 namespace rtrt
 {
 
-namespace
-{
-
-VkAccessFlags AccessFlagsForImageLayout(VkImageLayout Layout)
-{
-    switch (Layout)
-    {
-        case VK_IMAGE_LAYOUT_PREINITIALIZED:
-            return VK_ACCESS_HOST_WRITE_BIT;
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-            return VK_ACCESS_TRANSFER_WRITE_BIT;
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-            return VK_ACCESS_TRANSFER_READ_BIT;
-        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-            return VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-            return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-            return VK_ACCESS_SHADER_READ_BIT;
-        default:
-            return VkAccessFlags();
-    }
-}
-
-VkPipelineStageFlags PipelineStageForLayout(VkImageLayout Layout)
-{
-    switch (Layout)
-    {
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-            return VK_PIPELINE_STAGE_TRANSFER_BIT;
-        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-            return VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-            return VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;  // Allow queue other than graphic
-        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-            return VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;  // Allow queue other than graphic
-        case VK_IMAGE_LAYOUT_PREINITIALIZED:
-            return VK_PIPELINE_STAGE_HOST_BIT;
-        case VK_IMAGE_LAYOUT_UNDEFINED:
-            return VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        default:
-            return VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    }
-}
-
-}  // namespace
-
-void Renderer::ImageLayoutBarrier(VkCommandBuffer Cmdbuffer, VkImage TargetImage,
-                                  VkImageLayout OldImageLayout,
-                                  VkImageLayout NewImageLayout,
-                                  VkImageAspectFlags AspectMask)
-{
-    VkImageSubresourceRange SubresourceRange;
-    SubresourceRange.aspectMask = AspectMask;
-    SubresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-    SubresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
-    SubresourceRange.baseMipLevel = 0;
-    SubresourceRange.baseArrayLayer = 0;
-
-    VkImageMemoryBarrier ImageMemoryBarrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
-    ImageMemoryBarrier.oldLayout = OldImageLayout;
-    ImageMemoryBarrier.newLayout = NewImageLayout;
-    ImageMemoryBarrier.image = TargetImage;
-    ImageMemoryBarrier.subresourceRange = SubresourceRange;
-    ImageMemoryBarrier.srcAccessMask = AccessFlagsForImageLayout(OldImageLayout);
-    ImageMemoryBarrier.dstAccessMask = AccessFlagsForImageLayout(NewImageLayout);
-    ImageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    ImageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    VkPipelineStageFlags SrcStageMask = PipelineStageForLayout(OldImageLayout);
-    VkPipelineStageFlags DestStageMask = PipelineStageForLayout(NewImageLayout);
-
-    vkCmdPipelineBarrier(Cmdbuffer, SrcStageMask, DestStageMask, 0, 0, nullptr, 0,
-                         nullptr, 1, &ImageMemoryBarrier);
-}
-
 void Renderer::CreatePostDescriptor()
 {
     DescriptorBuilder()
@@ -100,8 +24,8 @@ void Renderer::CreateScBuffer()
     ScImageBuffer = CreateBufferImage(MainSwapchain->GetExtent());
 
     VkCommandBuffer CmdBuf = MainCmdPool.BeginSingleUse();
-    ImageLayoutBarrier(CmdBuf, ScImageBuffer.GetHandle(), VK_IMAGE_LAYOUT_UNDEFINED,
-                       VK_IMAGE_LAYOUT_GENERAL);
+    CmdImageBarrier(CmdBuf, ScImageBuffer.GetHandle(), VK_IMAGE_LAYOUT_UNDEFINED,
+                    VK_IMAGE_LAYOUT_GENERAL);
     MainCmdPool.EndSingleUse(CmdBuf);
 }
 
@@ -240,9 +164,10 @@ void Renderer::CreateScPipeline()
 
     const GraphicsShaders Shaders{"spv/scanline.vert.spv", "spv/scanline.vert.slang.spv",
                                   "spv/scanline.frag.spv", "spv/scanline.frag.slang.spv"};
-    ScanlinePipeline = CreateGraphicsPipeline(Shaders, VertexInputInfo,
-                                              ScanlinePipelineLayout.GetHandle(),
-                                              ScanlineRenderPass.GetHandle());
+    ScanlinePipeline = CreateFullWindowPipeline(
+        GpuDevice->GetHandle(), UseSlang, Shaders, VertexInputInfo,
+        ScanlinePipelineLayout.GetHandle(), ScanlineRenderPass.GetHandle(),
+        MainSwapchain->GetExtent());
 }
 
 // Create a Vulkan buffer to hold the camera matrices, products and inverses.

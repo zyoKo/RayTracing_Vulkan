@@ -54,6 +54,49 @@ void BlitMipLevel(VkCommandBuffer CmdBuffer, VkImage Target,
                          1, &Barrier);
 }
 
+VkAccessFlags AccessFlagsForImageLayout(VkImageLayout Layout)
+{
+    switch (Layout)
+    {
+        case VK_IMAGE_LAYOUT_PREINITIALIZED:
+            return VK_ACCESS_HOST_WRITE_BIT;
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+            return VK_ACCESS_TRANSFER_WRITE_BIT;
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+            return VK_ACCESS_TRANSFER_READ_BIT;
+        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+            return VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+            return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+            return VK_ACCESS_SHADER_READ_BIT;
+        default:
+            return VkAccessFlags();
+    }
+}
+
+VkPipelineStageFlags PipelineStageForLayout(VkImageLayout Layout)
+{
+    switch (Layout)
+    {
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+            return VK_PIPELINE_STAGE_TRANSFER_BIT;
+        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+            return VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+            return VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;  // Allow queue other than graphic
+        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+            return VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;  // Allow queue other than graphic
+        case VK_IMAGE_LAYOUT_PREINITIALIZED:
+            return VK_PIPELINE_STAGE_HOST_BIT;
+        case VK_IMAGE_LAYOUT_UNDEFINED:
+            return VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        default:
+            return VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    }
+}
+
 }  // namespace
 
 Image::~Image()
@@ -254,6 +297,60 @@ void Image::GenerateMipmaps(const Device& Gpu, const CommandPool& Pool, VkFormat
                          1, &Barrier);
 
     Pool.EndSingleUse(TempCmdBuffer);
+}
+
+void CmdImageBarrier(VkCommandBuffer Cmdbuffer, VkImage TargetImage,
+                     VkImageLayout OldImageLayout, VkImageLayout NewImageLayout,
+                     VkImageAspectFlags AspectMask)
+{
+    VkImageSubresourceRange SubresourceRange;
+    SubresourceRange.aspectMask = AspectMask;
+    SubresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+    SubresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+    SubresourceRange.baseMipLevel = 0;
+    SubresourceRange.baseArrayLayer = 0;
+
+    VkImageMemoryBarrier ImageMemoryBarrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    ImageMemoryBarrier.oldLayout = OldImageLayout;
+    ImageMemoryBarrier.newLayout = NewImageLayout;
+    ImageMemoryBarrier.image = TargetImage;
+    ImageMemoryBarrier.subresourceRange = SubresourceRange;
+    ImageMemoryBarrier.srcAccessMask = AccessFlagsForImageLayout(OldImageLayout);
+    ImageMemoryBarrier.dstAccessMask = AccessFlagsForImageLayout(NewImageLayout);
+    ImageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    ImageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    VkPipelineStageFlags SrcStageMask = PipelineStageForLayout(OldImageLayout);
+    VkPipelineStageFlags DestStageMask = PipelineStageForLayout(NewImageLayout);
+
+    vkCmdPipelineBarrier(Cmdbuffer, SrcStageMask, DestStageMask, 0, 0, nullptr, 0,
+                         nullptr, 1, &ImageMemoryBarrier);
+}
+
+void CmdCopyImage(VkCommandBuffer Cmd, const Image& Src, const Image& Dst,
+                  VkExtent2D Size)
+{
+    VkImageCopy ImageCopyRegion{};
+    ImageCopyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    ImageCopyRegion.srcSubresource.layerCount = 1;
+    ImageCopyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    ImageCopyRegion.dstSubresource.layerCount = 1;
+    ImageCopyRegion.extent.width = Size.width;
+    ImageCopyRegion.extent.height = Size.height;
+    ImageCopyRegion.extent.depth = 1;
+
+    CmdImageBarrier(Cmd, Src.GetHandle(), VK_IMAGE_LAYOUT_GENERAL,
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    CmdImageBarrier(Cmd, Dst.GetHandle(), VK_IMAGE_LAYOUT_GENERAL,
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    vkCmdCopyImage(Cmd, Src.GetHandle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                   Dst.GetHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+                   &ImageCopyRegion);
+
+    CmdImageBarrier(Cmd, Src.GetHandle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    VK_IMAGE_LAYOUT_GENERAL);
+    CmdImageBarrier(Cmd, Dst.GetHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    VK_IMAGE_LAYOUT_GENERAL);
 }
 
 }  // namespace rtrt

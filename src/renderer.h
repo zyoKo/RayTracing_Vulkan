@@ -8,6 +8,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "core/window.h"
+#include "renderer/graphics_pipeline.h"
 #include "rt/acceleration_structure.h"
 #include "rt/shader_binding_table.h"
 #include "scene/camera.h"
@@ -157,36 +158,6 @@ private:
     Pipeline PostPipeline;
     void CreatePostPipeline();
 
-    // GLSL and Slang SPIR-V files for a vertex and a fragment shader.
-    struct GraphicsShaders
-    {
-        const char* VertGlsl;
-        const char* VertSlang;
-        const char* FragGlsl;
-        const char* FragSlang;
-    };
-
-    // The fixed-function state the scanline and post pipelines share.
-    struct FixedFunctionState
-    {
-        VkPipelineInputAssemblyStateCreateInfo InputAssembly{};
-        VkViewport Viewport{};
-        VkRect2D Scissor{};
-        VkPipelineViewportStateCreateInfo ViewportState{};
-        VkPipelineRasterizationStateCreateInfo Rasterizer{};
-        VkPipelineMultisampleStateCreateInfo Multisampling{};
-        VkPipelineDepthStencilStateCreateInfo DepthStencil{};
-        VkPipelineColorBlendAttachmentState ColorBlendAttachment{};
-        VkPipelineColorBlendStateCreateInfo ColorBlending{};
-    };
-
-    // A full-window triangle-list pipeline with depth test and no blending.
-    Pipeline CreateGraphicsPipeline(
-        const GraphicsShaders& Shaders,
-        const VkPipelineVertexInputStateCreateInfo& VertexInput, VkPipelineLayout Layout,
-        VkRenderPass Pass);
-    FixedFunctionState MakeFixedFunctionState() const;
-
     DescriptorPool ImguiDescPool;
     void InitGui();
 
@@ -263,11 +234,6 @@ private:
     Pipeline DenoisePipeline;
     void CreateDenoiseCompPipeline();
 
-    void CmdCopyImage(Image& Src, Image& Dst);
-
-    void ImageLayoutBarrier(VkCommandBuffer Cmdbuffer, VkImage TargetImage,
-                            VkImageLayout OldImageLayout, VkImageLayout NewImageLayout,
-                            VkImageAspectFlags AspectMask = VK_IMAGE_ASPECT_COLOR_BIT);
     // Run loop
     bool PrepareFrame();
 

@@ -106,7 +106,8 @@ void Renderer::Denoise()
                              &ImgMemBarrier);
 
         // Feed this pass's output back in as the next pass's input
-        CmdCopyImage(DenoiseBuffer, ScImageBuffer);
+        CmdCopyImage(FrameCmd.GetHandle(), DenoiseBuffer, ScImageBuffer,
+                     MainSwapchain->GetExtent());
     }
 }
 

@@ -1,6 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <ClCompile Include="..\src\renderer\graphics_pipeline.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\rt\shader_binding_table.cpp">
       <Filter>Source Files\rt</Filter>
     </ClCompile>
@@ -152,6 +155,12 @@
     <Filter Include="Header Files\rt">
       <UniqueIdentifier>{6c0b04b0-c961-4200-bcdb-d2ed6e18f5ec}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\renderer">
+      <UniqueIdentifier>{b573f41b-288b-4b8c-90ae-8db8557cacf2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\renderer">
+      <UniqueIdentifier>{cdddf3cd-a8ac-4a04-9917-526035f8629e}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Shader Files">
       <UniqueIdentifier>{26802777-62b4-47ec-a051-4ee8e4be1a67}</UniqueIdentifier>
     </Filter>
@@ -160,6 +169,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\renderer\graphics_pipeline.h">
+      <Filter>Header Files\renderer</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\rt\shader_binding_table.h">
       <Filter>Header Files\rt</Filter>
     </ClInclude>

@@ -206,32 +206,6 @@ void Renderer::CreateRtPipelineLayout()
                             {PushConstant});
 }
 
-void Renderer::CmdCopyImage(Image& Src, Image& Dst)
-{
-    VkImageCopy ImageCopyRegion{};
-    ImageCopyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    ImageCopyRegion.srcSubresource.layerCount = 1;
-    ImageCopyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    ImageCopyRegion.dstSubresource.layerCount = 1;
-    ImageCopyRegion.extent.width = MainSwapchain->GetExtent().width;
-    ImageCopyRegion.extent.height = MainSwapchain->GetExtent().height;
-    ImageCopyRegion.extent.depth = 1;
-
-    ImageLayoutBarrier(FrameCmd.GetHandle(), Src.GetHandle(), VK_IMAGE_LAYOUT_GENERAL,
-                       VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    ImageLayoutBarrier(FrameCmd.GetHandle(), Dst.GetHandle(), VK_IMAGE_LAYOUT_GENERAL,
-                       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-    vkCmdCopyImage(FrameCmd.GetHandle(), Src.GetHandle(),
-                   VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst.GetHandle(),
-                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &ImageCopyRegion);
-
-    ImageLayoutBarrier(FrameCmd.GetHandle(), Src.GetHandle(),
-                       VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
-    ImageLayoutBarrier(FrameCmd.GetHandle(), Dst.GetHandle(),
-                       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
-}
-
 void Renderer::Raytrace()
 {
     // The push constants for the ray tracing pipeline.
@@ -274,21 +248,27 @@ void Renderer::Raytrace()
     // that image on the screen.  The debug views show a G-buffer image instead.
     if (Settings.ViewMode == kViewAlbedo)
     {
-        CmdCopyImage(RtKdCurrBuffer, ScImageBuffer);
+        CmdCopyImage(FrameCmd.GetHandle(), RtKdCurrBuffer, ScImageBuffer,
+                     MainSwapchain->GetExtent());
     }
     else if (Settings.ViewMode == kViewNormal || Settings.ViewMode == kViewDepth)
     {
-        CmdCopyImage(RtNdCurrBuffer, ScImageBuffer);
+        CmdCopyImage(FrameCmd.GetHandle(), RtNdCurrBuffer, ScImageBuffer,
+                     MainSwapchain->GetExtent());
     }
     else
     {
-        CmdCopyImage(RtColCurrBuffer, ScImageBuffer);
+        CmdCopyImage(FrameCmd.GetHandle(), RtColCurrBuffer, ScImageBuffer,
+                     MainSwapchain->GetExtent());
     }
 
     // Save current frame buffers as history for the next frame
-    CmdCopyImage(RtColCurrBuffer, RtColPrevBuffer);
-    CmdCopyImage(RtKdCurrBuffer, RtKdPrevBuffer);
-    CmdCopyImage(RtNdCurrBuffer, RtNdPrevBuffer);
+    CmdCopyImage(FrameCmd.GetHandle(), RtColCurrBuffer, RtColPrevBuffer,
+                 MainSwapchain->GetExtent());
+    CmdCopyImage(FrameCmd.GetHandle(), RtKdCurrBuffer, RtKdPrevBuffer,
+                 MainSwapchain->GetExtent());
+    CmdCopyImage(FrameCmd.GetHandle(), RtNdCurrBuffer, RtNdPrevBuffer,
+                 MainSwapchain->GetExtent());
 }
 
 // Converts a mesh into the ray tracing geometry used to build its BLAS.
