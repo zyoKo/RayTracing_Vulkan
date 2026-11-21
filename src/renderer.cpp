@@ -31,9 +31,9 @@ bool Renderer::Init(Window& Target, Context& Instance, Device& Gpu, Swapchain& C
 
     CreateSwapchain();
     CreateFrameFence();
-    CreateDepthResource();     // -> DepthImage, ...
-    CreatePostRenderPass();    // -> PostRenderPass
-    CreatePostFrameBuffers();  // -> Framebuffers
+    CreateDepthResource();   // -> DepthImage, ...
+    CreatePostRenderPass();  // -> PostRenderPass.GetHandle()
+    CreatePostFrameBuffers();
 
     CreateScBuffer();
     CreatePostDescriptor();
@@ -204,7 +204,7 @@ void Renderer::InitGui()
     InitInfo.CheckVkResultFn = nullptr;
     InitInfo.Allocator = nullptr;
 
-    ImGui_ImplVulkan_Init(&InitInfo, PostRenderPass);
+    ImGui_ImplVulkan_Init(&InitInfo, PostRenderPass.GetHandle());
 
     // Upload Fonts
     VkCommandBuffer Cmdbuf = CreateTempCmdBuffer();

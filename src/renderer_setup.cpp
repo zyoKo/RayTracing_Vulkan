@@ -35,12 +35,9 @@ void Renderer::DestroyAllVulkanResources()
 void Renderer::DestroyPostResources()
 {
     DepthImage.Destroy();
-    vkDestroyRenderPass(GpuDevice->GetHandle(), PostRenderPass, nullptr);
+    PostRenderPass.Destroy();
 
-    for (auto& Framebuffer : Framebuffers)
-    {
-        vkDestroyFramebuffer(GpuDevice->GetHandle(), Framebuffer, nullptr);
-    }
+    Framebuffers.clear();
 
     ScImageBuffer.Destroy();
     PostDesc.Destroy();
@@ -71,8 +68,8 @@ void Renderer::DestroySceneResources()
 
 void Renderer::DestroyScanlineResources()
 {
-    vkDestroyRenderPass(GpuDevice->GetHandle(), ScanlineRenderPass, nullptr);
-    vkDestroyFramebuffer(GpuDevice->GetHandle(), ScanlineFramebuffer, nullptr);
+    ScanlineRenderPass.Destroy();
+    ScanlineFramebuffer.Destroy();
     ScDesc.Destroy();
     ScanlinePipelineLayout.Destroy();
     ScanlinePipeline.Destroy();
@@ -135,12 +132,8 @@ bool Renderer::RecreateSizedResources()
 
 void Renderer::DestroySizedResources()
 {
-    for (auto& Framebuffer : Framebuffers)
-    {
-        vkDestroyFramebuffer(GpuDevice->GetHandle(), Framebuffer, nullptr);
-    }
     Framebuffers.clear();
-    vkDestroyFramebuffer(GpuDevice->GetHandle(), ScanlineFramebuffer, nullptr);
+    ScanlineFramebuffer.Destroy();
     DepthImage.Destroy();
     MainSwapchain->Destroy();
 
@@ -277,35 +270,20 @@ void Renderer::CreatePostRenderPass()
     RenderPassInfo.dependencyCount = static_cast<uint32_t>(SubpassDependencies.size());
     RenderPassInfo.pDependencies = SubpassDependencies.data();
 
-    RTRT_CHECK_VK(vkCreateRenderPass(GpuDevice->GetHandle(), &RenderPassInfo, nullptr,
-                                     &PostRenderPass));
+    PostRenderPass.Create(GpuDevice->GetHandle(), RenderPassInfo);
 }
 
 // A VkFrameBuffer wraps several images into a render target --
 // usually a color buffer and a depth buffer.
 void Renderer::CreatePostFrameBuffers()
 {
-    std::array<VkImageView, 2> Fbattachments{};
-
-    // Create frame buffers for every swap chain image
-    VkFramebufferCreateInfo FramebufferInfo{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-    FramebufferInfo.renderPass = PostRenderPass;
-    FramebufferInfo.width = MainSwapchain->GetExtent().width;
-    FramebufferInfo.height = MainSwapchain->GetExtent().height;
-    FramebufferInfo.layers = 1;
-    FramebufferInfo.attachmentCount = 2;
-    FramebufferInfo.pAttachments = Fbattachments.data();
-
-    // Each of the three swapchain images gets an associated frame
-    // buffer, all sharing one depth buffer.
+    // One framebuffer per swapchain image, all sharing one depth buffer
     Framebuffers.resize(MainSwapchain->GetImageCount());
     for (uint32_t I = 0; I < MainSwapchain->GetImageCount(); I++)
     {
-        // A color attachment from the swap chain
-        Fbattachments[0] = MainSwapchain->GetView(I);
-        Fbattachments[1] = DepthImage.GetView();  // A depth attachment
-        RTRT_CHECK_VK(vkCreateFramebuffer(GpuDevice->GetHandle(), &FramebufferInfo,
-                                          nullptr, &Framebuffers[I]));
+        Framebuffers[I].Create(GpuDevice->GetHandle(), PostRenderPass.GetHandle(),
+                               {MainSwapchain->GetView(I), DepthImage.GetView()},
+                               MainSwapchain->GetExtent());
     }
 }
 
@@ -326,14 +304,15 @@ void Renderer::CreatePostPipeline()
 
     const GraphicsShaders Shaders{"spv/post.vert.spv", "spv/post.vert.slang.spv",
                                   "spv/post.frag.spv", "spv/post.frag.slang.spv"};
-    PostPipeline = CreateGraphicsPipeline(Shaders, VertexInputInfo,
-                                          PostPipelineLayout.GetHandle(), PostRenderPass);
+    PostPipeline =
+        CreateGraphicsPipeline(Shaders, VertexInputInfo, PostPipelineLayout.GetHandle(),
+                               PostRenderPass.GetHandle());
 }
 
 Pipeline Renderer::CreateGraphicsPipeline(
     const GraphicsShaders& Shaders,
     const VkPipelineVertexInputStateCreateInfo& VertexInput, VkPipelineLayout Layout,
-    VkRenderPass RenderPass)
+    VkRenderPass Pass)
 {
     // The pipeline keeps compiled copies, so the modules are freed when this returns.
     Shader Vert;
@@ -366,7 +345,7 @@ Pipeline Renderer::CreateGraphicsPipeline(
     PipelineInfo.pDepthStencilState = &State.DepthStencil;
     PipelineInfo.pColorBlendState = &State.ColorBlending;
     PipelineInfo.layout = Layout;
-    PipelineInfo.renderPass = RenderPass;
+    PipelineInfo.renderPass = Pass;
     PipelineInfo.subpass = 0;
     PipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
@@ -474,8 +453,8 @@ void Renderer::PostProcess()
     VkRenderPassBeginInfo PassBeginInfo{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
     PassBeginInfo.clearValueCount = 2;
     PassBeginInfo.pClearValues = ClearValues.data();
-    PassBeginInfo.renderPass = PostRenderPass;
-    PassBeginInfo.framebuffer = Framebuffers[MainSwapchain->GetImageIndex()];
+    PassBeginInfo.renderPass = PostRenderPass.GetHandle();
+    PassBeginInfo.framebuffer = Framebuffers[MainSwapchain->GetImageIndex()].GetHandle();
     PassBeginInfo.renderArea = {{0, 0}, MainSwapchain->GetExtent()};
 
     vkCmdBeginRenderPass(FrameCmd.GetHandle(), &PassBeginInfo,

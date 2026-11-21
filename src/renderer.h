@@ -19,9 +19,11 @@
 #include "vk/descriptor_pool.h"
 #include "vk/device.h"
 #include "vk/fence.h"
+#include "vk/framebuffer.h"
 #include "vk/image.h"
 #include "vk/pipeline.h"
 #include "vk/pipeline_layout.h"
+#include "vk/render_pass.h"
 #include "vk/shader.h"
 #include "vk/swapchain.h"
 #include "vk_check.h"
@@ -185,10 +187,11 @@ private:
     void CreateDepthResource();
 
     PipelineLayout PostPipelineLayout;
-    VkRenderPass PostRenderPass{};
+    RenderPass PostRenderPass;
     void CreatePostRenderPass();
 
-    std::vector<VkFramebuffer> Framebuffers{};  // One frambuffer per swapchain image.
+    // One per swapchain image
+    std::vector<Framebuffer> Framebuffers;
     void CreatePostFrameBuffers();
 
     Pipeline PostPipeline;
@@ -221,14 +224,14 @@ private:
     Pipeline CreateGraphicsPipeline(
         const GraphicsShaders& Shaders,
         const VkPipelineVertexInputStateCreateInfo& VertexInput, VkPipelineLayout Layout,
-        VkRenderPass RenderPass);
+        VkRenderPass Pass);
     FixedFunctionState MakeFixedFunctionState() const;
 
     DescriptorPool ImguiDescPool;
     void InitGui();
 
-    VkRenderPass ScanlineRenderPass{VK_NULL_HANDLE};
-    VkFramebuffer ScanlineFramebuffer{VK_NULL_HANDLE};
+    RenderPass ScanlineRenderPass;
+    Framebuffer ScanlineFramebuffer;
     void CreateScanlineRenderPass();
     void CreateScanlineFramebuffer();
 

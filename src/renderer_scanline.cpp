@@ -378,7 +378,7 @@ Image Renderer::CreateBufferImage(VkExtent2D Size)
 }
 
 // The scanline renderpass outputs to ScImageBuffer (as wrapped by
-// ScanlineFramebuffer)
+// ScanlineFramebuffer.GetHandle())
 void Renderer::CreateScanlineRenderPass()
 {
     VkAttachmentDescription ColorAttachment{};
@@ -437,26 +437,16 @@ void Renderer::CreateScanlineRenderPass()
     RenderPassInfo.dependencyCount = 1;
     RenderPassInfo.pDependencies = &Dependency;
 
-    RTRT_CHECK_VK(vkCreateRenderPass(GpuDevice->GetHandle(), &RenderPassInfo, nullptr,
-                                     &ScanlineRenderPass));
+    ScanlineRenderPass.Create(GpuDevice->GetHandle(), RenderPassInfo);
 
     CreateScanlineFramebuffer();
 }
 
 void Renderer::CreateScanlineFramebuffer()
 {
-    std::vector<VkImageView> Attachments = {ScImageBuffer.GetView(),
-                                            DepthImage.GetView()};
-
-    VkFramebufferCreateInfo Info{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-    Info.renderPass = ScanlineRenderPass;
-    Info.attachmentCount = static_cast<uint32_t>(Attachments.size());
-    Info.pAttachments = Attachments.data();
-    Info.width = MainSwapchain->GetExtent().width;
-    Info.height = MainSwapchain->GetExtent().height;
-    Info.layers = 1;
-    RTRT_CHECK_VK(vkCreateFramebuffer(GpuDevice->GetHandle(), &Info, nullptr,
-                                      &ScanlineFramebuffer));
+    ScanlineFramebuffer.Create(GpuDevice->GetHandle(), ScanlineRenderPass.GetHandle(),
+                               {ScImageBuffer.GetView(), DepthImage.GetView()},
+                               MainSwapchain->GetExtent());
 }
 
 void Renderer::CreateScDescriptorSet()
@@ -505,8 +495,9 @@ void Renderer::CreateScPipeline()
 
     const GraphicsShaders Shaders{"spv/scanline.vert.spv", "spv/scanline.vert.slang.spv",
                                   "spv/scanline.frag.spv", "spv/scanline.frag.slang.spv"};
-    ScanlinePipeline = CreateGraphicsPipeline(
-        Shaders, VertexInputInfo, ScanlinePipelineLayout.GetHandle(), ScanlineRenderPass);
+    ScanlinePipeline = CreateGraphicsPipeline(Shaders, VertexInputInfo,
+                                              ScanlinePipelineLayout.GetHandle(),
+                                              ScanlineRenderPass.GetHandle());
 }
 
 // Create a Vulkan buffer to hold the camera matrices, products and inverses.
@@ -541,8 +532,8 @@ void Renderer::Rasterize()
     VkRenderPassBeginInfo PassBeginInfo{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
     PassBeginInfo.clearValueCount = 2;
     PassBeginInfo.pClearValues = ClearValues.data();
-    PassBeginInfo.renderPass = ScanlineRenderPass;
-    PassBeginInfo.framebuffer = ScanlineFramebuffer;
+    PassBeginInfo.renderPass = ScanlineRenderPass.GetHandle();
+    PassBeginInfo.framebuffer = ScanlineFramebuffer.GetHandle();
     PassBeginInfo.renderArea = {{0, 0}, MainSwapchain->GetExtent()};
     vkCmdBeginRenderPass(FrameCmd.GetHandle(), &PassBeginInfo,
                          VK_SUBPASS_CONTENTS_INLINE);
