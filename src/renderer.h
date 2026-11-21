@@ -14,6 +14,7 @@
 #include "shaders/shared_structs.h"
 #include "vk/context.h"
 #include "vk/device.h"
+#include "vk/swapchain.h"
 #include "vk_check.h"
 
 namespace rtrt
@@ -144,6 +145,7 @@ private:
     App* Application;
     Context GpuContext;
     Device GpuDevice;
+    Swapchain MainSwapchain;
 
     RenderSettings Settings;
     // Frames rendered since the history was last reset
@@ -172,25 +174,9 @@ private:
     VkCommandBuffer CommandBuffer{};
     void CreateCommandPool();
 
-    VkSwapchainKHR Swapchain{VK_NULL_HANDLE};
-    uint32_t ImageCount{0};
-    std::vector<VkImage> SwapchainImages{};  // from vkGetSwapchainImagesKHR
-    std::vector<VkImageView> ImageViews{};
-    // Filled in  VkImageMemoryBarrier objects
-    std::vector<VkImageMemoryBarrier> Barriers{};
     VkFence WaitFence{};
-    VkSemaphore ReadSemaphore{};
-    std::vector<VkSemaphore> WrittenSemaphores{};  // One per swapchain image
-    VkExtent2D WindowSize{0, 0};                   // Size of the window
     void CreateSwapchain();
-    VkSurfaceFormatKHR ChooseSurfaceFormat();
-    uint32_t ChooseSwapchainImageCount(const VkSurfaceCapabilitiesKHR& Capabilities);
-    VkExtent2D ChooseSwapchainExtent(const VkSurfaceCapabilitiesKHR& Capabilities);
-    void CreateSwapchainImageViews(VkFormat SurfaceFormat);
-    // Moves every swapchain image to the present layout.
-    void TransitionSwapchainImages();
-    void CreateFrameSyncObjects();
-    void DestroySwapchain();
+    void CreateFrameFence();
 
     ImageWrap DepthImage;
     void CreateDepthResource();
@@ -349,8 +335,6 @@ private:
     void Raytrace();
     void Denoise();
 
-    uint32_t SwapchainIndex{0};
-
     void PostProcess();
     void SubmitFrame();
 
@@ -364,7 +348,7 @@ private:
                            uint32_t Height);
 
     ImageWrap CreateTextureImage(const std::string& FileName);
-    ImageWrap CreateBufferImage(VkExtent2D& Size);
+    ImageWrap CreateBufferImage(VkExtent2D Size);
 
     ImageWrap CreateImageWrap(uint32_t Width, uint32_t Height, VkFormat Format,
                               VkImageUsageFlags Usage, VkMemoryPropertyFlags Properties,

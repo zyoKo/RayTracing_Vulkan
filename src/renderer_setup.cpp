@@ -2,7 +2,6 @@
 
 #include <assert.h>
 
-#include <algorithm>
 #include <array>
 #include <cstdio>
 #include <fstream>
@@ -29,7 +28,8 @@ void Renderer::DestroyAllVulkanResources()
     ImGui::DestroyContext();
     vkDestroyDescriptorPool(GpuDevice.GetHandle(), ImguiDescPool, nullptr);
 
-    DestroySwapchain();
+    MainSwapchain.Destroy();
+    vkDestroyFence(GpuDevice.GetHandle(), WaitFence, nullptr);
     vkDestroyCommandPool(GpuDevice.GetHandle(), CmdPool, nullptr);
 
     DestroyPostResources();
@@ -122,7 +122,7 @@ bool Renderer::RecreateSizedResources()
 
     DestroySizedResources();
 
-    CreateSwapchain();  // -> windowSize
+    CreateSwapchain();
     CreateDepthResource();
     CreatePostFrameBuffers();
     CreateScBuffer();
@@ -149,7 +149,7 @@ void Renderer::DestroySizedResources()
     Framebuffers.clear();
     vkDestroyFramebuffer(GpuDevice.GetHandle(), ScanlineFramebuffer, nullptr);
     DepthImage.Destroy(GpuDevice.GetHandle());
-    DestroySwapchain();
+    MainSwapchain.Destroy();
 
     ScImageBuffer.Destroy(GpuDevice.GetHandle());
     RtColCurrBuffer.Destroy(GpuDevice.GetHandle());
@@ -209,210 +209,19 @@ void Renderer::CreateCommandPool()
 
 void Renderer::CreateSwapchain()
 {
-    VkSwapchainKHR OldSwapchain = Swapchain;
-
-    RTRT_CHECK_VK(vkDeviceWaitIdle(GpuDevice.GetHandle()));  // Probably unnecessary
-
-    // Get the surface's capabilities
-    VkSurfaceCapabilitiesKHR Capabilities;
-    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
-        GpuDevice.GetPhysical(), GpuContext.GetSurface(), &Capabilities));
-
-    // FIFO is the one present mode every implementation must support.
-    VkPresentModeKHR SwapchainPresentMode = VK_PRESENT_MODE_FIFO_KHR;
-
-    const VkSurfaceFormatKHR Format = ChooseSurfaceFormat();
-    VkFormat SurfaceFormat = Format.format;
-    VkColorSpaceKHR SurfaceColor = Format.colorSpace;
-
-    VkExtent2D SwapchainExtent = ChooseSwapchainExtent(Capabilities);
-    // A zero size typically means the window is minimized, which isn't handled yet.
-    assert(SwapchainExtent.width && SwapchainExtent.height);
-
-    uint32_t SwapchainImageCount = ChooseSwapchainImageCount(Capabilities);
-    assert(SwapchainImageCount == 3);  // Other code assumes three swapchain images
-
-    // Create the swap chain
-    VkImageUsageFlags ImageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-                                   VK_IMAGE_USAGE_STORAGE_BIT |
-                                   VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-
-    VkSwapchainCreateInfoKHR SwapchainInfo = {
-        VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
-    SwapchainInfo.surface = GpuContext.GetSurface();
-    SwapchainInfo.minImageCount = SwapchainImageCount;
-    SwapchainInfo.imageFormat = SurfaceFormat;
-    SwapchainInfo.imageColorSpace = SurfaceColor;
-    SwapchainInfo.imageExtent = SwapchainExtent;
-    SwapchainInfo.imageUsage = ImageUsage;
-    SwapchainInfo.preTransform = Capabilities.currentTransform;
-    SwapchainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    SwapchainInfo.imageArrayLayers = 1;
-    SwapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    const uint32_t QueueFamily = GpuDevice.GetQueueFamily();
-    SwapchainInfo.queueFamilyIndexCount = 1;
-    SwapchainInfo.pQueueFamilyIndices = &QueueFamily;
-    SwapchainInfo.presentMode = SwapchainPresentMode;
-    SwapchainInfo.oldSwapchain = OldSwapchain;
-    SwapchainInfo.clipped = true;
-
-    RTRT_CHECK_VK(
-        vkCreateSwapchainKHR(GpuDevice.GetHandle(), &SwapchainInfo, nullptr, &Swapchain));
-
-    RTRT_CHECK_VK(
-        vkGetSwapchainImagesKHR(GpuDevice.GetHandle(), Swapchain, &ImageCount, nullptr));
-    SwapchainImages.resize(ImageCount);
-    RTRT_CHECK_VK(vkGetSwapchainImagesKHR(GpuDevice.GetHandle(), Swapchain, &ImageCount,
-                                          SwapchainImages.data()));
-
-    CreateSwapchainImageViews(SurfaceFormat);
-    TransitionSwapchainImages();
-    CreateFrameSyncObjects();
-
-    WindowSize = SwapchainExtent;
-}
-
-uint32_t Renderer::ChooseSwapchainImageCount(const VkSurfaceCapabilitiesKHR& Capabilities)
-{
-    // Within the bounds supported. Recommendation: minImageCount+1
-    uint32_t SwapchainImageCount = Capabilities.minImageCount + 1;
-    if (Capabilities.maxImageCount > 0 &&
-        SwapchainImageCount > Capabilities.maxImageCount)
-    {
-        SwapchainImageCount = Capabilities.maxImageCount;
-    }
-    return SwapchainImageCount;
-}
-
-VkSurfaceFormatKHR Renderer::ChooseSurfaceFormat()
-{
-    uint32_t SurfaceFormatCount;
-    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(
-        GpuDevice.GetPhysical(), GpuContext.GetSurface(), &SurfaceFormatCount, nullptr));
-    std::vector<VkSurfaceFormatKHR> Formats(SurfaceFormatCount);
-    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(
-        GpuDevice.GetPhysical(), GpuContext.GetSurface(), &SurfaceFormatCount,
-        Formats.data()));
-    return Formats[0];
-}
-
-VkExtent2D Renderer::ChooseSwapchainExtent(const VkSurfaceCapabilitiesKHR& Capabilities)
-{
-    if (Capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
-    {
-        return Capabilities.currentExtent;
-    }
-
-    // Does this case ever happen?
-    VkExtent2D SwapchainExtent = Application->GetWindow().GetFramebufferSize();
-    SwapchainExtent.width =
-        std::clamp(SwapchainExtent.width, Capabilities.minImageExtent.width,
-                   Capabilities.maxImageExtent.width);
-    SwapchainExtent.height =
-        std::clamp(SwapchainExtent.height, Capabilities.minImageExtent.height,
-                   Capabilities.maxImageExtent.height);
-    return SwapchainExtent;
-}
-
-void Renderer::CreateSwapchainImageViews(VkFormat SurfaceFormat)
-{
-    ImageViews.resize(ImageCount);
-
-    for (uint32_t I = 0; I < ImageCount; I++)
-    {
-        VkImageViewCreateInfo CreateInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
-        CreateInfo.image = SwapchainImages[I];
-        CreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        CreateInfo.format = SurfaceFormat;
-        CreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-        CreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-        CreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-        CreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-        CreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        CreateInfo.subresourceRange.baseMipLevel = 0;
-        CreateInfo.subresourceRange.levelCount = 1;
-        CreateInfo.subresourceRange.baseArrayLayer = 0;
-        CreateInfo.subresourceRange.layerCount = 1;
-
-        RTRT_CHECK_VK(vkCreateImageView(GpuDevice.GetHandle(), &CreateInfo, nullptr,
-                                        &ImageViews[I]));
-    }
-}
-
-void Renderer::TransitionSwapchainImages()
-{
-    // One barrier per swapchain image, moving it to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR.
-    Barriers.resize(ImageCount);
-    for (uint32_t I = 0; I < ImageCount; I++)
-    {
-        VkImageSubresourceRange Range = {0};
-        Range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        Range.baseMipLevel = 0;
-        Range.levelCount = VK_REMAINING_MIP_LEVELS;
-        Range.baseArrayLayer = 0;
-        Range.layerCount = VK_REMAINING_ARRAY_LAYERS;
-
-        VkImageMemoryBarrier MemBarrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
-        MemBarrier.dstAccessMask = 0;
-        MemBarrier.srcAccessMask = 0;
-        MemBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        MemBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-        MemBarrier.image = SwapchainImages[I];
-        MemBarrier.subresourceRange = Range;
-        Barriers[I] = MemBarrier;
-    }
+    MainSwapchain.Create(GpuDevice, GpuContext.GetSurface(), Application->GetWindow());
 
     VkCommandBuffer Cmd = CreateTempCmdBuffer();
-    vkCmdPipelineBarrier(Cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                         VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr,
-                         ImageCount, Barriers.data());
+    MainSwapchain.RecordInitialTransition(Cmd);
     SubmitTempCmdBuffer(Cmd);
 }
 
-void Renderer::CreateFrameSyncObjects()
+void Renderer::CreateFrameFence()
 {
-    // Not part of the swapchain, but used only to synchronize with it.
     VkFenceCreateInfo FenceCreateInfo{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
     FenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     RTRT_CHECK_VK(
         vkCreateFence(GpuDevice.GetHandle(), &FenceCreateInfo, nullptr, &WaitFence));
-
-    VkSemaphoreCreateInfo SemCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-    RTRT_CHECK_VK(vkCreateSemaphore(GpuDevice.GetHandle(), &SemCreateInfo, nullptr,
-                                    &ReadSemaphore));
-    // A present may still be waiting on an image's semaphore, so each
-    // swapchain image gets its own.
-    WrittenSemaphores.resize(ImageCount);
-    for (VkSemaphore& Sem : WrittenSemaphores)
-    {
-        RTRT_CHECK_VK(
-            vkCreateSemaphore(GpuDevice.GetHandle(), &SemCreateInfo, nullptr, &Sem));
-    }
-}
-
-void Renderer::DestroySwapchain()
-{
-    RTRT_CHECK_VK(vkDeviceWaitIdle(GpuDevice.GetHandle()));
-
-    for (int I = 0; I < 3; ++I)
-    {
-        vkDestroyImageView(GpuDevice.GetHandle(), ImageViews[I], nullptr);
-    }
-
-    // Destroy the synchronization items:
-    vkDestroyFence(GpuDevice.GetHandle(), WaitFence, nullptr);
-    vkDestroySemaphore(GpuDevice.GetHandle(), ReadSemaphore, nullptr);
-    for (VkSemaphore Sem : WrittenSemaphores)
-    {
-        vkDestroySemaphore(GpuDevice.GetHandle(), Sem, nullptr);
-    }
-    WrittenSemaphores.clear();
-
-    // Destroy the actual swapchain:
-    vkDestroySwapchainKHR(GpuDevice.GetHandle(), Swapchain, nullptr);
-    Swapchain = VK_NULL_HANDLE;
-    ImageViews.clear();
-    Barriers.clear();
 }
 
 void Renderer::CreateDepthResource()
@@ -421,10 +230,10 @@ void Renderer::CreateDepthResource()
 
     // Note DepthImage is type ImageWrap; a tiny wrapper around
     // several related Vulkan objects.
-    DepthImage = CreateImageWrap(WindowSize.width, WindowSize.height,
-                                 VK_FORMAT_X8_D24_UNORM_PACK32,
-                                 VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MipLevels);
+    DepthImage = CreateImageWrap(
+        MainSwapchain.GetExtent().width, MainSwapchain.GetExtent().height,
+        VK_FORMAT_X8_D24_UNORM_PACK32, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MipLevels);
     DepthImage.ImageView = CreateImageView(
         DepthImage.Image, VK_FORMAT_X8_D24_UNORM_PACK32, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
@@ -560,18 +369,19 @@ void Renderer::CreatePostFrameBuffers()
     // Create frame buffers for every swap chain image
     VkFramebufferCreateInfo FramebufferInfo{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
     FramebufferInfo.renderPass = PostRenderPass;
-    FramebufferInfo.width = WindowSize.width;
-    FramebufferInfo.height = WindowSize.height;
+    FramebufferInfo.width = MainSwapchain.GetExtent().width;
+    FramebufferInfo.height = MainSwapchain.GetExtent().height;
     FramebufferInfo.layers = 1;
     FramebufferInfo.attachmentCount = 2;
     FramebufferInfo.pAttachments = Fbattachments.data();
 
     // Each of the three swapchain images gets an associated frame
     // buffer, all sharing one depth buffer.
-    Framebuffers.resize(ImageCount);
-    for (uint32_t I = 0; I < ImageCount; I++)
+    Framebuffers.resize(MainSwapchain.GetImageCount());
+    for (uint32_t I = 0; I < MainSwapchain.GetImageCount(); I++)
     {
-        Fbattachments[0] = ImageViews[I];  // A color attachment from the swap chain
+        // A color attachment from the swap chain
+        Fbattachments[0] = MainSwapchain.GetView(I);
         Fbattachments[1] = DepthImage.ImageView;  // A depth attachment
         RTRT_CHECK_VK(vkCreateFramebuffer(GpuDevice.GetHandle(), &FramebufferInfo,
                                           nullptr, &Framebuffers[I]));
@@ -679,13 +489,14 @@ Renderer::FixedFunctionState Renderer::MakeFixedFunctionState() const
 
     State.Viewport.x = 0.0f;
     State.Viewport.y = 0.0f;
-    State.Viewport.width = static_cast<float>(WindowSize.width);
-    State.Viewport.height = static_cast<float>(WindowSize.height);
+    State.Viewport.width = static_cast<float>(MainSwapchain.GetExtent().width);
+    State.Viewport.height = static_cast<float>(MainSwapchain.GetExtent().height);
     State.Viewport.minDepth = 0.0f;
     State.Viewport.maxDepth = 1.0f;
 
     State.Scissor.offset = {0, 0};
-    State.Scissor.extent = VkExtent2D{WindowSize.width, WindowSize.height};
+    State.Scissor.extent =
+        VkExtent2D{MainSwapchain.GetExtent().width, MainSwapchain.GetExtent().height};
 
     State.Rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     State.Rasterizer.depthClampEnable = VK_FALSE;
@@ -801,14 +612,14 @@ void Renderer::PostProcess()
     PassBeginInfo.clearValueCount = 2;
     PassBeginInfo.pClearValues = ClearValues.data();
     PassBeginInfo.renderPass = PostRenderPass;
-    PassBeginInfo.framebuffer = Framebuffers[SwapchainIndex];
-    PassBeginInfo.renderArea = {{0, 0}, WindowSize};
+    PassBeginInfo.framebuffer = Framebuffers[MainSwapchain.GetImageIndex()];
+    PassBeginInfo.renderArea = {{0, 0}, MainSwapchain.GetExtent()};
 
     vkCmdBeginRenderPass(CommandBuffer, &PassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
     {  // extra indent for renderpass commands
 
-        auto AspectRatio =
-            static_cast<float>(WindowSize.width) / static_cast<float>(WindowSize.height);
+        auto AspectRatio = static_cast<float>(MainSwapchain.GetExtent().width) /
+                           static_cast<float>(MainSwapchain.GetExtent().height);
         vkCmdBindPipeline(CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PostPipeline);
         vkCmdBindDescriptorSets(CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 PostPipelineLayout, 0, 1, &PostDesc.GetSet(), 0, nullptr);

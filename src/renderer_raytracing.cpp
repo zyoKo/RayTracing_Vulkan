@@ -17,27 +17,27 @@ namespace rtrt
 void Renderer::CreateRtBuffers()
 {
     // Note: This will grow to create more than the single buffer RtColCurrBuffer.
-    RtColCurrBuffer = CreateBufferImage(WindowSize);
+    RtColCurrBuffer = CreateBufferImage(MainSwapchain.GetExtent());
     TransitionImageLayout(RtColCurrBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 
-    RtColPrevBuffer = CreateBufferImage(WindowSize);
+    RtColPrevBuffer = CreateBufferImage(MainSwapchain.GetExtent());
     TransitionImageLayout(RtColPrevBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 
-    RtNdCurrBuffer = CreateBufferImage(WindowSize);
+    RtNdCurrBuffer = CreateBufferImage(MainSwapchain.GetExtent());
     TransitionImageLayout(RtNdCurrBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 
-    RtNdPrevBuffer = CreateBufferImage(WindowSize);
+    RtNdPrevBuffer = CreateBufferImage(MainSwapchain.GetExtent());
     TransitionImageLayout(RtNdPrevBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 
-    RtKdCurrBuffer = CreateBufferImage(WindowSize);
+    RtKdCurrBuffer = CreateBufferImage(MainSwapchain.GetExtent());
     TransitionImageLayout(RtKdCurrBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 
-    RtKdPrevBuffer = CreateBufferImage(WindowSize);
+    RtKdPrevBuffer = CreateBufferImage(MainSwapchain.GetExtent());
     TransitionImageLayout(RtKdPrevBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 }
@@ -378,8 +378,8 @@ void Renderer::CmdCopyImage(ImageWrap& Src, ImageWrap& Dst)
     ImageCopyRegion.srcSubresource.layerCount = 1;
     ImageCopyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     ImageCopyRegion.dstSubresource.layerCount = 1;
-    ImageCopyRegion.extent.width = WindowSize.width;
-    ImageCopyRegion.extent.height = WindowSize.height;
+    ImageCopyRegion.extent.width = MainSwapchain.GetExtent().width;
+    ImageCopyRegion.extent.height = MainSwapchain.GetExtent().height;
     ImageCopyRegion.extent.depth = 1;
 
     ImageLayoutBarrier(CommandBuffer, Src.Image, VK_IMAGE_LAYOUT_GENERAL,
@@ -428,7 +428,8 @@ void Renderer::Raytrace()
 
     // This dispatches the ray generation shader for each pixel on screen.
     vkCmdTraceRaysKHR(CommandBuffer, &RgenRegion, &MissRegion, &HitRegion, &CallRegion,
-                      WindowSize.width, WindowSize.height, 1);
+                      MainSwapchain.GetExtent().width, MainSwapchain.GetExtent().height,
+                      1);
     FrameCount++;
 
     // Copy the ray tracer output image to the scanline output image

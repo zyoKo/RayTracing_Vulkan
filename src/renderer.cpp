@@ -36,7 +36,8 @@ bool Renderer::Init()
 
     CreateCommandPool();  // -> CmdPool
 
-    CreateSwapchain();         // -> Swapchain
+    CreateSwapchain();
+    CreateFrameFence();
     CreateDepthResource();     // -> DepthImage, ...
     CreatePostRenderPass();    // -> PostRenderPass
     CreatePostFrameBuffers();  // -> Framebuffers
@@ -141,7 +142,7 @@ bool Renderer::PrepareFrame()
 {
     // Use a fence to wait until the command buffer has finished execution before using it
     // again. This must happen before the acquire, so the previous submit's wait on
-    // ReadSemaphore is done.
+    // acquire semaphore is done.
     const double WaitStart = glfwGetTime();
     VkResult WaitResult = VK_TIMEOUT;
     while (WaitResult == VK_TIMEOUT)
@@ -157,20 +158,16 @@ bool Renderer::PrepareFrame()
         return false;
     }
 
-    // Acquire the next image from the swap chain --> SwapchainIndex
-    // A suboptimal acquire still signals ReadSemaphore, so that frame is drawn and
-    // the swapchain is rebuilt after its present.
-    VkResult Result =
-        vkAcquireNextImageKHR(GpuDevice.GetHandle(), Swapchain, UINT64_MAX, ReadSemaphore,
-                              VK_NULL_HANDLE, &SwapchainIndex);
+    // A suboptimal acquire still signals the acquire semaphore, so that frame is drawn
+    // and the swapchain is rebuilt after its present.
+    VkResult Result = MainSwapchain.AcquireNextImage();
     while (Result == VK_ERROR_OUT_OF_DATE_KHR)
     {
         if (!RecreateSizedResources())
         {
             return false;
         }
-        Result = vkAcquireNextImageKHR(GpuDevice.GetHandle(), Swapchain, UINT64_MAX,
-                                       ReadSemaphore, VK_NULL_HANDLE, &SwapchainIndex);
+        Result = MainSwapchain.AcquireNextImage();
     }
     CheckVkResult(Result, "vkAcquireNextImageKHR", __FILE__, __LINE__);
     return true;
@@ -184,27 +181,20 @@ void Renderer::SubmitFrame()
     const VkPipelineStageFlags WaitStageMask =
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
-    // The submit info structure specifies a command buffer queue submission batch
+    const VkSemaphore Acquired = MainSwapchain.GetAcquireSemaphore();
+    const VkSemaphore Rendered = MainSwapchain.GetRenderedSemaphore();
+
     VkSubmitInfo FrameSubmitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
-    FrameSubmitInfo.pNext = nullptr;
-    FrameSubmitInfo.pWaitDstStageMask = &WaitStageMask;  //  pipeline stages to wait for
+    FrameSubmitInfo.pWaitDstStageMask = &WaitStageMask;
     FrameSubmitInfo.waitSemaphoreCount = 1;
-    FrameSubmitInfo.pWaitSemaphores = &ReadSemaphore;  // waited upon before execution
+    FrameSubmitInfo.pWaitSemaphores = &Acquired;
     FrameSubmitInfo.signalSemaphoreCount = 1;
-    // signaled when execution finishes
-    FrameSubmitInfo.pSignalSemaphores = &WrittenSemaphores[SwapchainIndex];
+    FrameSubmitInfo.pSignalSemaphores = &Rendered;
     FrameSubmitInfo.commandBufferCount = 1;
     FrameSubmitInfo.pCommandBuffers = &CommandBuffer;
     RTRT_CHECK_VK(vkQueueSubmit(GpuDevice.GetQueue(), 1, &FrameSubmitInfo, WaitFence));
 
-    // Present frame
-    VkPresentInfoKHR PresentInfo{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
-    PresentInfo.waitSemaphoreCount = 1;
-    PresentInfo.pWaitSemaphores = &WrittenSemaphores[SwapchainIndex];
-    PresentInfo.swapchainCount = 1;
-    PresentInfo.pSwapchains = &Swapchain;
-    PresentInfo.pImageIndices = &SwapchainIndex;
-    VkResult Result = vkQueuePresentKHR(GpuDevice.GetQueue(), &PresentInfo);
+    VkResult Result = MainSwapchain.Present(GpuDevice.GetQueue());
     if (Result == VK_ERROR_OUT_OF_DATE_KHR || Result == VK_SUBOPTIMAL_KHR)
     {
         Application->GetWindow().SetFramebufferResized(true);
@@ -270,7 +260,7 @@ void Renderer::InitGui()
     InitInfo.DescriptorPool = ImguiDescPool;
     InitInfo.Subpass = SubpassID;
     InitInfo.MinImageCount = 2;
-    InitInfo.ImageCount = ImageCount;
+    InitInfo.ImageCount = MainSwapchain.GetImageCount();
     InitInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
     InitInfo.CheckVkResultFn = nullptr;
     InitInfo.Allocator = nullptr;

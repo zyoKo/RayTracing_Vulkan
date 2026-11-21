@@ -15,7 +15,7 @@ constexpr uint32_t kGroupSize = 128;
 
 void Renderer::CreateDenoiseBuffer()
 {
-    DenoiseBuffer = CreateBufferImage(WindowSize);
+    DenoiseBuffer = CreateBufferImage(MainSwapchain.GetExtent());
     TransitionImageLayout(DenoiseBuffer.Image, VK_FORMAT_R32G32B32A32_SFLOAT,
                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 }
@@ -100,8 +100,9 @@ void Renderer::Denoise()
 
         // One 128x1 workgroup per row segment; kGroupSize must match
         // local_size_x in denoise.comp.
-        vkCmdDispatch(CommandBuffer, (WindowSize.width + kGroupSize - 1) / kGroupSize,
-                      WindowSize.height, 1);
+        vkCmdDispatch(CommandBuffer,
+                      (MainSwapchain.GetExtent().width + kGroupSize - 1) / kGroupSize,
+                      MainSwapchain.GetExtent().height, 1);
 
         // Wait until denoise shader is done writing to DenoiseBuffer
         ImgMemBarrier.image = DenoiseBuffer.Image;

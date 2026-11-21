@@ -408,7 +408,7 @@ void Renderer::CreatePostDescriptor()
 
 void Renderer::CreateScBuffer()
 {
-    ScImageBuffer = CreateBufferImage(WindowSize);
+    ScImageBuffer = CreateBufferImage(MainSwapchain.GetExtent());
 
     VkCommandBuffer CmdBuf = CreateTempCmdBuffer();
     ImageLayoutBarrier(CmdBuf, ScImageBuffer.Image, VK_IMAGE_LAYOUT_UNDEFINED,
@@ -416,7 +416,7 @@ void Renderer::CreateScBuffer()
     SubmitTempCmdBuffer(CmdBuf);
 }
 
-ImageWrap Renderer::CreateBufferImage(VkExtent2D& Size)
+ImageWrap Renderer::CreateBufferImage(VkExtent2D Size)
 {
     uint32_t MipLevels = 1;
 
@@ -508,8 +508,8 @@ void Renderer::CreateScanlineFramebuffer()
     Info.renderPass = ScanlineRenderPass;
     Info.attachmentCount = static_cast<uint32_t>(Attachments.size());
     Info.pAttachments = Attachments.data();
-    Info.width = WindowSize.width;
-    Info.height = WindowSize.height;
+    Info.width = MainSwapchain.GetExtent().width;
+    Info.height = MainSwapchain.GetExtent().height;
     Info.layers = 1;
     RTRT_CHECK_VK(
         vkCreateFramebuffer(GpuDevice.GetHandle(), &Info, nullptr, &ScanlineFramebuffer));
@@ -606,7 +606,7 @@ void Renderer::Rasterize()
     PassBeginInfo.pClearValues = ClearValues.data();
     PassBeginInfo.renderPass = ScanlineRenderPass;
     PassBeginInfo.framebuffer = ScanlineFramebuffer;
-    PassBeginInfo.renderArea = {{0, 0}, WindowSize};
+    PassBeginInfo.renderArea = {{0, 0}, MainSwapchain.GetExtent()};
     vkCmdBeginRenderPass(CommandBuffer, &PassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     vkCmdBindPipeline(CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, ScanlinePipeline);
@@ -643,7 +643,8 @@ void Renderer::Rasterize()
 void Renderer::UpdateCameraBuffer()
 {
     // Prepare new UBO contents on host.
-    const float AspectRatio = WindowSize.width / static_cast<float>(WindowSize.height);
+    const float AspectRatio = MainSwapchain.GetExtent().width /
+                              static_cast<float>(MainSwapchain.GetExtent().height);
     MatrixUniforms HostUBO = {};
 
     glm::mat4 View = Application->GetCamera().View();

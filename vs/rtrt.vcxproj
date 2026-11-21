@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\vk\swapchain.cpp" />
     <ClCompile Include="..\src\vk\physical_device.cpp" />
     <ClCompile Include="..\src\vk\device.cpp" />
     <ClCompile Include="..\src\vk\context.cpp" />
@@ -184,6 +185,7 @@ cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangVali
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\vk\swapchain.h" />
     <ClInclude Include="..\src\vk\physical_device.h" />
     <ClInclude Include="..\src\vk\device.h" />
     <ClInclude Include="..\src\vk\context.h" />
