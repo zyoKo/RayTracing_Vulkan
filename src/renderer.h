@@ -9,6 +9,7 @@
 
 #include "core/window.h"
 #include "rt/acceleration_structure.h"
+#include "rt/shader_binding_table.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "shaders/shared_structs.h"
@@ -231,12 +232,8 @@ private:
     void CreateMatrixBuffer();
 
     AccelerationStructure SceneAccel;
-    float MaxAnis = 0;
     PushConstantRay PcRay{};  // Push constant for ray tracer
     PushConstantDenoise PcDenoise{};
-    uint32_t HandleSize{};
-    uint32_t HandleAlignment{};
-    uint32_t BaseAlignment{};
     void InitRayTracing();
 
     BlasInput ObjectToVkGeometryKhr(const Mesh& Model);
@@ -254,18 +251,7 @@ private:
                           std::vector<VkRayTracingShaderGroupCreateInfoKHR>& Groups);
     void CreateRtPipelineLayout();
 
-    Buffer ShaderBindingTableBw;
-    VkStridedDeviceAddressRegionKHR RgenRegion{};
-    VkStridedDeviceAddressRegionKHR MissRegion{};
-    VkStridedDeviceAddressRegionKHR HitRegion{};
-    VkStridedDeviceAddressRegionKHR CallRegion{};
-    void CreateRtShaderBindingTable();
-    // Fills the stride and size of each region from the device's handle alignment.
-    void ComputeSbtRegions(uint32_t MissCount, uint32_t HitCount);
-    // Copies the raygen, miss and hit handles into the mapped staging buffer.
-    void WriteSbtHandles(const Buffer& Staging, VkDeviceSize SbtSize,
-                         const std::vector<uint8_t>& Handles, uint32_t MissCount,
-                         uint32_t HitCount);
+    ShaderBindingTable RtSbt;
 
     DescriptorBundle PostDesc;
     void CreatePostDescriptor();
@@ -293,10 +279,6 @@ private:
 
     void PostProcess();
     void SubmitFrame();
-
-    void CopyBuffer(VkBuffer SrcBuffer, VkBuffer DstBuffer, VkDeviceSize Size);
-    Buffer CreateBuffer(VkDeviceSize Size, VkBufferUsageFlags Usage,
-                        VkMemoryPropertyFlags Properties);
 
     Image CreateBufferImage(VkExtent2D Size);
 

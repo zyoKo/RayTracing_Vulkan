@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\rt\shader_binding_table.cpp" />
     <ClCompile Include="..\src\rt\acceleration_structure.cpp" />
     <ClCompile Include="..\src\scene\texture.cpp" />
     <ClCompile Include="..\src\scene\scene.cpp" />
@@ -202,6 +203,7 @@ cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangVali
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\rt\shader_binding_table.h" />
     <ClInclude Include="..\src\rt\acceleration_structure.h" />
     <ClInclude Include="..\src\scene\texture.h" />
     <ClInclude Include="..\src\scene\mesh.h" />

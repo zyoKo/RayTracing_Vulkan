@@ -1,9 +1,5 @@
 #include "renderer.h"
 
-#include <assert.h>
-
-#include <cstdio>
-#include <cstring>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -78,18 +74,7 @@ void Renderer::ResetRtAccumulation()
 // Initialize ray tracing
 void Renderer::InitRayTracing()
 {
-    // Requesting ray tracing properties
-    VkPhysicalDeviceProperties2 Prop2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
-    VkPhysicalDeviceRayTracingPipelinePropertiesKHR RtProps{
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR};
-    Prop2.pNext = &RtProps;
-    vkGetPhysicalDeviceProperties2(GpuDevice->GetPhysical(), &Prop2);
-
     SetDefaultSettings();
-
-    HandleSize = RtProps.shaderGroupHandleSize;
-    HandleAlignment = RtProps.shaderGroupHandleAlignment;
-    BaseAlignment = RtProps.shaderGroupBaseAlignment;
 
     // This initializes the acceleration structure helper class
     SceneAccel.Setup(*GpuDevice, MainCmdPool);
@@ -221,143 +206,6 @@ void Renderer::CreateRtPipelineLayout()
                             {PushConstant});
 }
 
-//----------------------------------------------------------------------------------------
-// The Shader Binding Table (SBT)
-// - getting all shader handles and write them in a SBT buffer
-//
-namespace
-{
-
-template <class Integral>
-constexpr Integral AlignUp(Integral X, size_t A) noexcept
-{
-    return static_cast<Integral>((X + (static_cast<Integral>(A) - 1)) &
-                                 ~static_cast<Integral>(A - 1));
-}
-
-void PrintSbtRegion(const char* Name, const VkStridedDeviceAddressRegionKHR& Region)
-{
-    printf("    %s %2llu:%2llu\n", Name, static_cast<unsigned long long>(Region.stride),
-           static_cast<unsigned long long>(Region.size));
-}
-
-}  // namespace
-
-void Renderer::CreateRtShaderBindingTable()
-{
-    const uint32_t MissCount{1};
-    const uint32_t HitCount{1};
-    const uint32_t HandleCount = 1 + MissCount + HitCount;
-
-    ComputeSbtRegions(MissCount, HitCount);
-
-    // Get the shader group handles.  This is a byte array retrieved
-    // from the pipeline.
-    uint32_t DataSize = HandleCount * HandleSize;
-    std::vector<uint8_t> Handles(DataSize);
-    RTRT_CHECK_VK(vkGetRayTracingShaderGroupHandlesKHR(
-        GpuDevice->GetHandle(), RtPipeline.GetHandle(), 0, HandleCount, DataSize,
-        Handles.data()));
-
-    // Allocate a buffer for storing the SBT, and a staging buffer for transferring data
-    // to it.
-    VkDeviceSize SbtSize =
-        RgenRegion.size + MissRegion.size + HitRegion.size + CallRegion.size;
-
-    Buffer Staging = CreateBuffer(
-        SbtSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    ShaderBindingTableBw = CreateBuffer(SbtSize,
-                                        VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                                            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                            VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR,
-                                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    // Find the SBT addresses of each group
-    VkBufferDeviceAddressInfo Info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
-    Info.buffer = ShaderBindingTableBw.GetHandle();
-    VkDeviceAddress SbtAddress = vkGetBufferDeviceAddress(GpuDevice->GetHandle(), &Info);
-
-    RgenRegion.deviceAddress = SbtAddress;
-    MissRegion.deviceAddress = SbtAddress + RgenRegion.size;
-    HitRegion.deviceAddress = SbtAddress + RgenRegion.size + MissRegion.size;
-
-    WriteSbtHandles(Staging, SbtSize, Handles, MissCount, HitCount);
-
-    CopyBuffer(Staging.GetHandle(), ShaderBindingTableBw.GetHandle(), SbtSize);
-
-    Staging.Destroy();
-}
-
-void Renderer::ComputeSbtRegions(uint32_t MissCount, uint32_t HitCount)
-{
-    const uint32_t HandleCount = 1 + MissCount + HitCount;
-
-    // The SBT (buffer) needs to have starting group to be aligned
-    // and handles in the group to be aligned.
-    // handleAlignment==32
-    uint32_t HandleSizeAligned = AlignUp(HandleSize, HandleAlignment);
-
-    // baseAlignment==64
-    RgenRegion.stride = AlignUp(HandleSizeAligned, BaseAlignment);
-    // The size member must be equal to its stride member
-    RgenRegion.size = RgenRegion.stride;
-
-    MissRegion.stride = HandleSizeAligned;
-    MissRegion.size = AlignUp(MissCount * HandleSizeAligned, BaseAlignment);
-
-    HitRegion.stride = HandleSizeAligned;
-    HitRegion.size = AlignUp(HitCount * HandleSizeAligned, BaseAlignment);
-
-    printf("Shader binding table:\n");
-    printf("  alignments:\n");
-    printf("    handleAlignment: %d\n", HandleAlignment);
-    printf("    baseAlignment:   %d\n", BaseAlignment);
-    printf("  counts:\n");
-    printf("    miss:   %d\n", MissCount);
-    printf("    hit:    %d\n", HitCount);
-    printf("    handle: %d = 1+missCount+hitCount\n", HandleCount);
-    printf("  regions stride:size:\n");
-    PrintSbtRegion("rgen", RgenRegion);
-    PrintSbtRegion("miss", MissRegion);
-    PrintSbtRegion("hit ", HitRegion);
-    PrintSbtRegion("call", CallRegion);
-}
-
-void Renderer::WriteSbtHandles(const Buffer& Staging, VkDeviceSize SbtSize,
-                               const std::vector<uint8_t>& Handles, uint32_t MissCount,
-                               uint32_t HitCount)
-{
-    // Helper to retrieve the handle data
-    auto GetHandle = [&](int I) { return Handles.data() + I * HandleSize; };
-
-    // Map the SBT buffer and write in the handles.
-    uint8_t* MappedMemAddress = static_cast<uint8_t*>(Staging.Map(SbtSize));
-    VkDeviceSize Offset = 0;
-
-    // Raygen
-    uint32_t HandleIdx{0};
-    memcpy(MappedMemAddress + Offset, GetHandle(HandleIdx++), HandleSize);
-
-    // Miss
-    Offset = RgenRegion.size;
-    for (uint32_t C = 0; C < MissCount; C++)
-    {
-        memcpy(MappedMemAddress + Offset, GetHandle(HandleIdx++), HandleSize);
-        Offset += MissRegion.stride;
-    }
-
-    // Hit
-    Offset = RgenRegion.size + MissRegion.size;
-    for (uint32_t C = 0; C < HitCount; C++)
-    {
-        memcpy(MappedMemAddress + Offset, GetHandle(HandleIdx++), HandleSize);
-        Offset += HitRegion.stride;
-    }
-
-    Staging.Unmap();
-}
-
 void Renderer::CmdCopyImage(Image& Src, Image& Dst)
 {
     VkImageCopy ImageCopyRegion{};
@@ -417,9 +265,8 @@ void Renderer::Raytrace()
                        0, sizeof(PushConstantRay), &PcRay);
 
     // This dispatches the ray generation shader for each pixel on screen.
-    vkCmdTraceRaysKHR(FrameCmd.GetHandle(), &RgenRegion, &MissRegion, &HitRegion,
-                      &CallRegion, MainSwapchain->GetExtent().width,
-                      MainSwapchain->GetExtent().height, 1);
+    RtSbt.CmdTraceRays(FrameCmd.GetHandle(), MainSwapchain->GetExtent().width,
+                       MainSwapchain->GetExtent().height);
     FrameCount++;
 
     // Copy the ray tracer output image to the scanline output image

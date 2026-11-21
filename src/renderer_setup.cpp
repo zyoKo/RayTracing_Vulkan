@@ -68,7 +68,7 @@ void Renderer::DestroyRaytracingResources()
     RtDesc.Destroy();
     RtPipelineLayout.Destroy();
     RtPipeline.Destroy();
-    ShaderBindingTableBw.Destroy();
+    RtSbt.Destroy();
 
     // History buffers
     RtColPrevBuffer.Destroy();
@@ -417,11 +417,12 @@ void Renderer::SetShaderLanguage(bool UseSlangShaders)
     CreateScPipeline();
 
     // The SBT holds group handles of the old pipeline, so it is rebuilt with it
-    ShaderBindingTableBw.Destroy();
+    RtSbt.Destroy();
     RtPipeline.Destroy();
     RtPipelineLayout.Destroy();
     CreateRtPipeline();
-    CreateRtShaderBindingTable();
+    // One raygen, one miss and one hit group
+    RtSbt.Create(*GpuDevice, MainCmdPool, RtPipeline.GetHandle(), 1, 1);
 
     DenoisePipeline.Destroy();
     DenoiseCompPipelineLayout.Destroy();

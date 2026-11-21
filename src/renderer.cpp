@@ -53,7 +53,8 @@ bool Renderer::Init(Window& Target, Context& Instance, Device& Gpu, Swapchain& C
     CreateRtAccelerationStructure();
     CreateRtDescriptorSet();
     CreateRtPipeline();
-    CreateRtShaderBindingTable();
+    // One raygen, one miss and one hit group
+    RtSbt.Create(*GpuDevice, MainCmdPool, RtPipeline.GetHandle(), 1, 1);
 
     CreateDenoiseBuffer();
     CreateDenoiseDescriptorSet();

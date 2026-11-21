@@ -1,6 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <ClCompile Include="..\src\rt\shader_binding_table.cpp">
+      <Filter>Source Files\rt</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\rt\acceleration_structure.cpp">
       <Filter>Source Files\rt</Filter>
     </ClCompile>
@@ -157,6 +160,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\rt\shader_binding_table.h">
+      <Filter>Header Files\rt</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\rt\acceleration_structure.h">
       <Filter>Header Files\rt</Filter>
     </ClInclude>

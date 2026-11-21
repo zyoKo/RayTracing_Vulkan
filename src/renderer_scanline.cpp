@@ -87,25 +87,6 @@ void Renderer::ImageLayoutBarrier(VkCommandBuffer Cmdbuffer, VkImage TargetImage
                          nullptr, 1, &ImageMemoryBarrier);
 }
 
-Buffer Renderer::CreateBuffer(VkDeviceSize Size, VkBufferUsageFlags Usage,
-                              VkMemoryPropertyFlags Properties)
-{
-    Buffer Result;
-    Result.Create(*GpuDevice, Size, Usage, Properties);
-    return Result;
-}
-
-void Renderer::CopyBuffer(VkBuffer SrcBuffer, VkBuffer DstBuffer, VkDeviceSize Size)
-{
-    VkCommandBuffer TempCmdBuffer = MainCmdPool.BeginSingleUse();
-
-    VkBufferCopy CopyRegion{};
-    CopyRegion.size = Size;
-    vkCmdCopyBuffer(TempCmdBuffer, SrcBuffer, DstBuffer, 1, &CopyRegion);
-
-    MainCmdPool.EndSingleUse(TempCmdBuffer);
-}
-
 void Renderer::CreatePostDescriptor()
 {
     DescriptorBuilder()
