@@ -108,6 +108,10 @@ Formatting is set in `.clang-format`. Format the code with the clang-format that
 
 ## Changelog
 
+### 2.0 Slang as the only shader source ([a2a6b92](https://github.com/zyoKo/RayTracing_Vulkan/commit/a2a6b92d0b869668fe6e4843fc82d3ce954052a1))
+
+The hand-written GLSL shaders are gone, so a fix only has to be made once, in Slang. Slang is now the default, and `compile_shaders.bat` generates a GLSL version of every shader in `src/shaders/glsl/` and compiles it for the `-glsl` mode.
+
 ### 1.1 Shaders compiled on first run ([8a1f3e4](https://github.com/zyoKo/RayTracing_Vulkan/commit/8a1f3e491f193cf058f76e618ba52ee504f5b3b7))
 
 The compiled SPIR-V files are no longer stored in the repository. `rtrt.exe` checks `src/spv/` when it starts and runs `src/compile_shaders.bat` to build any that are missing.
