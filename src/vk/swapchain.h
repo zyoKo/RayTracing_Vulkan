@@ -8,6 +8,7 @@
 
 #include "core/window.h"
 #include "vk/device.h"
+#include "vk/semaphore.h"
 
 namespace rtrt
 {
@@ -59,13 +60,13 @@ public:
 
     VkSemaphore GetAcquireSemaphore() const
     {
-        return AcquireSemaphore;
+        return AcquireSemaphore.GetHandle();
     }
 
     // The semaphore for the acquired image.
     VkSemaphore GetRenderedSemaphore() const
     {
-        return RenderedSemaphores[ImageIndex];
+        return RenderedSemaphores[ImageIndex].GetHandle();
     }
 
 private:
@@ -81,9 +82,9 @@ private:
     VkSwapchainKHR Handle = VK_NULL_HANDLE;
     std::vector<VkImage> Images;
     std::vector<VkImageView> Views;
-    VkSemaphore AcquireSemaphore = VK_NULL_HANDLE;
+    Semaphore AcquireSemaphore;
     // A present may still wait on an image's semaphore, so each image gets its own.
-    std::vector<VkSemaphore> RenderedSemaphores;
+    std::vector<Semaphore> RenderedSemaphores;
     VkExtent2D Extent{0, 0};
     uint32_t ImageIndex = 0;
 };

@@ -17,6 +17,7 @@
 #include "vk/command_pool.h"
 #include "vk/context.h"
 #include "vk/device.h"
+#include "vk/fence.h"
 #include "vk/image.h"
 #include "vk/swapchain.h"
 #include "vk_check.h"
@@ -177,7 +178,7 @@ private:
     CommandBuffer FrameCmd;
     void CreateCommandPool();
 
-    VkFence WaitFence{};
+    Fence FrameFence;
     void CreateSwapchain();
     void CreateFrameFence();
 

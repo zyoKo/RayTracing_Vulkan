@@ -1,6 +1,12 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <ClCompile Include="..\src\vk\semaphore.cpp">
+      <Filter>Source Files\vk</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\vk\fence.cpp">
+      <Filter>Source Files\vk</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\vk\command_buffer.cpp">
       <Filter>Source Files\vk</Filter>
     </ClCompile>
@@ -115,6 +121,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\vk\semaphore.h">
+      <Filter>Header Files\vk</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\vk\fence.h">
+      <Filter>Header Files\vk</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\vk\command_buffer.h">
       <Filter>Header Files\vk</Filter>
     </ClInclude>

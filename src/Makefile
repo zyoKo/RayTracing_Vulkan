@@ -15,9 +15,9 @@ LIBS =  -lassimp  -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi `pkg-con
 
 target = rtrt.exe
 
-headers = core/window.h renderer.h scene/camera.h scene/camera_controller.h descriptor_wrap.h extensions_vk.hpp acceleration_wrap.h vk_check.h vk/context.h vk/device.h vk/physical_device.h vk/swapchain.h core/application.h vk/buffer.h vk/image.h vk/sampler.h vk/command_pool.h vk/command_buffer.h
+headers = core/window.h renderer.h scene/camera.h scene/camera_controller.h descriptor_wrap.h extensions_vk.hpp acceleration_wrap.h vk_check.h vk/context.h vk/device.h vk/physical_device.h vk/swapchain.h core/application.h vk/buffer.h vk/image.h vk/sampler.h vk/command_pool.h vk/command_buffer.h vk/fence.h vk/semaphore.h
 
-src = core/window.cpp renderer.cpp scene/camera.cpp scene/camera_controller.cpp renderer_setup.cpp extensions_vk.cpp descriptor_wrap.cpp renderer_load_model.cpp renderer_scanline.cpp renderer_raytracing.cpp acceleration_wrap.cpp renderer_denoise.cpp vk/context.cpp vk/device.cpp vk/physical_device.cpp vk/swapchain.cpp core/application.cpp main.cpp vk/buffer.cpp vk/image.cpp vk/sampler.cpp vk/command_pool.cpp vk/command_buffer.cpp
+src = core/window.cpp renderer.cpp scene/camera.cpp scene/camera_controller.cpp renderer_setup.cpp extensions_vk.cpp descriptor_wrap.cpp renderer_load_model.cpp renderer_scanline.cpp renderer_raytracing.cpp acceleration_wrap.cpp renderer_denoise.cpp vk/context.cpp vk/device.cpp vk/physical_device.cpp vk/swapchain.cpp core/application.cpp main.cpp vk/buffer.cpp vk/image.cpp vk/sampler.cpp vk/command_pool.cpp vk/command_buffer.cpp vk/fence.cpp vk/semaphore.cpp
 
 shader_spvs = spv/post.frag.spv  spv/post.vert.spv spv/scanline.vert.spv spv/scanline.frag.spv spv/post.frag.spv spv/post.vert.spv spv/raytrace.rgen.spv spv/raytrace.rmiss.spv spv/raytrace.rchit.spv spv/raytraceShadow.rmiss.spv spv/denoise.comp.spv $(slang_spvs)
 

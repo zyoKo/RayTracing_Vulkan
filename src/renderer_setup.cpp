@@ -28,7 +28,7 @@ void Renderer::DestroyAllVulkanResources()
     vkDestroyDescriptorPool(GpuDevice->GetHandle(), ImguiDescPool, nullptr);
 
     MainSwapchain->Destroy();
-    vkDestroyFence(GpuDevice->GetHandle(), WaitFence, nullptr);
+    FrameFence.Destroy();
     MainCmdPool.Destroy();
 
     DestroyPostResources();
@@ -204,10 +204,7 @@ void Renderer::CreateSwapchain()
 
 void Renderer::CreateFrameFence()
 {
-    VkFenceCreateInfo FenceCreateInfo{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-    FenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-    RTRT_CHECK_VK(
-        vkCreateFence(GpuDevice->GetHandle(), &FenceCreateInfo, nullptr, &WaitFence));
+    FrameFence.Create(*GpuDevice, true);
 }
 
 void Renderer::CreateDepthResource()

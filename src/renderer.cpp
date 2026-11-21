@@ -116,13 +116,7 @@ bool Renderer::PrepareFrame()
     // again. This must happen before the acquire, so the previous submit's wait on
     // acquire semaphore is done.
     const double WaitStart = glfwGetTime();
-    VkResult WaitResult = VK_TIMEOUT;
-    while (WaitResult == VK_TIMEOUT)
-    {
-        WaitResult =
-            vkWaitForFences(GpuDevice->GetHandle(), 1, &WaitFence, VK_TRUE, 1'000'000);
-    }
-    CheckVkResult(WaitResult, "vkWaitForFences", __FILE__, __LINE__);
+    FrameFence.Wait();
     GpuWaitMs = (glfwGetTime() - WaitStart) * 1000.0;
 
     if (MainWindow->GetFramebufferResized() && !RecreateSizedResources())
@@ -147,7 +141,7 @@ bool Renderer::PrepareFrame()
 
 void Renderer::SubmitFrame()
 {
-    RTRT_CHECK_VK(vkResetFences(GpuDevice->GetHandle(), 1, &WaitFence));
+    FrameFence.Reset();
 
     // Pipeline stage at which the queue submission will wait (via pWaitSemaphores)
     const VkPipelineStageFlags WaitStageMask =
@@ -165,7 +159,8 @@ void Renderer::SubmitFrame()
     FrameSubmitInfo.commandBufferCount = 1;
     const VkCommandBuffer Cmd = FrameCmd.GetHandle();
     FrameSubmitInfo.pCommandBuffers = &Cmd;
-    RTRT_CHECK_VK(vkQueueSubmit(GpuDevice->GetQueue(), 1, &FrameSubmitInfo, WaitFence));
+    RTRT_CHECK_VK(vkQueueSubmit(GpuDevice->GetQueue(), 1, &FrameSubmitInfo,
+                                FrameFence.GetHandle()));
 
     VkResult Result = MainSwapchain->Present(GpuDevice->GetQueue());
     if (Result == VK_ERROR_OUT_OF_DATE_KHR || Result == VK_SUBOPTIMAL_KHR)

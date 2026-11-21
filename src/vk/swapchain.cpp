@@ -81,15 +81,10 @@ void Swapchain::Destroy()
     {
         vkDestroyImageView(DeviceHandle, View, nullptr);
     }
-    vkDestroySemaphore(DeviceHandle, AcquireSemaphore, nullptr);
-    for (VkSemaphore Sem : RenderedSemaphores)
-    {
-        vkDestroySemaphore(DeviceHandle, Sem, nullptr);
-    }
     vkDestroySwapchainKHR(DeviceHandle, Handle, nullptr);
 
     Handle = VK_NULL_HANDLE;
-    AcquireSemaphore = VK_NULL_HANDLE;
+    AcquireSemaphore.Destroy();
     Images.clear();
     Views.clear();
     RenderedSemaphores.clear();
@@ -121,8 +116,9 @@ void Swapchain::RecordInitialTransition(VkCommandBuffer Cmd) const
 
 VkResult Swapchain::AcquireNextImage()
 {
-    return vkAcquireNextImageKHR(DeviceHandle, Handle, UINT64_MAX, AcquireSemaphore,
-                                 VK_NULL_HANDLE, &ImageIndex);
+    return vkAcquireNextImageKHR(DeviceHandle, Handle, UINT64_MAX,
+                                 AcquireSemaphore.GetHandle(), VK_NULL_HANDLE,
+                                 &ImageIndex);
 }
 
 VkResult Swapchain::Present(VkQueue Queue)
@@ -200,13 +196,11 @@ void Swapchain::CreateViews(VkFormat Format)
 
 void Swapchain::CreateSemaphores()
 {
-    VkSemaphoreCreateInfo SemCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-    RTRT_CHECK_VK(
-        vkCreateSemaphore(DeviceHandle, &SemCreateInfo, nullptr, &AcquireSemaphore));
+    AcquireSemaphore.Create(DeviceHandle);
     RenderedSemaphores.resize(Images.size());
-    for (VkSemaphore& Sem : RenderedSemaphores)
+    for (Semaphore& Sem : RenderedSemaphores)
     {
-        RTRT_CHECK_VK(vkCreateSemaphore(DeviceHandle, &SemCreateInfo, nullptr, &Sem));
+        Sem.Create(DeviceHandle);
     }
 }
 
