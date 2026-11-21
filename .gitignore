@@ -405,3 +405,6 @@ FodyWeavers.xsd
 
 # ImGui window layout, saved per user
 imgui.ini
+
+# Compiled shaders, built by the Visual Studio build or src/compile_shaders.bat
+src/spv/

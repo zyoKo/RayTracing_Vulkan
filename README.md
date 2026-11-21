@@ -72,6 +72,8 @@ At the default 1280×768 window, the path tracer with the denoiser runs at about
 2. Choose the `x64` platform and either the `Debug` or `Release` configuration, then build. The shaders are compiled to `src/spv/` as part of the build.
 3. The build writes `rtrt.exe` to `vs/x64/<configuration>/`. Visual Studio starts it with `src/` as the working directory, so it can find `models/` and `spv/`. When starting it some other way, run it from `src/`.
 
+The compiled shaders in `src/spv/` aren't kept in the repository. If any are missing when `rtrt.exe` starts, it runs `src/compile_shaders.bat` to build them from `src/shaders/` with the Vulkan SDK's `glslangValidator` and `slangc`, then carries on. You can also run `compile_shaders.bat` yourself after editing a shader. It needs the `VULKAN_SDK` environment variable, which the SDK installer sets.
+
 Command-line options:
 
 | Option | Effect |

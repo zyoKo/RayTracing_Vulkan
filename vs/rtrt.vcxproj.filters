@@ -91,6 +91,9 @@
     <ClCompile Include="..\src\core\application.cpp">
       <Filter>Source Files\core</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\core\shader_check.cpp">
+      <Filter>Source Files\core</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\vk\swapchain.cpp">
       <Filter>Source Files\vk</Filter>
     </ClCompile>
@@ -275,6 +278,9 @@
       <Filter>Header Files\vk</Filter>
     </ClInclude>
     <ClInclude Include="..\src\core\application.h">
+      <Filter>Header Files\core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\core\shader_check.h">
       <Filter>Header Files\core</Filter>
     </ClInclude>
     <ClInclude Include="..\src\vk\swapchain.h">

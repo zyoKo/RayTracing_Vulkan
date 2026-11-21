@@ -5,6 +5,7 @@
 
 #include <GLFW/glfw3.h>
 
+#include "core/shader_check.h"
 #include "renderer/renderer.h"
 
 namespace rtrt
@@ -82,6 +83,11 @@ bool Application::Init(int Argc, char** Argv)
             fprintf(stderr, "Unknown argument: %s\n", Arg.c_str());
             return false;
         }
+    }
+
+    if (!EnsureShaders())
+    {
+        return false;
     }
 
     if (!MainWindow.Init(kWidth, kHeight, kProject))
