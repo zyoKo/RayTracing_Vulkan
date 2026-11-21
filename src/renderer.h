@@ -19,6 +19,7 @@
 #include "vk/device.h"
 #include "vk/fence.h"
 #include "vk/image.h"
+#include "vk/shader.h"
 #include "vk/swapchain.h"
 #include "vk_check.h"
 
@@ -157,7 +158,6 @@ private:
     bool ResetHistory = false;
 
     bool UseSlang = false;
-    std::string LoadShader(const char* GlslSpv, const char* SlangSpv);
 
     double GpuWaitMs = 0.0;
     double RecordMs = 0.0;
@@ -167,10 +167,6 @@ private:
     // Everything that depends on the window size.
     void DestroySizedResources();
     void WriteSizedDescriptors();
-    VkShaderModule CreateShaderModule(const std::string& Code);
-    VkPipelineShaderStageCreateInfo CreateShaderStageInfo(
-        const std::string& Code, VkShaderStageFlagBits Stage,
-        const char* EntryPoint = "main");
 
     // Vulkan objects that will be created and the functions that will do the creation.
 
@@ -298,7 +294,8 @@ private:
     VkPipeline RtPipeline{};
     void CreateRtPipeline();
     // One raygen, one miss and one closest-hit shader, each in its own group.
-    void CollectRtShaders(std::vector<VkPipelineShaderStageCreateInfo>& Stages,
+    void CollectRtShaders(std::vector<Shader>& Modules,
+                          std::vector<VkPipelineShaderStageCreateInfo>& Stages,
                           std::vector<VkRayTracingShaderGroupCreateInfoKHR>& Groups);
     void CreateRtPipelineLayout();
 
@@ -341,8 +338,6 @@ private:
 
     void PostProcess();
     void SubmitFrame();
-
-    std::string LoadFile(const std::string& Filename);
 
     void CopyBuffer(VkBuffer SrcBuffer, VkBuffer DstBuffer, VkDeviceSize Size);
 

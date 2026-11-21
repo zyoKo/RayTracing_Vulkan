@@ -173,31 +173,6 @@ void Renderer::SubmitFrame()
     }
 }
 
-VkShaderModule Renderer::CreateShaderModule(const std::string& Code)
-{
-    VkShaderModuleCreateInfo CreateInfo = {};
-    CreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    CreateInfo.codeSize = Code.size();
-    CreateInfo.pCode = reinterpret_cast<const uint32_t*>(Code.data());
-
-    VkShaderModule ShaderModule = VK_NULL_HANDLE;
-    RTRT_CHECK_VK(vkCreateShaderModule(GpuDevice->GetHandle(), &CreateInfo, nullptr,
-                                       &ShaderModule));
-
-    return ShaderModule;
-}
-
-VkPipelineShaderStageCreateInfo Renderer::CreateShaderStageInfo(
-    const std::string& Code, VkShaderStageFlagBits Stage, const char* EntryPoint)
-{
-    VkPipelineShaderStageCreateInfo ShaderStage{
-        VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
-    ShaderStage.stage = Stage;
-    ShaderStage.module = CreateShaderModule(Code);
-    ShaderStage.pName = EntryPoint;
-    return ShaderStage;
-}
-
 void Renderer::InitGui()
 {
     uint32_t SubpassID = 0;

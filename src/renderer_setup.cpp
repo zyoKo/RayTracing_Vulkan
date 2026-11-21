@@ -1,12 +1,6 @@
 #include "renderer.h"
 
-#include <assert.h>
-
 #include <array>
-#include <cstdio>
-#include <fstream>
-#include <string>
-#include <vector>
 
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_vulkan.h>
@@ -349,25 +343,15 @@ VkPipeline Renderer::CreateGraphicsPipeline(
     const VkPipelineVertexInputStateCreateInfo& VertexInput, VkPipelineLayout Layout,
     VkRenderPass RenderPass)
 {
-    VkShaderModule VertShaderModule =
-        CreateShaderModule(LoadShader(Shaders.VertGlsl, Shaders.VertSlang));
-    VkShaderModule FragShaderModule =
-        CreateShaderModule(LoadShader(Shaders.FragGlsl, Shaders.FragSlang));
+    // The pipeline keeps compiled copies, so the modules are freed when this returns.
+    Shader Vert;
+    Vert.Load(GpuDevice->GetHandle(), Shaders.VertGlsl, Shaders.VertSlang, UseSlang);
+    Shader Frag;
+    Frag.Load(GpuDevice->GetHandle(), Shaders.FragGlsl, Shaders.FragSlang, UseSlang);
 
-    VkPipelineShaderStageCreateInfo VertShaderStageInfo{};
-    VertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    VertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    VertShaderStageInfo.module = VertShaderModule;
-    VertShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo FragShaderStageInfo{};
-    FragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    FragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    FragShaderStageInfo.module = FragShaderModule;
-    FragShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo ShaderStages[] = {VertShaderStageInfo,
-                                                      FragShaderStageInfo};
+    VkPipelineShaderStageCreateInfo ShaderStages[] = {
+        Vert.StageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+        Frag.StageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)};
 
     // The state points into itself, so it's wired up here rather than copied around.
     FixedFunctionState State = MakeFixedFunctionState();
@@ -397,11 +381,6 @@ VkPipeline Renderer::CreateGraphicsPipeline(
     VkPipeline Pipeline = VK_NULL_HANDLE;
     RTRT_CHECK_VK(vkCreateGraphicsPipelines(GpuDevice->GetHandle(), VK_NULL_HANDLE, 1,
                                             &PipelineInfo, nullptr, &Pipeline));
-
-    // The pipeline has fully compiled copies of the shaders, so these
-    // intermediate (SPV) versions can be destroyed.
-    vkDestroyShaderModule(GpuDevice->GetHandle(), FragShaderModule, nullptr);
-    vkDestroyShaderModule(GpuDevice->GetHandle(), VertShaderModule, nullptr);
     return Pipeline;
 }
 
@@ -462,20 +441,6 @@ Renderer::FixedFunctionState Renderer::MakeFixedFunctionState() const
     return State;
 }
 
-std::string Renderer::LoadShader(const char* GlslSpv, const char* SlangSpv)
-{
-    if (UseSlang)
-    {
-        std::string Code = LoadFile(SlangSpv);
-        if (!Code.empty())
-        {
-            return Code;
-        }
-        printf("Slang shader %s not found; using %s\n", SlangSpv, GlslSpv);
-    }
-    return LoadFile(GlslSpv);
-}
-
 void Renderer::SetShaderLanguage(bool UseSlangShaders)
 {
     if (UseSlangShaders == UseSlang)
@@ -505,26 +470,6 @@ void Renderer::SetShaderLanguage(bool UseSlangShaders)
     vkDestroyPipeline(GpuDevice->GetHandle(), DenoisePipeline, nullptr);
     vkDestroyPipelineLayout(GpuDevice->GetHandle(), DenoiseCompPipelineLayout, nullptr);
     CreateDenoiseCompPipeline();
-}
-
-std::string Renderer::LoadFile(const std::string& Filename)
-{
-    std::string Result;
-    // ate: Open at file end
-    std::ifstream Stream(Filename, std::ios::ate | std::ios::binary);
-
-    if (!Stream.is_open())
-    {
-        return Result;
-    }
-
-    // tellg() is last char position in file (i.e.,  length)
-    Result.reserve(Stream.tellg());
-    Stream.seekg(0, std::ios::beg);
-
-    Result.assign((std::istreambuf_iterator<char>(Stream)),
-                  std::istreambuf_iterator<char>());
-    return Result;
 }
 
 //----------------------------------------------------------------------------------------

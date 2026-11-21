@@ -56,12 +56,12 @@ void Renderer::CreateDenoiseCompPipeline()
         VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
     CpCreateInfo.layout = DenoiseCompPipelineLayout;
 
-    CpCreateInfo.stage = CreateShaderStageInfo(
-        LoadShader("spv/denoise.comp.spv", "spv/denoise.comp.slang.spv"),
-        VK_SHADER_STAGE_COMPUTE_BIT);
+    Shader Comp;
+    Comp.Load(GpuDevice->GetHandle(), "spv/denoise.comp.spv",
+              "spv/denoise.comp.slang.spv", UseSlang);
+    CpCreateInfo.stage = Comp.StageInfo(VK_SHADER_STAGE_COMPUTE_BIT);
     RTRT_CHECK_VK(vkCreateComputePipelines(GpuDevice->GetHandle(), {}, 1, &CpCreateInfo,
                                            nullptr, &DenoisePipeline));
-    vkDestroyShaderModule(GpuDevice->GetHandle(), CpCreateInfo.stage.module, nullptr);
 }
 
 void Renderer::Denoise()

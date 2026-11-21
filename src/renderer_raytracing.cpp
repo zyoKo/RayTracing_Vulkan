@@ -129,7 +129,9 @@ void Renderer::CreateRtPipeline()
 {
     std::vector<VkPipelineShaderStageCreateInfo> Stages{};
     std::vector<VkRayTracingShaderGroupCreateInfoKHR> Groups{};
-    CollectRtShaders(Stages, Groups);
+    // The pipeline keeps compiled copies, so the modules are freed when this returns.
+    std::vector<Shader> Modules;
+    CollectRtShaders(Modules, Stages, Groups);
 
     CreateRtPipelineLayout();
 
@@ -148,13 +150,10 @@ void Renderer::CreateRtPipeline()
 
     RTRT_CHECK_VK(vkCreateRayTracingPipelinesKHR(GpuDevice->GetHandle(), {}, {}, 1,
                                                  &RayPipelineInfo, nullptr, &RtPipeline));
-    for (auto& S : Stages)
-    {
-        vkDestroyShaderModule(GpuDevice->GetHandle(), S.module, nullptr);
-    }
 }
 
-void Renderer::CollectRtShaders(std::vector<VkPipelineShaderStageCreateInfo>& Stages,
+void Renderer::CollectRtShaders(std::vector<Shader>& Modules,
+                                std::vector<VkPipelineShaderStageCreateInfo>& Stages,
                                 std::vector<VkRayTracingShaderGroupCreateInfoKHR>& Groups)
 {
     // Raygen and miss shaders get their own groups. Hit shaders can group with any-hit
@@ -172,8 +171,9 @@ void Renderer::CollectRtShaders(std::vector<VkPipelineShaderStageCreateInfo>& St
     Group.intersectionShader = VK_SHADER_UNUSED_KHR;
 
     // Raygen shader stage and group appended to stages and groups lists
-    Stage.module = CreateShaderModule(
-        LoadShader("spv/raytrace.rgen.spv", "spv/raytrace.rgen.slang.spv"));
+    Modules.emplace_back().Load(GpuDevice->GetHandle(), "spv/raytrace.rgen.spv",
+                                "spv/raytrace.rgen.slang.spv", UseSlang);
+    Stage.module = Modules.back().GetHandle();
     Stage.stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
     Stages.push_back(Stage);
 
@@ -184,8 +184,9 @@ void Renderer::CollectRtShaders(std::vector<VkPipelineShaderStageCreateInfo>& St
     Group.generalShader = VK_SHADER_UNUSED_KHR;
 
     // Miss shader stage and group appended to stages and groups lists
-    Stage.module = CreateShaderModule(
-        LoadShader("spv/raytrace.rmiss.spv", "spv/raytrace.rmiss.slang.spv"));
+    Modules.emplace_back().Load(GpuDevice->GetHandle(), "spv/raytrace.rmiss.spv",
+                                "spv/raytrace.rmiss.slang.spv", UseSlang);
+    Stage.module = Modules.back().GetHandle();
     Stage.stage = VK_SHADER_STAGE_MISS_BIT_KHR;
     Stages.push_back(Stage);
 
@@ -196,8 +197,9 @@ void Renderer::CollectRtShaders(std::vector<VkPipelineShaderStageCreateInfo>& St
     Group.generalShader = VK_SHADER_UNUSED_KHR;
 
     // Closest hit shader stage and group appended to stages and groups lists
-    Stage.module = CreateShaderModule(
-        LoadShader("spv/raytrace.rchit.spv", "spv/raytrace.rchit.slang.spv"));
+    Modules.emplace_back().Load(GpuDevice->GetHandle(), "spv/raytrace.rchit.spv",
+                                "spv/raytrace.rchit.slang.spv", UseSlang);
+    Stage.module = Modules.back().GetHandle();
     Stage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     Stages.push_back(Stage);
 

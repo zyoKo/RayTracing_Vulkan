@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\vk\shader.cpp" />
     <ClCompile Include="..\src\vk\semaphore.cpp" />
     <ClCompile Include="..\src\vk\fence.cpp" />
     <ClCompile Include="..\src\vk\command_buffer.cpp" />
@@ -193,6 +194,7 @@ cmd /C "if exist shaders\%(Filename)%(Extension)    %VULKAN_SDK%/Bin/glslangVali
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\vk\shader.h" />
     <ClInclude Include="..\src\vk\semaphore.h" />
     <ClInclude Include="..\src\vk\fence.h" />
     <ClInclude Include="..\src\vk\command_buffer.h" />
