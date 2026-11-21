@@ -9,6 +9,8 @@
 
 #include "core/window.h"
 #include "renderer/graphics_pipeline.h"
+#include "renderer/pass_context.h"
+#include "renderer/post_pass.h"
 #include "rt/acceleration_structure.h"
 #include "rt/shader_binding_table.h"
 #include "scene/camera.h"
@@ -117,6 +119,8 @@ private:
     Device* GpuDevice = nullptr;
     Swapchain* MainSwapchain = nullptr;
     const Camera* MainCamera = nullptr;
+    PassContext PassCtx;
+    PostPass Post;
 
     RenderSettings Settings;
     // Frames rendered since the history was last reset
@@ -146,17 +150,6 @@ private:
 
     Image DepthImage;
     void CreateDepthResource();
-
-    PipelineLayout PostPipelineLayout;
-    RenderPass PostRenderPass;
-    void CreatePostRenderPass();
-
-    // One per swapchain image
-    std::vector<Framebuffer> Framebuffers;
-    void CreatePostFrameBuffers();
-
-    Pipeline PostPipeline;
-    void CreatePostPipeline();
 
     DescriptorPool ImguiDescPool;
     void InitGui();
@@ -224,9 +217,6 @@ private:
 
     ShaderBindingTable RtSbt;
 
-    DescriptorBundle PostDesc;
-    void CreatePostDescriptor();
-
     DescriptorBundle DenoiseDesc;
     void CreateDenoiseDescriptorSet();
 
@@ -243,7 +233,6 @@ private:
     void Raytrace();
     void Denoise();
 
-    void PostProcess();
     void SubmitFrame();
 
     Image CreateBufferImage(VkExtent2D Size);

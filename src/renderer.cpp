@@ -23,18 +23,15 @@ bool Renderer::Init(Window& Target, Context& Instance, Device& Gpu, Swapchain& C
     MainSwapchain = &Chain;
     MainCamera = &View;
     UseSlang = UseSlangShaders;
+    PassCtx = {GpuDevice, &MainCmdPool, MainSwapchain, UseSlang};
 
     CreateCommandPool();
 
     CreateSwapchain();
     CreateFrameFence();
-    CreateDepthResource();   // -> DepthImage, ...
-    CreatePostRenderPass();  // -> PostRenderPass.GetHandle()
-    CreatePostFrameBuffers();
-
+    CreateDepthResource();
     CreateScBuffer();
-    CreatePostDescriptor();
-    CreatePostPipeline();  // -> PostPipelineLayout.GetHandle()
+    Post.Create(PassCtx, ScImageBuffer, DepthImage);
 
     InitGui();
 
@@ -89,7 +86,13 @@ void Renderer::DrawFrame()
             Rasterize();
         }
 
-        PostProcess();  //  tone mapper and output to swapchain image.
+        // The rasterizer has no G-buffer images, so the debug views only apply to the
+        // ray tracer.
+        const PushConstantPost PcPost{
+            Settings.Exposure, Settings.Gamma,
+            static_cast<uint32_t>(Settings.UseRaytracer ? Settings.ViewMode
+                                                        : kViewFinal)};
+        Post.Record(FrameCmd.GetHandle(), PassCtx, PcPost);
 
     }  // Done recording;  Execute!
 
@@ -193,7 +196,7 @@ void Renderer::InitGui()
     InitInfo.CheckVkResultFn = nullptr;
     InitInfo.Allocator = nullptr;
 
-    ImGui_ImplVulkan_Init(&InitInfo, PostRenderPass.GetHandle());
+    ImGui_ImplVulkan_Init(&InitInfo, Post.GetRenderPass());
 
     // Upload Fonts
     VkCommandBuffer Cmdbuf = MainCmdPool.BeginSingleUse();

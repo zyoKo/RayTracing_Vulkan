@@ -11,14 +11,6 @@
 namespace rtrt
 {
 
-void Renderer::CreatePostDescriptor()
-{
-    DescriptorBuilder()
-        .AddCombinedImageSampler(VK_SHADER_STAGE_FRAGMENT_BIT)
-        .Build(GpuDevice->GetHandle(), PostDesc);
-    PostDesc.Set.Write(0, ScImageBuffer.Descriptor());
-}
-
 void Renderer::CreateScBuffer()
 {
     ScImageBuffer = CreateBufferImage(MainSwapchain->GetExtent());
