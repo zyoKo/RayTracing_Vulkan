@@ -347,21 +347,12 @@ private:
 
     void CopyBuffer(VkBuffer SrcBuffer, VkBuffer DstBuffer, VkDeviceSize Size);
 
-    void TransitionImageLayout(VkImage TargetImage, VkFormat Format,
-                               VkImageLayout OldLayout, VkImageLayout NewLayout,
-                               uint32_t MipLevels = 1);
-    void CopyBufferToImage(VkBuffer SourceBuffer, VkImage TargetImage, uint32_t Width,
-                           uint32_t Height);
-
     Image CreateTextureImage(const std::string& FileName);
     Image CreateBufferImage(VkExtent2D Size);
 
     Image CreateImage(uint32_t Width, uint32_t Height, VkFormat Format,
                       VkImageUsageFlags Usage, VkMemoryPropertyFlags Properties,
                       uint32_t MipLevels = 1);
-
-    void GenerateMipmaps(VkImage TargetImage, VkFormat ImageFormat, int32_t TexWidth,
-                         int32_t TexHeight, uint32_t MipLevels);
 };
 
 }  // namespace rtrt

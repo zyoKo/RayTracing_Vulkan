@@ -5,6 +5,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "vk/command_pool.h"
 #include "vk/device.h"
 #include "vk/sampler.h"
 
@@ -43,6 +44,18 @@ public:
     {
         Layout = NewLayout;
     }
+
+    // Each records its work in a single-use command buffer from Pool and waits for it.
+    // Moves all MipLevels from OldLayout to NewLayout, ready for transfer writes.
+    void TransitionLayout(const CommandPool& Pool, VkImageLayout OldLayout,
+                          VkImageLayout NewLayout, uint32_t MipLevels = 1) const;
+    // Copies Source into mip level 0, which must be in the transfer-destination layout.
+    void CopyFrom(const CommandPool& Pool, VkBuffer Source, uint32_t Width,
+                  uint32_t Height) const;
+    // Fills mip levels 1 to MipLevels-1 from level 0 and leaves every level ready for
+    // shader reads.
+    void GenerateMipmaps(const Device& Gpu, const CommandPool& Pool, VkFormat Format,
+                         int32_t Width, int32_t Height, uint32_t MipLevels) const;
 
     // Frees everything. Safe to call on an empty image.
     void Destroy();

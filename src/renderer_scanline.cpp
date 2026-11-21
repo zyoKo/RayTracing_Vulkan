@@ -129,17 +129,16 @@ Image Renderer::CreateTextureImage(const std::string& FileName)
                         VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MipLevels);
 
-    TransitionImageLayout(MyImage.GetHandle(), VK_FORMAT_R8G8B8A8_UNORM,
-                          VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                          MipLevels);
+    MyImage.TransitionLayout(MainCmdPool, VK_IMAGE_LAYOUT_UNDEFINED,
+                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, MipLevels);
 
-    CopyBufferToImage(Staging.GetHandle(), MyImage.GetHandle(),
-                      static_cast<uint32_t>(TexWidth), static_cast<uint32_t>(TexHeight));
+    MyImage.CopyFrom(MainCmdPool, Staging.GetHandle(), static_cast<uint32_t>(TexWidth),
+                     static_cast<uint32_t>(TexHeight));
 
     Staging.Destroy();
 
-    GenerateMipmaps(MyImage.GetHandle(), VK_FORMAT_R8G8B8A8_UNORM, TexWidth, TexHeight,
-                    MipLevels);
+    MyImage.GenerateMipmaps(*GpuDevice, MainCmdPool, VK_FORMAT_R8G8B8A8_UNORM, TexWidth,
+                            TexHeight, MipLevels);
 
     MyImage.CreateView(VK_FORMAT_R8G8B8A8_UNORM);
     MyImage.CreateSampler(*GpuDevice);
@@ -152,106 +151,7 @@ namespace
 
 // Blits mip level Level - 1 (MipWidth x MipHeight) down into level Level, then moves
 // level Level - 1 to the shader-read layout.
-void BlitMipLevel(VkCommandBuffer CmdBuffer, VkImage TargetImage,
-                  VkImageMemoryBarrier& Barrier, uint32_t Level, int32_t MipWidth,
-                  int32_t MipHeight)
-{
-    Barrier.subresourceRange.baseMipLevel = Level - 1;
-    Barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    Barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    Barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    Barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-
-    vkCmdPipelineBarrier(CmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1,
-                         &Barrier);
-
-    VkImageBlit Blit{};
-    Blit.srcOffsets[0] = {0, 0, 0};
-    Blit.srcOffsets[1] = {MipWidth, MipHeight, 1};
-    Blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    Blit.srcSubresource.mipLevel = Level - 1;
-    Blit.srcSubresource.baseArrayLayer = 0;
-    Blit.srcSubresource.layerCount = 1;
-    Blit.dstOffsets[0] = {0, 0, 0};
-    Blit.dstOffsets[1] = {MipWidth > 1 ? MipWidth / 2 : 1,
-                          MipHeight > 1 ? MipHeight / 2 : 1, 1};
-    Blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    Blit.dstSubresource.mipLevel = Level;
-    Blit.dstSubresource.baseArrayLayer = 0;
-    Blit.dstSubresource.layerCount = 1;
-
-    vkCmdBlitImage(CmdBuffer, TargetImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                   TargetImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &Blit,
-                   VK_FILTER_LINEAR);
-
-    Barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    Barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    Barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-    vkCmdPipelineBarrier(CmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr,
-                         1, &Barrier);
-}
-
 }  // namespace
-
-void Renderer::GenerateMipmaps(VkImage TargetImage, VkFormat ImageFormat,
-                               int32_t TexWidth, int32_t TexHeight, uint32_t MipLevels)
-{
-    // Check if image format supports linear blitting
-    VkFormatProperties FormatProperties;
-    vkGetPhysicalDeviceFormatProperties(GpuDevice->GetPhysical(), ImageFormat,
-                                        &FormatProperties);
-
-    if (!(FormatProperties.optimalTilingFeatures &
-          VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT))
-    {
-        RTRT_FATAL("Texture image format does not support linear blitting");
-    }
-
-    VkCommandBuffer TempCmdBuffer = CreateTempCmdBuffer();
-
-    VkImageMemoryBarrier Barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
-    Barrier.image = TargetImage;
-    Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    Barrier.subresourceRange.baseArrayLayer = 0;
-    Barrier.subresourceRange.layerCount = 1;
-    Barrier.subresourceRange.levelCount = 1;
-
-    int32_t MipWidth = TexWidth;
-    int32_t MipHeight = TexHeight;
-
-    for (uint32_t I = 1; I < MipLevels; I++)
-    {
-        BlitMipLevel(TempCmdBuffer, TargetImage, Barrier, I, MipWidth, MipHeight);
-
-        if (MipWidth > 1)
-        {
-            MipWidth /= 2;
-        }
-        if (MipHeight > 1)
-        {
-            MipHeight /= 2;
-        }
-    }
-
-    // The last level was only written to, never blitted from.
-    Barrier.subresourceRange.baseMipLevel = MipLevels - 1;
-    Barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    Barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    Barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-    vkCmdPipelineBarrier(TempCmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr,
-                         1, &Barrier);
-
-    SubmitTempCmdBuffer(TempCmdBuffer);
-}
 
 Buffer Renderer::CreateStagedBuffer(VkCommandBuffer CmdBuf, VkDeviceSize Size,
                                     const void* Data, VkBufferUsageFlags Usage)
@@ -287,57 +187,6 @@ void Renderer::CopyBuffer(VkBuffer SrcBuffer, VkBuffer DstBuffer, VkDeviceSize S
     VkBufferCopy CopyRegion{};
     CopyRegion.size = Size;
     vkCmdCopyBuffer(TempCmdBuffer, SrcBuffer, DstBuffer, 1, &CopyRegion);
-
-    SubmitTempCmdBuffer(TempCmdBuffer);
-}
-
-void Renderer::CopyBufferToImage(VkBuffer SourceBuffer, VkImage TargetImage,
-                                 uint32_t Width, uint32_t Height)
-{
-    VkCommandBuffer TempCmdBuffer = CreateTempCmdBuffer();
-
-    VkBufferImageCopy Region{};
-    Region.bufferOffset = 0;
-    Region.bufferRowLength = 0;
-    Region.bufferImageHeight = 0;
-    Region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    Region.imageSubresource.mipLevel = 0;
-    Region.imageSubresource.baseArrayLayer = 0;
-    Region.imageSubresource.layerCount = 1;
-    Region.imageOffset = {0, 0, 0};
-    Region.imageExtent = {Width, Height, 1};
-
-    vkCmdCopyBufferToImage(TempCmdBuffer, SourceBuffer, TargetImage,
-                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &Region);
-
-    SubmitTempCmdBuffer(TempCmdBuffer);
-}
-
-void Renderer::TransitionImageLayout(VkImage TargetImage, VkFormat Format,
-                                     VkImageLayout OldLayout, VkImageLayout NewLayout,
-                                     uint32_t MipLevels)
-{
-    VkCommandBuffer TempCmdBuffer = CreateTempCmdBuffer();
-
-    VkImageMemoryBarrier Barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
-    Barrier.oldLayout = OldLayout;
-    Barrier.newLayout = NewLayout;
-    Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    Barrier.image = TargetImage;
-    Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    Barrier.subresourceRange.baseMipLevel = 0;
-    Barrier.subresourceRange.levelCount = MipLevels;
-    Barrier.subresourceRange.baseArrayLayer = 0;
-    Barrier.subresourceRange.layerCount = 1;
-    Barrier.srcAccessMask = 0;
-    Barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-    VkPipelineStageFlags SourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-    VkPipelineStageFlags DestinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-
-    vkCmdPipelineBarrier(TempCmdBuffer, SourceStage, DestinationStage, 0, 0, nullptr, 0,
-                         nullptr, 1, &Barrier);
 
     SubmitTempCmdBuffer(TempCmdBuffer);
 }

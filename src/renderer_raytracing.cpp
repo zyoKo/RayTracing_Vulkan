@@ -18,28 +18,28 @@ void Renderer::CreateRtBuffers()
 {
     // Note: This will grow to create more than the single buffer RtColCurrBuffer.
     RtColCurrBuffer = CreateBufferImage(MainSwapchain->GetExtent());
-    TransitionImageLayout(RtColCurrBuffer.GetHandle(), VK_FORMAT_R32G32B32A32_SFLOAT,
-                          VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
+    RtColCurrBuffer.TransitionLayout(MainCmdPool, VK_IMAGE_LAYOUT_UNDEFINED,
+                                     VK_IMAGE_LAYOUT_GENERAL);
 
     RtColPrevBuffer = CreateBufferImage(MainSwapchain->GetExtent());
-    TransitionImageLayout(RtColPrevBuffer.GetHandle(), VK_FORMAT_R32G32B32A32_SFLOAT,
-                          VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
+    RtColPrevBuffer.TransitionLayout(MainCmdPool, VK_IMAGE_LAYOUT_UNDEFINED,
+                                     VK_IMAGE_LAYOUT_GENERAL);
 
     RtNdCurrBuffer = CreateBufferImage(MainSwapchain->GetExtent());
-    TransitionImageLayout(RtNdCurrBuffer.GetHandle(), VK_FORMAT_R32G32B32A32_SFLOAT,
-                          VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
+    RtNdCurrBuffer.TransitionLayout(MainCmdPool, VK_IMAGE_LAYOUT_UNDEFINED,
+                                    VK_IMAGE_LAYOUT_GENERAL);
 
     RtNdPrevBuffer = CreateBufferImage(MainSwapchain->GetExtent());
-    TransitionImageLayout(RtNdPrevBuffer.GetHandle(), VK_FORMAT_R32G32B32A32_SFLOAT,
-                          VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
+    RtNdPrevBuffer.TransitionLayout(MainCmdPool, VK_IMAGE_LAYOUT_UNDEFINED,
+                                    VK_IMAGE_LAYOUT_GENERAL);
 
     RtKdCurrBuffer = CreateBufferImage(MainSwapchain->GetExtent());
-    TransitionImageLayout(RtKdCurrBuffer.GetHandle(), VK_FORMAT_R32G32B32A32_SFLOAT,
-                          VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
+    RtKdCurrBuffer.TransitionLayout(MainCmdPool, VK_IMAGE_LAYOUT_UNDEFINED,
+                                    VK_IMAGE_LAYOUT_GENERAL);
 
     RtKdPrevBuffer = CreateBufferImage(MainSwapchain->GetExtent());
-    TransitionImageLayout(RtKdPrevBuffer.GetHandle(), VK_FORMAT_R32G32B32A32_SFLOAT,
-                          VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
+    RtKdPrevBuffer.TransitionLayout(MainCmdPool, VK_IMAGE_LAYOUT_UNDEFINED,
+                                    VK_IMAGE_LAYOUT_GENERAL);
 }
 
 // The values of everything adjustable in the settings panel

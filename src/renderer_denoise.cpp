@@ -16,8 +16,8 @@ constexpr uint32_t kGroupSize = 128;
 void Renderer::CreateDenoiseBuffer()
 {
     DenoiseBuffer = CreateBufferImage(MainSwapchain->GetExtent());
-    TransitionImageLayout(DenoiseBuffer.GetHandle(), VK_FORMAT_R32G32B32A32_SFLOAT,
-                          VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
+    DenoiseBuffer.TransitionLayout(MainCmdPool, VK_IMAGE_LAYOUT_UNDEFINED,
+                                   VK_IMAGE_LAYOUT_GENERAL);
 }
 
 void Renderer::CreateDenoiseDescriptorSet()
