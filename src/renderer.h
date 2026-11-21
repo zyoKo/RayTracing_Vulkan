@@ -13,6 +13,8 @@
 #include "scene/camera.h"
 #include "shaders/shared_structs.h"
 #include "vk/buffer.h"
+#include "vk/command_buffer.h"
+#include "vk/command_pool.h"
 #include "vk/context.h"
 #include "vk/device.h"
 #include "vk/image.h"
@@ -171,8 +173,8 @@ private:
 
     // Vulkan objects that will be created and the functions that will do the creation.
 
-    VkCommandPool CmdPool{VK_NULL_HANDLE};
-    VkCommandBuffer CommandBuffer{};
+    CommandPool MainCmdPool;
+    CommandBuffer FrameCmd;
     void CreateCommandPool();
 
     VkFence WaitFence{};

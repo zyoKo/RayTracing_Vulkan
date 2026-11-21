@@ -27,7 +27,7 @@ bool Renderer::Init(Window& Target, Context& Instance, Device& Gpu, Swapchain& C
     MainCamera = &View;
     UseSlang = UseSlangShaders;
 
-    CreateCommandPool();  // -> CmdPool
+    CreateCommandPool();
 
     CreateSwapchain();
     CreateFrameFence();
@@ -72,9 +72,7 @@ void Renderer::DrawFrame()
         return;
     }
 
-    VkCommandBufferBeginInfo BeginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-    BeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    RTRT_CHECK_VK(vkBeginCommandBuffer(CommandBuffer, &BeginInfo));
+    FrameCmd.Begin();
     {  // Extra indent for code clarity
         UpdateCameraBuffer();
 
@@ -96,7 +94,7 @@ void Renderer::DrawFrame()
 
     }  // Done recording;  Execute!
 
-    RTRT_CHECK_VK(vkEndCommandBuffer(CommandBuffer));
+    FrameCmd.End();
 
     SubmitFrame();  // Submit for display
     RecordMs = (glfwGetTime() - Start) * 1000.0 - GpuWaitMs;
@@ -104,31 +102,12 @@ void Renderer::DrawFrame()
 
 VkCommandBuffer Renderer::CreateTempCmdBuffer()
 {
-    VkCommandBufferAllocateInfo AllocateInfo{
-        VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
-    AllocateInfo.commandBufferCount = 1;
-    AllocateInfo.commandPool = CmdPool;
-    AllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    VkCommandBuffer CmdBuffer;
-    RTRT_CHECK_VK(
-        vkAllocateCommandBuffers(GpuDevice->GetHandle(), &AllocateInfo, &CmdBuffer));
-
-    VkCommandBufferBeginInfo BeginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-    BeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    RTRT_CHECK_VK(vkBeginCommandBuffer(CmdBuffer, &BeginInfo));
-    return CmdBuffer;
+    return MainCmdPool.BeginSingleUse();
 }
 
 void Renderer::SubmitTempCmdBuffer(VkCommandBuffer CmdBuffer)
 {
-    RTRT_CHECK_VK(vkEndCommandBuffer(CmdBuffer));
-
-    VkSubmitInfo SubmitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
-    SubmitInfo.commandBufferCount = 1;
-    SubmitInfo.pCommandBuffers = &CmdBuffer;
-    RTRT_CHECK_VK(vkQueueSubmit(GpuDevice->GetQueue(), 1, &SubmitInfo, {}));
-    RTRT_CHECK_VK(vkQueueWaitIdle(GpuDevice->GetQueue()));
-    vkFreeCommandBuffers(GpuDevice->GetHandle(), CmdPool, 1, &CmdBuffer);
+    MainCmdPool.EndSingleUse(CmdBuffer);
 }
 
 bool Renderer::PrepareFrame()
@@ -184,7 +163,8 @@ void Renderer::SubmitFrame()
     FrameSubmitInfo.signalSemaphoreCount = 1;
     FrameSubmitInfo.pSignalSemaphores = &Rendered;
     FrameSubmitInfo.commandBufferCount = 1;
-    FrameSubmitInfo.pCommandBuffers = &CommandBuffer;
+    const VkCommandBuffer Cmd = FrameCmd.GetHandle();
+    FrameSubmitInfo.pCommandBuffers = &Cmd;
     RTRT_CHECK_VK(vkQueueSubmit(GpuDevice->GetQueue(), 1, &FrameSubmitInfo, WaitFence));
 
     VkResult Result = MainSwapchain->Present(GpuDevice->GetQueue());

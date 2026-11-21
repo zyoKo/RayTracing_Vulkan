@@ -552,10 +552,12 @@ void Renderer::Rasterize()
     PassBeginInfo.renderPass = ScanlineRenderPass;
     PassBeginInfo.framebuffer = ScanlineFramebuffer;
     PassBeginInfo.renderArea = {{0, 0}, MainSwapchain->GetExtent()};
-    vkCmdBeginRenderPass(CommandBuffer, &PassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(FrameCmd.GetHandle(), &PassBeginInfo,
+                         VK_SUBPASS_CONTENTS_INLINE);
 
-    vkCmdBindPipeline(CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, ScanlinePipeline);
-    vkCmdBindDescriptorSets(CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindPipeline(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS,
+                      ScanlinePipeline);
+    vkCmdBindDescriptorSets(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                             ScanlinePipelineLayout, 0, 1, &ScDesc.GetSet(), 0, nullptr);
 
     for (const ObjInst& Inst : ObjInstList)
@@ -573,17 +575,17 @@ void Renderer::Rasterize()
         PcRaster.ObjIndex = Inst.ObjIndex;  // Telling which object is drawn
         PcRaster.ModelMatrix = Inst.Transform;
 
-        vkCmdPushConstants(CommandBuffer, ScanlinePipelineLayout,
+        vkCmdPushConstants(FrameCmd.GetHandle(), ScanlinePipelineLayout,
                            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                            sizeof(PushConstantRaster), &PcRaster);
         const VkBuffer VertexBuffer = Object.VertexBuffer.GetHandle();
-        vkCmdBindVertexBuffers(CommandBuffer, 0, 1, &VertexBuffer, &Offset);
-        vkCmdBindIndexBuffer(CommandBuffer, Object.IndexBuffer.GetHandle(), 0,
+        vkCmdBindVertexBuffers(FrameCmd.GetHandle(), 0, 1, &VertexBuffer, &Offset);
+        vkCmdBindIndexBuffer(FrameCmd.GetHandle(), Object.IndexBuffer.GetHandle(), 0,
                              VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(CommandBuffer, Object.NbIndices, 1, 0, 0, 0);
+        vkCmdDrawIndexed(FrameCmd.GetHandle(), Object.NbIndices, 1, 0, 0, 0);
     }
 
-    vkCmdEndRenderPass(CommandBuffer);
+    vkCmdEndRenderPass(FrameCmd.GetHandle());
 }
 
 void Renderer::UpdateCameraBuffer()
@@ -614,14 +616,14 @@ void Renderer::UpdateCameraBuffer()
     BeforeBarrier.buffer = DeviceUBO;
     BeforeBarrier.offset = 0;
     BeforeBarrier.size = sizeof(HostUBO);
-    vkCmdPipelineBarrier(CommandBuffer, UboUsageStages, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         VK_DEPENDENCY_DEVICE_GROUP_BIT, 0, nullptr, 1, &BeforeBarrier, 0,
-                         nullptr);
+    vkCmdPipelineBarrier(FrameCmd.GetHandle(), UboUsageStages,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT, VK_DEPENDENCY_DEVICE_GROUP_BIT,
+                         0, nullptr, 1, &BeforeBarrier, 0, nullptr);
 
     // Schedule the host-to-device upload. (hostUBO is copied into the cmd
     // buffer so it is okay to deallocate when the function returns).
-    vkCmdUpdateBuffer(CommandBuffer, MatrixBw.GetHandle(), 0, sizeof(MatrixUniforms),
-                      &HostUBO);
+    vkCmdUpdateBuffer(FrameCmd.GetHandle(), MatrixBw.GetHandle(), 0,
+                      sizeof(MatrixUniforms), &HostUBO);
 
     // Making sure the updated UBO will be visible.
     VkBufferMemoryBarrier AfterBarrier{VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
@@ -630,9 +632,9 @@ void Renderer::UpdateCameraBuffer()
     AfterBarrier.buffer = DeviceUBO;
     AfterBarrier.offset = 0;
     AfterBarrier.size = sizeof(HostUBO);
-    vkCmdPipelineBarrier(CommandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, UboUsageStages,
-                         VK_DEPENDENCY_DEVICE_GROUP_BIT, 0, nullptr, 1, &AfterBarrier, 0,
-                         nullptr);
+    vkCmdPipelineBarrier(FrameCmd.GetHandle(), VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         UboUsageStages, VK_DEPENDENCY_DEVICE_GROUP_BIT, 0, nullptr, 1,
+                         &AfterBarrier, 0, nullptr);
 }
 
 }  // namespace rtrt

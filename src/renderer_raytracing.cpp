@@ -379,18 +379,18 @@ void Renderer::CmdCopyImage(Image& Src, Image& Dst)
     ImageCopyRegion.extent.height = MainSwapchain->GetExtent().height;
     ImageCopyRegion.extent.depth = 1;
 
-    ImageLayoutBarrier(CommandBuffer, Src.GetHandle(), VK_IMAGE_LAYOUT_GENERAL,
+    ImageLayoutBarrier(FrameCmd.GetHandle(), Src.GetHandle(), VK_IMAGE_LAYOUT_GENERAL,
                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    ImageLayoutBarrier(CommandBuffer, Dst.GetHandle(), VK_IMAGE_LAYOUT_GENERAL,
+    ImageLayoutBarrier(FrameCmd.GetHandle(), Dst.GetHandle(), VK_IMAGE_LAYOUT_GENERAL,
                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-    vkCmdCopyImage(CommandBuffer, Src.GetHandle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                   Dst.GetHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
-                   &ImageCopyRegion);
+    vkCmdCopyImage(FrameCmd.GetHandle(), Src.GetHandle(),
+                   VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Dst.GetHandle(),
+                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &ImageCopyRegion);
 
-    ImageLayoutBarrier(CommandBuffer, Src.GetHandle(),
+    ImageLayoutBarrier(FrameCmd.GetHandle(), Src.GetHandle(),
                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
-    ImageLayoutBarrier(CommandBuffer, Dst.GetHandle(),
+    ImageLayoutBarrier(FrameCmd.GetHandle(), Dst.GetHandle(),
                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 }
 
@@ -408,26 +408,27 @@ void Renderer::Raytrace()
     ResetHistory = false;
 
     // Bind the ray tracing pipeline
-    vkCmdBindPipeline(CommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, RtPipeline);
+    vkCmdBindPipeline(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
+                      RtPipeline);
 
     // Bind the descriptor sets (the ray tracing specific one, and the
     // full model descriptor)
     std::vector<VkDescriptorSet> DescSets{RtDesc.GetSet(), ScDesc.GetSet()};
-    vkCmdBindDescriptorSets(CommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
+    vkCmdBindDescriptorSets(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
                             RtPipelineLayout, 0, static_cast<uint32_t>(DescSets.size()),
                             DescSets.data(), 0, nullptr);
 
     // Push the push constants
-    vkCmdPushConstants(CommandBuffer, RtPipelineLayout,
+    vkCmdPushConstants(FrameCmd.GetHandle(), RtPipelineLayout,
                        VK_SHADER_STAGE_RAYGEN_BIT_KHR |
                            VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR |
                            VK_SHADER_STAGE_MISS_BIT_KHR,
                        0, sizeof(PushConstantRay), &PcRay);
 
     // This dispatches the ray generation shader for each pixel on screen.
-    vkCmdTraceRaysKHR(CommandBuffer, &RgenRegion, &MissRegion, &HitRegion, &CallRegion,
-                      MainSwapchain->GetExtent().width, MainSwapchain->GetExtent().height,
-                      1);
+    vkCmdTraceRaysKHR(FrameCmd.GetHandle(), &RgenRegion, &MissRegion, &HitRegion,
+                      &CallRegion, MainSwapchain->GetExtent().width,
+                      MainSwapchain->GetExtent().height, 1);
     FrameCount++;
 
     // Copy the ray tracer output image to the scanline output image

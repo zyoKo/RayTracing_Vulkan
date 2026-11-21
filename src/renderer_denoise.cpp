@@ -76,7 +76,7 @@ void Renderer::Denoise()
     ImgMemBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
     ImgMemBarrier.subresourceRange = Range;
 
-    vkCmdPipelineBarrier(CommandBuffer, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+    vkCmdPipelineBarrier(FrameCmd.GetHandle(), VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                          VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                          VK_DEPENDENCY_DEVICE_GROUP_BIT, 0, nullptr, 0, nullptr, 1,
                          &ImgMemBarrier);
@@ -90,23 +90,24 @@ void Renderer::Denoise()
         Stepwidth *= 2;
 
         // Select the compute shader, and its descriptor set and push constant
-        vkCmdBindPipeline(CommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, DenoisePipeline);
-        vkCmdBindDescriptorSets(CommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+        vkCmdBindPipeline(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_COMPUTE,
+                          DenoisePipeline);
+        vkCmdBindDescriptorSets(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_COMPUTE,
                                 DenoiseCompPipelineLayout, 0, 1, &DenoiseDesc.GetSet(), 0,
                                 nullptr);
-        vkCmdPushConstants(CommandBuffer, DenoiseCompPipelineLayout,
+        vkCmdPushConstants(FrameCmd.GetHandle(), DenoiseCompPipelineLayout,
                            VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantDenoise),
                            &PcDenoise);
 
         // One 128x1 workgroup per row segment; kGroupSize must match
         // local_size_x in denoise.comp.
-        vkCmdDispatch(CommandBuffer,
+        vkCmdDispatch(FrameCmd.GetHandle(),
                       (MainSwapchain->GetExtent().width + kGroupSize - 1) / kGroupSize,
                       MainSwapchain->GetExtent().height, 1);
 
         // Wait until denoise shader is done writing to DenoiseBuffer
         ImgMemBarrier.image = DenoiseBuffer.GetHandle();
-        vkCmdPipelineBarrier(CommandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        vkCmdPipelineBarrier(FrameCmd.GetHandle(), VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                              VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                              VK_DEPENDENCY_DEVICE_GROUP_BIT, 0, nullptr, 0, nullptr, 1,
                              &ImgMemBarrier);

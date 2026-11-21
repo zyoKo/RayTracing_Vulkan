@@ -29,7 +29,7 @@ void Renderer::DestroyAllVulkanResources()
 
     MainSwapchain->Destroy();
     vkDestroyFence(GpuDevice->GetHandle(), WaitFence, nullptr);
-    vkDestroyCommandPool(GpuDevice->GetHandle(), CmdPool, nullptr);
+    MainCmdPool.Destroy();
 
     DestroyPostResources();
     DestroySceneResources();
@@ -189,21 +189,8 @@ void Renderer::WriteSizedDescriptors()
 // Use the command pool to also create a command buffer.
 void Renderer::CreateCommandPool()
 {
-    VkCommandPoolCreateInfo PoolCreateInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
-    PoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    PoolCreateInfo.queueFamilyIndex = GpuDevice->GetQueueFamily();
-    RTRT_CHECK_VK(
-        vkCreateCommandPool(GpuDevice->GetHandle(), &PoolCreateInfo, nullptr, &CmdPool));
-
-    // Create a command buffer
-    VkCommandBufferAllocateInfo AllocateInfo{
-        VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
-    AllocateInfo.commandPool = CmdPool;
-    AllocateInfo.commandBufferCount = 1;
-    AllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    RTRT_CHECK_VK(
-        vkAllocateCommandBuffers(GpuDevice->GetHandle(), &AllocateInfo, &CommandBuffer));
-    // Nothing to destroy -- the pool owns the command buffer.
+    MainCmdPool.Create(*GpuDevice);
+    FrameCmd.Allocate(MainCmdPool);
 }
 
 void Renderer::CreateSwapchain()
@@ -558,13 +545,15 @@ void Renderer::PostProcess()
     PassBeginInfo.framebuffer = Framebuffers[MainSwapchain->GetImageIndex()];
     PassBeginInfo.renderArea = {{0, 0}, MainSwapchain->GetExtent()};
 
-    vkCmdBeginRenderPass(CommandBuffer, &PassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(FrameCmd.GetHandle(), &PassBeginInfo,
+                         VK_SUBPASS_CONTENTS_INLINE);
     {  // extra indent for renderpass commands
 
         auto AspectRatio = static_cast<float>(MainSwapchain->GetExtent().width) /
                            static_cast<float>(MainSwapchain->GetExtent().height);
-        vkCmdBindPipeline(CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PostPipeline);
-        vkCmdBindDescriptorSets(CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+        vkCmdBindPipeline(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          PostPipeline);
+        vkCmdBindDescriptorSets(FrameCmd.GetHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 PostPipelineLayout, 0, 1, &PostDesc.GetSet(), 0, nullptr);
 
         // The rasterizer has no G-buffer images, so the debug views only apply to the ray
@@ -573,17 +562,17 @@ void Renderer::PostProcess()
             Settings.Exposure, Settings.Gamma,
             static_cast<uint32_t>(Settings.UseRaytracer ? Settings.ViewMode
                                                         : kViewFinal)};
-        vkCmdPushConstants(CommandBuffer, PostPipelineLayout,
+        vkCmdPushConstants(FrameCmd.GetHandle(), PostPipelineLayout,
                            VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstantPost),
                            &PcPost);
 
         // Full-screen triangle: the vertex shader generates positions from gl_VertexIndex
-        vkCmdDraw(CommandBuffer, 3, 1, 0, 0);
+        vkCmdDraw(FrameCmd.GetHandle(), 3, 1, 0, 0);
 
         ImGui::Render();  // Rendering UI
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), CommandBuffer);
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), FrameCmd.GetHandle());
     }
-    vkCmdEndRenderPass(CommandBuffer);
+    vkCmdEndRenderPass(FrameCmd.GetHandle());
 }
 
 }  // namespace rtrt
