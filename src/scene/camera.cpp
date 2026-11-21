@@ -1,4 +1,4 @@
-#include "camera.h"
+#include "scene/camera.h"
 
 #include <glm/gtx/transform.hpp>
 
@@ -29,19 +29,15 @@ glm::mat4 Camera::View() const
     return TiltMatrix * SpinMatrix * Translation;
 }
 
-void Camera::EyeMoveBy(const glm::vec3& Step)
+void Camera::Rotate(float SpinBy, float TiltBy)
 {
-    Eye += Step;
+    Spin += SpinBy;
+    Tilt += TiltBy;
 }
 
-void Camera::MouseMove(float X, float Y)
+void Camera::MoveBy(const glm::vec3& Step)
 {
-    float Dx = X - PosX;
-    float Dy = Y - PosY;
-    Spin += Dx / 3;
-    Tilt += Dy / 3;
-    PosX = X;
-    PosY = Y;
+    Eye += Step;
 }
 
 void Camera::Reset()
@@ -50,12 +46,6 @@ void Camera::Reset()
     Spin = Defaults.Spin;
     Tilt = Defaults.Tilt;
     Eye = Defaults.Eye;
-}
-
-void Camera::SetMousePosition(float X, float Y)
-{
-    PosX = X;
-    PosY = Y;
 }
 
 }  // namespace rtrt

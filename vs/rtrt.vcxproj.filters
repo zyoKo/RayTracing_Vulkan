@@ -4,8 +4,11 @@
     <ClCompile Include="..\src\app.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\camera.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="..\src\scene\camera.cpp">
+      <Filter>Source Files\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\scene\camera_controller.cpp">
+      <Filter>Source Files\scene</Filter>
     </ClCompile>
     <ClCompile Include="..\src\core\window.cpp">
       <Filter>Source Files\core</Filter>
@@ -62,6 +65,12 @@
     <Filter Include="Header Files\core">
       <UniqueIdentifier>{dd4d76b2-b01c-4c82-87fe-42c433457776}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\scene">
+      <UniqueIdentifier>{070d1079-9f06-463a-9cd9-333b45dd12fd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\scene">
+      <UniqueIdentifier>{70357ea8-9ee2-4bdb-9bb4-474c17425cf3}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Shader Files">
       <UniqueIdentifier>{26802777-62b4-47ec-a051-4ee8e4be1a67}</UniqueIdentifier>
     </Filter>
@@ -76,8 +85,11 @@
     <ClInclude Include="..\src\buffer_wrap.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\camera.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="..\src\scene\camera.h">
+      <Filter>Header Files\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\scene\camera_controller.h">
+      <Filter>Header Files\scene</Filter>
     </ClInclude>
     <ClInclude Include="..\src\core\window.h">
       <Filter>Header Files\core</Filter>

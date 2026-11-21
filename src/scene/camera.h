@@ -1,5 +1,5 @@
-#ifndef RTRT_SRC_CAMERA_H_
-#define RTRT_SRC_CAMERA_H_
+#ifndef RTRT_SRC_SCENE_CAMERA_H_
+#define RTRT_SRC_SCENE_CAMERA_H_
 
 #include <glm/glm.hpp>
 
@@ -16,11 +16,10 @@ public:
     // World-to-view matrix.
     glm::mat4 View() const;
 
-    // Turns the camera by the mouse movement since the last call.
-    void MouseMove(float X, float Y);
+    // Turns the camera by these angles, in degrees.
+    void Rotate(float SpinBy, float TiltBy);
 
-    void EyeMoveBy(const glm::vec3& Step);
-    void SetMousePosition(float X, float Y);
+    void MoveBy(const glm::vec3& Step);
 
     // Restores the starting position and orientation.
     void Reset();
@@ -35,16 +34,6 @@ public:
         return Spin;
     }
 
-    bool GetLeftButtonDown() const
-    {
-        return LeftButtonDown;
-    }
-
-    void SetLeftButtonDown(bool Down)
-    {
-        LeftButtonDown = Down;
-    }
-
 private:
     float Ry = 0.57f;
     float Front = 0.1f;
@@ -53,13 +42,8 @@ private:
     float Spin = -20.0f;
     float Tilt = 10.66f;
     glm::vec3 Eye{2.29f, 1.68f, 6.64f};
-
-    bool LeftButtonDown = false;
-
-    float PosX = 0.0f;
-    float PosY = 0.0f;
 };
 
 }  // namespace rtrt
 
-#endif  // RTRT_SRC_CAMERA_H_
+#endif  // RTRT_SRC_SCENE_CAMERA_H_

@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cfloat>
-#include <cmath>
 #include <cstdio>
 #include <string>
 #include <thread>
@@ -12,7 +11,6 @@
 #include <glm/glm.hpp>
 #include <imgui.h>
 
-#include "camera.h"
 #include "renderer.h"
 
 namespace rtrt
@@ -62,7 +60,7 @@ void App::OnMouseButton(double X, double Y)
     {
         return;
     }
-    MainCamera.SetMousePosition(static_cast<float>(X), static_cast<float>(Y));
+    MainController.OnMouseButton(static_cast<float>(X), static_cast<float>(Y));
 }
 
 void App::OnCursorPos(double X, double Y)
@@ -71,10 +69,7 @@ void App::OnCursorPos(double X, double Y)
     {
         return;
     }
-    if (MainCamera.GetLeftButtonDown())
-    {
-        MainCamera.MouseMove(static_cast<float>(X), static_cast<float>(Y));
-    }
+    MainController.OnCursorPos(static_cast<float>(X), static_cast<float>(Y), MainCamera);
 }
 
 void App::OnKey(int Key, int Action)
@@ -299,7 +294,11 @@ void App::DrawCameraSettings()
 
     const glm::vec3& Eye = MainCamera.GetEye();
     ImGui::Text("Position: %.2f, %.2f, %.2f", Eye.x, Eye.y, Eye.z);
-    ImGui::SliderFloat("Move speed", &MoveSpeed, 0.1f, 5.0f, "%.2f");
+    float MoveSpeed = MainController.GetMoveSpeed();
+    if (ImGui::SliderFloat("Move speed", &MoveSpeed, 0.1f, 5.0f, "%.2f"))
+    {
+        MainController.SetMoveSpeed(MoveSpeed);
+    }
     if (ImGui::Button("Reset camera"))
     {
         MainCamera.Reset();
@@ -326,54 +325,9 @@ void App::DrawShaderSettings(Renderer& VK)
 
 void App::UpdateCamera()
 {
-    const double Now = glfwGetTime();
-    const float Dt = static_cast<float>(Now - LastTime);
-    LastTime = Now;
-
-    float Dist = MoveSpeed * Dt;
-
-    MainCamera.SetLeftButtonDown(MainWindow.IsMouseButtonDown(GLFW_MOUSE_BUTTON_LEFT));
-
     // Letters typed into a settings field (Ctrl+click on a slider) must not move the
     // camera.
-    if (ImGuiWantsTextInput())
-    {
-        return;
-    }
-
-    const float Spin = glm::radians(MainCamera.GetSpin());
-    const glm::vec3 Forward(sin(Spin), 0.0, -cos(Spin));
-    const glm::vec3 Right(cos(Spin), 0.0, sin(Spin));
-
-    if (MainWindow.IsKeyDown(GLFW_KEY_W))
-    {
-        MainCamera.EyeMoveBy(Dist * Forward);
-    }
-
-    if (MainWindow.IsKeyDown(GLFW_KEY_S))
-    {
-        MainCamera.EyeMoveBy(-Dist * Forward);
-    }
-
-    if (MainWindow.IsKeyDown(GLFW_KEY_A))
-    {
-        MainCamera.EyeMoveBy(-Dist * Right);
-    }
-
-    if (MainWindow.IsKeyDown(GLFW_KEY_D))
-    {
-        MainCamera.EyeMoveBy(Dist * Right);
-    }
-
-    if (MainWindow.IsKeyDown(GLFW_KEY_E))
-    {
-        MainCamera.EyeMoveBy(Dist * glm::vec3(0, 1, 0));
-    }
-
-    if (MainWindow.IsKeyDown(GLFW_KEY_C))
-    {
-        MainCamera.EyeMoveBy(Dist * glm::vec3(0, -1, 0));
-    }
+    MainController.Update(MainWindow, !ImGuiWantsTextInput(), MainCamera);
 }
 
 bool App::Init(int Argc, char** Argv)

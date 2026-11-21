@@ -4,9 +4,10 @@
 #include <algorithm>
 #include <cfloat>
 
-#include "camera.h"
 #include "core/window.h"
 #include "renderer.h"
+#include "scene/camera.h"
+#include "scene/camera_controller.h"
 
 namespace rtrt
 {
@@ -124,10 +125,9 @@ private:
 
     bool ShowGui = true;
     bool ShowPerf = false;
-    float MoveSpeed = 0.7f;
     Camera MainCamera;
+    CameraController MainController;
     FrameStats Stats;
-    double LastTime = 0.0;
 };
 
 }  // namespace rtrt
