@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 
-#include <GLFW/glfw3.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <imgui.h>
@@ -33,7 +32,6 @@ void Renderer::DestroyAllVulkanResources()
     vkDestroyDescriptorPool(Device, ImguiDescPool, nullptr);
 
     DestroySwapchain();
-    vkDestroySurfaceKHR(Instance, Surface, nullptr);
     vkDestroyCommandPool(Device, CmdPool, nullptr);
 
     DestroyPostResources();
@@ -43,7 +41,6 @@ void Renderer::DestroyAllVulkanResources()
     DestroyDenoiseResources();
 
     vkDestroyDevice(Device, nullptr);
-    vkDestroyInstance(Instance, nullptr);
 }
 
 void Renderer::DestroyPostResources()
@@ -190,76 +187,14 @@ void Renderer::WriteSizedDescriptors()
     DenoiseDesc.Write(Device, 3, RtNdCurrBuffer.Descriptor());
 }
 
-void Renderer::CreateInstance(bool DoApiDump)
-{
-    uint32_t CountGLFWextensions{0};
-    const char** ReqGLFWextensions =
-        glfwGetRequiredInstanceExtensions(&CountGLFWextensions);
-
-    printf("GLFW required extensions count: %d\n", CountGLFWextensions);
-    for (uint32_t I = 0; I < CountGLFWextensions; ++I)
-    {
-        printf("%s\n", ReqGLFWextensions[I]);
-    }
-
-    // The api_dump layer must be first on reqInstanceLayers
-    if (DoApiDump)
-    {
-        ReqInstanceLayers.insert(ReqInstanceLayers.begin(), "VK_LAYER_LUNARG_api_dump");
-    }
-
-    uint32_t Count;
-    // The two step procedure for getting a variable length list
-    RTRT_CHECK_VK(vkEnumerateInstanceLayerProperties(&Count, nullptr));
-    std::vector<VkLayerProperties> AvailableLayers(Count);
-    RTRT_CHECK_VK(vkEnumerateInstanceLayerProperties(&Count, AvailableLayers.data()));
-
-    printf("InstanceLayer count: %d\n", Count);
-    for (auto& Layer : AvailableLayers)
-    {
-        printf("%s\n", Layer.layerName);
-    }
-
-    // Another two step dance
-    RTRT_CHECK_VK(vkEnumerateInstanceExtensionProperties(nullptr, &Count, nullptr));
-    std::vector<VkExtensionProperties> AvailableExtensions(Count);
-    RTRT_CHECK_VK(vkEnumerateInstanceExtensionProperties(nullptr, &Count,
-                                                         AvailableExtensions.data()));
-
-    printf("InstanceExtensions count: %d\n", Count);
-    for (auto& Extensions : AvailableExtensions)
-    {
-        printf("%s\n", Extensions.extensionName);
-    }
-    printf("\n");
-
-    VkApplicationInfo ApplicationInfo{VK_STRUCTURE_TYPE_APPLICATION_INFO};
-    ApplicationInfo.pApplicationName = "rtrt";
-    ApplicationInfo.pEngineName = "no-engine";
-    ApplicationInfo.apiVersion = VK_MAKE_VERSION(1, 3, 0);
-
-    VkInstanceCreateInfo InstanceCreateInfo{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
-    InstanceCreateInfo.pNext = nullptr;
-    InstanceCreateInfo.pApplicationInfo = &ApplicationInfo;
-
-    InstanceCreateInfo.enabledExtensionCount =
-        static_cast<uint32_t>(ReqInstanceExtensions.size());
-    InstanceCreateInfo.ppEnabledExtensionNames = ReqInstanceExtensions.data();
-
-    InstanceCreateInfo.enabledLayerCount =
-        static_cast<uint32_t>(ReqInstanceLayers.size());
-    InstanceCreateInfo.ppEnabledLayerNames = ReqInstanceLayers.data();
-
-    RTRT_CHECK_VK(vkCreateInstance(&InstanceCreateInfo, nullptr, &Instance));
-}
-
 bool Renderer::CreatePhysicalDevice()
 {
     uint32_t PhysicalDevicesCount;
-    RTRT_CHECK_VK(vkEnumeratePhysicalDevices(Instance, &PhysicalDevicesCount, nullptr));
+    RTRT_CHECK_VK(vkEnumeratePhysicalDevices(GpuContext.GetInstance(),
+                                             &PhysicalDevicesCount, nullptr));
     std::vector<VkPhysicalDevice> PhysicalDevices(PhysicalDevicesCount);
-    RTRT_CHECK_VK(vkEnumeratePhysicalDevices(Instance, &PhysicalDevicesCount,
-                                             PhysicalDevices.data()));
+    RTRT_CHECK_VK(vkEnumeratePhysicalDevices(
+        GpuContext.GetInstance(), &PhysicalDevicesCount, PhysicalDevices.data()));
 
     printf("%d devices\n", PhysicalDevicesCount);
 
@@ -391,20 +326,15 @@ void Renderer::GetCommandQueue()
 // extensions_vk.cpp, which NVIDIA generates from the Vulkan spec.
 void Renderer::LoadExtensions()
 {
-    load_VK_EXTENSIONS(Instance, vkGetInstanceProcAddr, Device, vkGetDeviceProcAddr);
+    load_VK_EXTENSIONS(GpuContext.GetInstance(), vkGetInstanceProcAddr, Device,
+                       vkGetDeviceProcAddr);
 }
 
-//  VkSurface is Vulkan's name for the screen.  Since GLFW creates and
-//  manages the window, it creates the VkSurface at our request.
-void Renderer::GetSurface()
+void Renderer::CheckPresentSupport()
 {
-    VkBool32 IsSupported;  // Supports drawing(presenting) on a screen
-
-    RTRT_CHECK_VK(glfwCreateWindowSurface(Instance, Application->GetWindow().GetHandle(),
-                                          nullptr, &Surface));
-
-    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceSupportKHR(PhysicalDevice, GraphicsQueueIndex,
-                                                       Surface, &IsSupported));
+    VkBool32 IsSupported;
+    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceSupportKHR(
+        PhysicalDevice, GraphicsQueueIndex, GpuContext.GetSurface(), &IsSupported));
 
     if (IsSupported != VK_TRUE)
     {
@@ -442,8 +372,8 @@ void Renderer::CreateSwapchain()
 
     // Get the surface's capabilities
     VkSurfaceCapabilitiesKHR Capabilities;
-    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(PhysicalDevice, Surface,
-                                                            &Capabilities));
+    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
+        PhysicalDevice, GpuContext.GetSurface(), &Capabilities));
 
     // FIFO is the one present mode every implementation must support.
     VkPresentModeKHR SwapchainPresentMode = VK_PRESENT_MODE_FIFO_KHR;
@@ -466,7 +396,7 @@ void Renderer::CreateSwapchain()
 
     VkSwapchainCreateInfoKHR SwapchainInfo = {
         VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
-    SwapchainInfo.surface = Surface;
+    SwapchainInfo.surface = GpuContext.GetSurface();
     SwapchainInfo.minImageCount = SwapchainImageCount;
     SwapchainInfo.imageFormat = SurfaceFormat;
     SwapchainInfo.imageColorSpace = SurfaceColor;
@@ -511,11 +441,11 @@ uint32_t Renderer::ChooseSwapchainImageCount(const VkSurfaceCapabilitiesKHR& Cap
 VkSurfaceFormatKHR Renderer::ChooseSurfaceFormat()
 {
     uint32_t SurfaceFormatCount;
-    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(PhysicalDevice, Surface,
-                                                       &SurfaceFormatCount, nullptr));
+    RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(
+        PhysicalDevice, GpuContext.GetSurface(), &SurfaceFormatCount, nullptr));
     std::vector<VkSurfaceFormatKHR> Formats(SurfaceFormatCount);
     RTRT_CHECK_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(
-        PhysicalDevice, Surface, &SurfaceFormatCount, Formats.data()));
+        PhysicalDevice, GpuContext.GetSurface(), &SurfaceFormatCount, Formats.data()));
     return Formats[0];
 }
 

@@ -1,6 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <ClCompile Include="..\src\vk\context.cpp">
+      <Filter>Source Files\vk</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\app.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -71,6 +74,12 @@
     <Filter Include="Header Files\scene">
       <UniqueIdentifier>{70357ea8-9ee2-4bdb-9bb4-474c17425cf3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\vk">
+      <UniqueIdentifier>{ad472fb9-aed0-46a3-b94d-9bbba64dfe80}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\vk">
+      <UniqueIdentifier>{fb8e3f73-181d-49b4-b2b4-6b4f41ae4f1d}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Shader Files">
       <UniqueIdentifier>{26802777-62b4-47ec-a051-4ee8e4be1a67}</UniqueIdentifier>
     </Filter>
@@ -79,6 +88,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\vk\context.h">
+      <Filter>Header Files\vk</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\app.h">
       <Filter>Header Files</Filter>
     </ClInclude>

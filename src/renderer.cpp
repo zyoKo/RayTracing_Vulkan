@@ -1,7 +1,5 @@
 #include "renderer.h"
 
-#include <assert.h>
-
 #include <string>
 #include <vector>
 
@@ -27,8 +25,10 @@ Renderer::Renderer(App* Owner) : Application(Owner)
 bool Renderer::Init()
 {
     UseSlang = Application->GetUseSlang();  // -slang picks the starting shader language
-    CreateInstance(Application->GetDoApiDump());  // -> Instance
-    assert(Instance);
+    if (!GpuContext.Init(Application->GetWindow(), Application->GetDoApiDump()))
+    {
+        return false;
+    }
     if (!CreatePhysicalDevice())
     {
         fprintf(stderr, "No GPU supports the required ray tracing extensions.\n");
@@ -40,7 +40,7 @@ bool Renderer::Init()
 
     LoadExtensions();  // Auto generated; loads namespace of all known extensions
 
-    GetSurface();         // -> Surface
+    CheckPresentSupport();
     CreateCommandPool();  // -> CmdPool
 
     CreateSwapchain();         // -> Swapchain
@@ -263,7 +263,7 @@ void Renderer::InitGui()
 
     // Setup Platform/Renderer back ends
     ImGui_ImplVulkan_InitInfo InitInfo = {};
-    InitInfo.Instance = Instance;
+    InitInfo.Instance = GpuContext.GetInstance();
     InitInfo.PhysicalDevice = PhysicalDevice;
     InitInfo.Device = Device;
     InitInfo.QueueFamily = GraphicsQueueIndex;

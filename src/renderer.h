@@ -12,6 +12,7 @@
 #include "descriptor_wrap.h"
 #include "image_wrap.h"
 #include "shaders/shared_structs.h"
+#include "vk/context.h"
 #include "vk_check.h"
 
 namespace rtrt
@@ -150,15 +151,6 @@ public:
     }
 
 private:
-    std::vector<const char*> ReqInstanceExtensions = {
-        // GLFW will add to this
-        "VK_EXT_debug_utils",  // Can help debug validation errors
-        "VK_KHR_win32_surface", "VK_KHR_surface"};
-
-    std::vector<const char*> ReqInstanceLayers = {
-        "VK_LAYER_KHRONOS_validation"  // ALWAYS!!
-    };
-
     std::vector<const char*> ReqDeviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,  // Presentation engine; draws to screen
         VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,  // Ray tracing extension
@@ -167,6 +159,7 @@ private:
         VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
 
     App* Application;
+    Context GpuContext;
 
     RenderSettings Settings;
     // Frames rendered since the history was last reset
@@ -190,9 +183,6 @@ private:
         const char* EntryPoint = "main");
 
     // Vulkan objects that will be created and the functions that will do the creation.
-    VkInstance Instance{};
-    void CreateInstance(bool DoApiDump);
-
     VkPhysicalDevice PhysicalDevice{};
     bool CreatePhysicalDevice();
     bool SupportsRequiredExtensions(VkPhysicalDevice Candidate);
@@ -208,8 +198,7 @@ private:
 
     void LoadExtensions();
 
-    VkSurfaceKHR Surface{};
-    void GetSurface();
+    void CheckPresentSupport();
 
     VkCommandPool CmdPool{VK_NULL_HANDLE};
     VkCommandBuffer CommandBuffer{};
