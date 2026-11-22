@@ -110,7 +110,7 @@ void Gui::Draw(Renderer& VK, Camera& View, CameraController& Controller)
     }
     if (ShowPerf)
     {
-        DrawPerfWindow();
+        DrawPerfWindow(VK);
     }
 }
 
@@ -141,7 +141,7 @@ void Gui::DrawViewportBackground(Renderer& VK)
          static_cast<uint32_t>(Io.DisplaySize.y * Io.DisplayFramebufferScale.y)});
 }
 
-void Gui::DrawPerfWindow()
+void Gui::DrawPerfWindow(const Renderer& VK)
 {
     ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(420, 330), ImGuiCond_FirstUseEver);
@@ -175,6 +175,14 @@ void Gui::DrawPerfWindow()
     StatRow(Stats, "Draw thread", Stats.DrawMs);
     StatRow(Stats, "GPU wait", Stats.GpuWaitMs);
     ImGui::Columns(1);
+
+    ImGui::Separator();
+    const GpuTimer& Timer = VK.GetGpuTimer();
+    ImGui::Text("GPU frame: %.2f ms", Timer.GetFrameMs());
+    for (const GpuScope& Scope : Timer.GetScopes())
+    {
+        ImGui::BulletText("%-10s %6.2f ms", Scope.Name, Scope.Ms);
+    }
 
     ImGui::Separator();
     ImGui::TextWrapped(

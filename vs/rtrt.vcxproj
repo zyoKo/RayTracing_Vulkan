@@ -26,6 +26,7 @@
     <ClCompile Include="..\src\renderer\ray_trace_pass.cpp" />
     <ClCompile Include="..\src\renderer\scanline_pass.cpp" />
     <ClCompile Include="..\src\renderer\ui_pass.cpp" />
+    <ClCompile Include="..\src\renderer\gpu_timer.cpp" />
     <ClCompile Include="..\src\renderer\post_pass.cpp" />
     <ClCompile Include="..\src\renderer\graphics_pipeline.cpp" />
     <ClCompile Include="..\src\rt\shader_binding_table.cpp" />
@@ -109,6 +110,7 @@
     <ClInclude Include="..\src\renderer\scanline_pass.h" />
     <ClInclude Include="..\src\renderer\pass_context.h" />
     <ClInclude Include="..\src\renderer\ui_pass.h" />
+    <ClInclude Include="..\src\renderer\gpu_timer.h" />
     <ClInclude Include="..\src\renderer\post_pass.h" />
     <ClInclude Include="..\src\renderer\graphics_pipeline.h" />
     <ClInclude Include="..\src\rt\shader_binding_table.h" />

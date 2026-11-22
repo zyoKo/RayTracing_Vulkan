@@ -102,7 +102,7 @@ public:
 
 private:
     void DrawSettingsWindow(Renderer& VK, Camera& View, CameraController& Controller);
-    void DrawPerfWindow();
+    void DrawPerfWindow(const Renderer& VK);
 
     // Each returns true when a change makes the accumulated history wrong.
     bool DrawModeSettings(Renderer& VK);
