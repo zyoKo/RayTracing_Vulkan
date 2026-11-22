@@ -183,6 +183,7 @@ struct ImGui_ImplGlfw_Data
     ImVec2                  LastValidMousePos;
     GLFWwindow*             KeyOwnerWindows[GLFW_KEY_LAST];
     bool                    InstalledCallbacks;
+    bool                    WantUpdateMonitors;
     bool                    CallbacksChainForAllWindows;
 #ifdef EMSCRIPTEN_USE_EMBEDDED_GLFW3
     const char*             CanvasSelector;
@@ -524,7 +525,10 @@ void ImGui_ImplGlfw_CharCallback(GLFWwindow* window, unsigned int c)
 
 void ImGui_ImplGlfw_MonitorCallback(GLFWmonitor*, int)
 {
-    // This function is technically part of the API even if we stopped using the callback, so leaving it around.
+    // rtrt: the monitor list is rebuilt only after a change, since GLFW 3.3's video mode
+    // queries cost several milliseconds per frame on Windows.
+    if (ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData())
+        bd->WantUpdateMonitors = true;
 }
 
 #ifdef EMSCRIPTEN_USE_EMBEDDED_GLFW3
@@ -631,6 +635,7 @@ static bool ImGui_ImplGlfw_Init(GLFWwindow* window, bool install_callbacks, Glfw
 
     bd->Window = window;
     bd->Time = 0.0;
+    bd->WantUpdateMonitors = true;
 
     ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
 #if GLFW_VERSION_COMBINED < 3300
@@ -973,7 +978,11 @@ void ImGui_ImplGlfw_NewFrame()
     io.DisplaySize = ImVec2((float)w, (float)h);
     if (w > 0 && h > 0)
         io.DisplayFramebufferScale = ImVec2((float)display_w / (float)w, (float)display_h / (float)h);
-    ImGui_ImplGlfw_UpdateMonitors();
+    if (bd->WantUpdateMonitors)
+    {
+        ImGui_ImplGlfw_UpdateMonitors();
+        bd->WantUpdateMonitors = false;
+    }
 
     // Setup time step
     // (Accept glfwGetTime() not returning a monotonically increasing value. Seems to happens on disconnecting peripherals and probably on VMs and Emscripten, see #6491, #6189, #6114, #3644)
