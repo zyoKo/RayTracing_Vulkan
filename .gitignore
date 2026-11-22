@@ -4,6 +4,8 @@
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
 #Generated files
+build/
+vs/
 *.sln
 *.vcxproj
 *.vcxproj.filters
@@ -406,7 +408,7 @@ FodyWeavers.xsd
 # ImGui window layout, saved per user
 imgui.ini
 
-# Compiled shaders, built by the Visual Studio build or src/compile_shaders.bat
+# Compiled shaders, built by the CMake build or src/compile_shaders.bat
 src/spv/
 
 # GLSL generated from the Slang shaders by src/compile_shaders.bat

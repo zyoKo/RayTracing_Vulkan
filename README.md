@@ -50,7 +50,8 @@ A real-time path tracer written in C++ on Vulkan's hardware ray tracing pipeline
 - Windows 10 or 11, 64-bit
 - A GPU and driver that support Vulkan ray tracing ([`VK_KHR_ray_tracing_pipeline`](https://docs.vulkan.org/refpages/latest/refpages/source/VK_KHR_ray_tracing_pipeline.html) and [`VK_KHR_acceleration_structure`](https://docs.vulkan.org/refpages/latest/refpages/source/VK_KHR_acceleration_structure.html))
 - [Vulkan SDK](https://vulkan.lunarg.com/) 1.4 or newer, with the `VULKAN_SDK` environment variable set. The SDK provides `glslangValidator` and `slangc`, which the build uses to compile shaders.
-- Visual Studio with the C++ desktop workload. The project targets platform toolset v145 (Visual Studio 2026). For an older Visual Studio, change the toolset in the project properties.
+- Visual Studio 2022 or newer with the C++ desktop workload
+- [CMake](https://cmake.org/) 3.20 or newer (Visual Studio's bundled CMake also works)
 
 GLFW, GLM, Dear ImGui, Assimp and stb_image are bundled in `libs/`.
 
@@ -71,9 +72,20 @@ At the default 1280×768 window, the path tracer with the denoiser runs at about
 
 ## Building and running
 
-1. Open `vs/rtrt.sln` in Visual Studio.
-2. Choose the `x64` platform and either the `Debug` or `Release` configuration, then build. The shaders are compiled to `src/spv/` as part of the build.
-3. The build writes `rtrt.exe` to `vs/x64/<configuration>/`. Visual Studio starts it with `src/` as the working directory, so it can find `models/` and `spv/`. When starting it some other way, run it from `src/`.
+The project is described by `CMakeLists.txt`. No Visual Studio files are kept in the repository.
+
+1. Generate the Visual Studio solution in `build/`:
+   ```bash
+   cmake -S . -B build
+   ```
+2. Open `build/rtrt.sln` and build `Debug` or `Release`, or build from the command line:
+   ```bash
+   cmake --build build --config Release
+   ```
+   The shaders are compiled to `src/spv/` as part of the build. Source files added under `src/` are picked up the next time CMake runs, which the build does on its own.
+3. The build writes `rtrt.exe` to `build/<configuration>/`. Visual Studio starts it with `src/` as the working directory, so it can find `models/` and `spv/`. When starting it some other way, run it from `src/`.
+
+You can also open the repository folder directly in Visual Studio (File > Open > Folder), which uses `CMakeLists.txt` without a solution.
 
 The compiled shaders in `src/spv/` and the generated GLSL in `src/shaders/glsl/` aren't kept in the repository. If any Slang shaders are missing when `rtrt.exe` starts, it runs `src/compile_shaders.bat` to build them with the Vulkan SDK's `slangc`, then carries on. You can also run `compile_shaders.bat` yourself after editing a shader, `compile_shaders.bat raytrace.slang` to rebuild one file, or `compile_shaders.bat glsl` to also generate the GLSL versions (which uses `glslangValidator` too). It needs the `VULKAN_SDK` environment variable, which the SDK installer sets.
 
