@@ -28,6 +28,11 @@
     <ClCompile Include="..\src\renderer\ui_pass.cpp" />
     <ClCompile Include="..\src\renderer\gpu_timer.cpp" />
     <ClCompile Include="..\src\renderer\screenshot.cpp" />
+    <ClCompile Include="..\src\ui\theme.cpp" />
+    <ClCompile Include="..\src\ui\property_grid.cpp" />
+    <ClCompile Include="..\src\ui\editor_log.cpp" />
+    <ClCompile Include="..\src\ui\gui_panels.cpp" />
+    <ClCompile Include="..\src\ui\gui_stats.cpp" />
     <ClCompile Include="..\src\renderer\post_pass.cpp" />
     <ClCompile Include="..\src\renderer\graphics_pipeline.cpp" />
     <ClCompile Include="..\src\rt\shader_binding_table.cpp" />
@@ -113,6 +118,9 @@
     <ClInclude Include="..\src\renderer\ui_pass.h" />
     <ClInclude Include="..\src\renderer\gpu_timer.h" />
     <ClInclude Include="..\src\renderer\screenshot.h" />
+    <ClInclude Include="..\src\ui\theme.h" />
+    <ClInclude Include="..\src\ui\property_grid.h" />
+    <ClInclude Include="..\src\ui\editor_log.h" />
     <ClInclude Include="..\src\renderer\post_pass.h" />
     <ClInclude Include="..\src\renderer\graphics_pipeline.h" />
     <ClInclude Include="..\src\rt\shader_binding_table.h" />

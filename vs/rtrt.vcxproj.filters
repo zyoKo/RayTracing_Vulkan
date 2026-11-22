@@ -28,6 +28,21 @@
     <ClCompile Include="..\src\renderer\screenshot.cpp">
       <Filter>Source Files\renderer</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\ui\theme.cpp">
+      <Filter>Source Files\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\property_grid.cpp">
+      <Filter>Source Files\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\editor_log.cpp">
+      <Filter>Source Files\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\gui_panels.cpp">
+      <Filter>Source Files\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\gui_stats.cpp">
+      <Filter>Source Files\ui</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\renderer\post_pass.cpp">
       <Filter>Source Files\renderer</Filter>
     </ClCompile>
@@ -228,6 +243,15 @@
     </ClInclude>
     <ClInclude Include="..\src\renderer\screenshot.h">
       <Filter>Header Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\ui\theme.h">
+      <Filter>Header Files\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\ui\property_grid.h">
+      <Filter>Header Files\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\ui\editor_log.h">
+      <Filter>Header Files\ui</Filter>
     </ClInclude>
     <ClInclude Include="..\src\renderer\post_pass.h">
       <Filter>Header Files\renderer</Filter>

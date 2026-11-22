@@ -24,17 +24,15 @@ constexpr int kShotFrame = 240;
 
 void Application::OnMouseButton(double X, double Y)
 {
-    if (Gui::WantsMouse())
-    {
-        return;
-    }
     MainController.OnMouseButton(static_cast<float>(X), static_cast<float>(Y));
 }
 
 void Application::OnCursorPos(double X, double Y)
 {
-    if (Gui::WantsMouse())
+    // Only a drag that started on the viewport turns the camera.
+    if (!MainGui.GetCameraOwnsMouse())
     {
+        MainController.OnMouseButton(static_cast<float>(X), static_cast<float>(Y));
         return;
     }
     MainController.OnCursorPos(static_cast<float>(X), static_cast<float>(Y), MainCamera);
@@ -52,18 +50,13 @@ void Application::OnKey(int Key, int Action)
     {
         MainWindow.Close();
     }
-
-    if (Action == GLFW_PRESS && Key == GLFW_KEY_F1)
-    {
-        MainGui.ToggleSettings();
-    }
 }
 
 void Application::UpdateCamera()
 {
     // Letters typed into a settings field (Ctrl+click on a slider) must not move the
     // camera.
-    MainController.Update(MainWindow, !Gui::WantsTextInput(), MainCamera);
+    MainController.Update(MainWindow, MainGui.GetCameraOwnsKeys(), MainCamera);
 }
 
 bool Application::Init(int Argc, char** Argv)
@@ -113,7 +106,7 @@ bool Application::Init(int Argc, char** Argv)
         return false;
     }
     MainGui.Init(MainWindow, GpuContext, GpuDevice, MainRenderer.GetUiRenderPass(),
-                 MainSwapchain.GetImageCount());
+                 MainSwapchain.GetImageCount(), MainRenderer);
     return true;
 }
 
@@ -132,6 +125,10 @@ int Application::Run()
             MainRenderer.RequestScreenshot(ShotPath);
         }
         MainGui.Draw(MainRenderer, MainCamera, MainController);
+        if (MainGui.GetExitRequested())
+        {
+            MainWindow.Close();
+        }
 
         const double CpuEnd = glfwGetTime();
         MainRenderer.DrawFrame();
@@ -140,7 +137,8 @@ int Application::Run()
         MainGui.RecordFrameTimes(static_cast<float>((FrameEnd - FrameStart) * 1000.0),
                                  static_cast<float>((CpuEnd - FrameStart) * 1000.0),
                                  static_cast<float>(MainRenderer.GetRecordMs()),
-                                 static_cast<float>(MainRenderer.GetGpuWaitMs()));
+                                 static_cast<float>(MainRenderer.GetGpuWaitMs()),
+                                 MainRenderer.GetGpuTimer().GetFrameMs());
         FrameStart = FrameEnd;
     }
 

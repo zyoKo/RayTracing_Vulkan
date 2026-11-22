@@ -107,7 +107,17 @@ public:
         return MainScene;
     }
 
+    const Scene& GetScene() const
+    {
+        return MainScene;
+    }
+
     RenderSettings& GetSettings()
+    {
+        return Settings;
+    }
+
+    const RenderSettings& GetSettings() const
     {
         return Settings;
     }
