@@ -71,7 +71,7 @@ void Gui::DrawStats(const Renderer& VK)
                                            ImGuiTableFlags_SizingStretchProp;
         if (ImGui::BeginTable("Timings", 5, TableFlags))
         {
-            ImGui::TableSetupColumn("Frame (ms)", ImGuiTableColumnFlags_WidthStretch, 1.6f);
+            ImGui::TableSetupColumn("ms", ImGuiTableColumnFlags_WidthStretch, 1.7f);
             ImGui::TableSetupColumn("Now", ImGuiTableColumnFlags_WidthStretch, 1.0f);
             ImGui::TableSetupColumn("Avg", ImGuiTableColumnFlags_WidthStretch, 1.0f);
             ImGui::TableSetupColumn("Min", ImGuiTableColumnFlags_WidthStretch, 1.0f);
@@ -91,9 +91,9 @@ void Gui::DrawStats(const Renderer& VK)
         const float GpuTotal = std::max(Timer.GetFrameMs(), 0.001f);
         if (ImGui::BeginTable("Passes", 3, TableFlags))
         {
-            ImGui::TableSetupColumn("GPU pass", ImGuiTableColumnFlags_WidthStretch, 1.6f);
+            ImGui::TableSetupColumn("GPU pass", ImGuiTableColumnFlags_WidthStretch, 2.4f);
             ImGui::TableSetupColumn("ms", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-            ImGui::TableSetupColumn("Share", ImGuiTableColumnFlags_WidthStretch, 3.0f);
+            ImGui::TableSetupColumn("Share", ImGuiTableColumnFlags_WidthStretch, 2.0f);
             ImGui::TableHeadersRow();
             for (const GpuScope& Scope : Timer.GetScopes())
             {
