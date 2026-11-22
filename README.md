@@ -121,6 +121,14 @@ Formatting is set in `.clang-format`. Format the code with the clang-format that
 
 ## Changelog
 
+### 2.3 Script for generating the Visual Studio solution ([3e39227](https://github.com/zyoKo/RayTracing_Vulkan/commit/3e392277ab09506c399750fdf9fe58b14c159840))
+
+Generating the solution meant typing the CMake command by hand. `scripts/generate_vs_files.bat` now checks for CMake and the Vulkan SDK, generates the solution in `build/` and can open it, and the build steps name the `.slnx` file that Visual Studio 2026 uses.
+
+### 2.2 CMake build in place of the Visual Studio project ([2414566](https://github.com/zyoKo/RayTracing_Vulkan/commit/24145669a125c690eac9e70dc2d816420ea9e133))
+
+The Visual Studio solution and project files had to be kept in the repository and edited for every new source file. A `CMakeLists.txt` now builds the app and its Slang shaders and generates the solution locally in `build/`, so the `vs/` files are no longer tracked.
+
 ### 2.1 GLSL shaders built on request ([c2d7368](https://github.com/zyoKo/RayTracing_Vulkan/commit/c2d7368ab42e122535607695c693fe9105e78e22))
 
 The builds and the startup check now compile only the Slang shaders. The GLSL versions are generated when asked for: from the **Build GLSL shaders** button in the new **Supported shader types** section of the settings panel (which switches to GLSL once the build finishes), by starting with `-glsl`, or with `compile_shaders.bat glsl`.
