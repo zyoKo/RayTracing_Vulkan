@@ -129,7 +129,7 @@ void Gui::DrawStats(const Renderer& VK)
                 DrawList->AddRectFilled(
                     ImVec2(BarPos.x, BarTop),
                     ImVec2(BarPos.x + BarWidth * Share, BarTop + BarHeight),
-                    ImGui::GetColorU32(kAccent), 2.0f);
+                    ImGui::GetColorU32(ImVec4(0.72f, 0.74f, 0.76f, 1.0f)), 2.0f);
                 ImGui::Dummy(ImVec2(BarWidth, ImGui::GetTextLineHeight()));
             }
             ImGui::EndTable();
@@ -222,6 +222,8 @@ void Gui::DrawTimeGraph(const ImVec2& Size) const
         DrawList->AddText(ImVec2(Min.x - TickWidth - 4.0f, LabelY),
                           ImGui::GetColorU32(kTextDim), Tick);
     }
+    DrawList->AddText(ImVec2(Min.x + 5.0f, Min.y + 2.0f), ImGui::GetColorU32(kTextDim),
+                      "ms");
     ImGui::PopFont();
 
     auto Series = [&](const float* Values, ImU32 Color)

@@ -42,7 +42,7 @@ A real-time path tracer written in C++ on Vulkan's hardware ray tracing pipeline
   - A menu bar (File, View, Render, Help) and a status bar with renderer, resolution, samples and timings.
 - **Screenshots.** F12 or the viewport's Screenshot button saves the viewport as a PNG in `src/screenshots/`.
 
-![Settings panel and performance window](images/Settings_And_Performance.png)
+![Editor interface](images/Editor.png)
 
 ## Screenshots
 

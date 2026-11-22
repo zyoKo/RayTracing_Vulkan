@@ -684,7 +684,7 @@ void Gui::DrawViewportOverlay(Renderer& VK, const ImVec2& Origin, const ImVec2& 
     ImGui::Checkbox("Denoise", &Settings.DenoiseEnabled);
     ImGui::EndDisabled();
     ImGui::SameLine();
-    if (ImGui::Button("Reset"))
+    if (ImGui::Button("Reset accum"))
     {
         VK.ResetRtAccumulation();
         Log(LogLevel::kInfo, "Accumulation reset");
