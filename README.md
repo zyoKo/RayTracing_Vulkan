@@ -123,6 +123,10 @@ Formatting is set in `.clang-format`. Format the code with the clang-format that
 
 ## Changelog
 
+### 2.5 Clean script and unused files removed ([8dd7590](https://github.com/zyoKo/RayTracing_Vulkan/commit/8dd759018dc47ffbab439de48848e0d361ebd7e5))
+
+Leftover generated files, like an old `vs/rtrt.sln`, could be opened by an IDE and fail to build. `scripts/clean_project_files.bat` now deletes every generated project, build and shader folder so `generate_vs_files.bat` can start fresh, and the unused 32-bit and duplicate GLFW and Assimp files, glm's docs and tests, `glu.h` and the old Makefile are gone.
+
 ### 2.4 Shader script in scripts/ and assimp.dll beside the exe ([ca5c863](https://github.com/zyoKo/RayTracing_Vulkan/commit/ca5c863c64a3f4b8e7a7feb95895a5a32c94c2c2))
 
 `compile_shaders.bat` sat among the sources and a copy of `assimp.dll` was kept in `src/`. The script now lives in `scripts/` and runs from any folder, and the build copies `assimp.dll` next to `rtrt.exe` instead of into the repository.
