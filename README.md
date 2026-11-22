@@ -87,7 +87,7 @@ The project is described by `CMakeLists.txt`. No Visual Studio files are kept in
 
 You can also open the repository folder directly in Visual Studio (File > Open > Folder), which uses `CMakeLists.txt` without a solution.
 
-The compiled shaders in `src/spv/` and the generated GLSL in `src/shaders/glsl/` aren't kept in the repository. If any Slang shaders are missing when `rtrt.exe` starts, it runs `src/compile_shaders.bat` to build them with the Vulkan SDK's `slangc`, then carries on. You can also run `compile_shaders.bat` yourself after editing a shader, `compile_shaders.bat raytrace.slang` to rebuild one file, or `compile_shaders.bat glsl` to also generate the GLSL versions (which uses `glslangValidator` too). It needs the `VULKAN_SDK` environment variable, which the SDK installer sets.
+The compiled shaders in `src/spv/` and the generated GLSL in `src/shaders/glsl/` aren't kept in the repository. If any Slang shaders are missing when `rtrt.exe` starts, it runs `scripts/compile_shaders.bat` to build them with the Vulkan SDK's `slangc`, then carries on. You can also run `compile_shaders.bat` yourself (from any folder) after editing a shader, `compile_shaders.bat raytrace.slang` to rebuild one file, or `compile_shaders.bat glsl` to also generate the GLSL versions (which uses `glslangValidator` too). It needs the `VULKAN_SDK` environment variable, which the SDK installer sets.
 
 Command-line options:
 

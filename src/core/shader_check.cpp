@@ -47,8 +47,8 @@ bool CompileShaders(bool WithGlsl)
 {
     fflush(stdout);
 #ifdef _WIN32
-    return std::system(WithGlsl ? ".\\compile_shaders.bat glsl"
-                                : ".\\compile_shaders.bat") == 0;
+    return std::system(WithGlsl ? "..\\scripts\\compile_shaders.bat glsl"
+                                : "..\\scripts\\compile_shaders.bat") == 0;
 #else
     fprintf(stderr, "Run make to compile the shaders\n");
     return false;

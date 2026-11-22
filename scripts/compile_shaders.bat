@@ -1,11 +1,11 @@
 @echo off
-rem Compiles the Slang shaders in shaders\ to SPIR-V in spv\ (<name>.slang.spv).
-rem   glsl          also translate each entry point to GLSL in shaders\glsl\ and compile
-rem                 that to spv\<name>.spv, for viewing and testing the GLSL version
+rem Compiles the Slang shaders in src\shaders\ to SPIR-V in src\spv\ (<name>.slang.spv).
+rem   glsl          also translate each entry point to GLSL in src\shaders\glsl\ and compile
+rem                 that to src\spv\<name>.spv, for viewing and testing the GLSL version
 rem   <file>.slang  build only that file
 rem Needs the Vulkan SDK (VULKAN_SDK).
 setlocal
-cd /d "%~dp0"
+cd /d "%~dp0..\src"
 
 if "%VULKAN_SDK%"=="" (
     echo VULKAN_SDK is not set. Install the Vulkan SDK, then open a new terminal.
@@ -45,9 +45,9 @@ if %FAILED%==1 (
     exit /b 1
 )
 if %WITH_GLSL%==1 (
-    echo Shaders compiled to spv\, generated GLSL in shaders\glsl\
+    echo Shaders compiled to src\spv\, generated GLSL in src\shaders\glsl\
 ) else (
-    echo Shaders compiled to spv\
+    echo Shaders compiled to src\spv\
 )
 exit /b 0
 

@@ -408,8 +408,8 @@ FodyWeavers.xsd
 # ImGui window layout, saved per user
 imgui.ini
 
-# Compiled shaders, built by the CMake build or src/compile_shaders.bat
+# Compiled shaders, built by the CMake build or scripts/compile_shaders.bat
 src/spv/
 
-# GLSL generated from the Slang shaders by src/compile_shaders.bat
+# GLSL generated from the Slang shaders by scripts/compile_shaders.bat
 src/shaders/glsl/

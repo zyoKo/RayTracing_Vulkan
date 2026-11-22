@@ -9,6 +9,7 @@ find_package(Vulkan REQUIRED)
 
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(LIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs)
+set(SCRIPTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/scripts)
 set(IMGUI_DIR ${LIBS_DIR}/imgui-master)
 
 file(GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS ${SRC_DIR}/*.cpp ${SRC_DIR}/*.h)
@@ -27,10 +28,10 @@ function(add_shader shader)
     list(TRANSFORM spv_names PREPEND ${SRC_DIR}/spv/)
     add_custom_command(
         OUTPUT ${spv_names}
-        COMMAND ${SRC_DIR}/compile_shaders.bat ${shader}
+        COMMAND ${SCRIPTS_DIR}/compile_shaders.bat ${shader}
         WORKING_DIRECTORY ${SRC_DIR}
         DEPENDS ${SRC_DIR}/shaders/${shader} ${SRC_DIR}/shaders/shared_structs.h
-                ${SRC_DIR}/shaders/rng.slang ${SRC_DIR}/compile_shaders.bat
+                ${SRC_DIR}/shaders/rng.slang ${SCRIPTS_DIR}/compile_shaders.bat
         COMMENT "Compiling Slang shader ${shader}"
     )
     set(SHADER_OUTPUTS ${SHADER_OUTPUTS} ${spv_names} PARENT_SCOPE)
@@ -41,7 +42,7 @@ add_shader(post.slang post.vert.slang.spv post.frag.slang.spv)
 add_shader(scanline.slang scanline.vert.slang.spv scanline.frag.slang.spv)
 add_shader(raytrace.slang raytrace.rgen.slang.spv raytrace.rmiss.slang.spv
            raytraceShadow.rmiss.slang.spv raytrace.rchit.slang.spv)
-add_custom_target(shaders DEPENDS ${SHADER_OUTPUTS} SOURCES ${SRC_DIR}/compile_shaders.bat)
+add_custom_target(shaders DEPENDS ${SHADER_OUTPUTS} SOURCES ${SCRIPTS_DIR}/compile_shaders.bat)
 
 add_executable(rtrt ${APP_SOURCES} ${IMGUI_SOURCES})
 add_dependencies(rtrt shaders)
@@ -67,7 +68,7 @@ target_link_options(rtrt PRIVATE $<$<CONFIG:Debug>:/NODEFAULTLIB:MSVCRT>)
 set_target_properties(rtrt PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 
 add_custom_command(TARGET rtrt POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${LIBS_DIR}/assimp/64/assimp.dll ${SRC_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${LIBS_DIR}/assimp/64/assimp.dll $<TARGET_FILE_DIR:rtrt>
 )
 
 set_target_properties(rtrt PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY ${SRC_DIR})
