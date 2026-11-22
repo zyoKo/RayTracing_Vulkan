@@ -34,6 +34,27 @@ public:
         return Spin;
     }
 
+    float GetTilt() const
+    {
+        return Tilt;
+    }
+
+    // Vertical field of view, in degrees.
+    float GetFovY() const;
+    void SetFovY(float Degrees);
+
+    void SetEye(const glm::vec3& Position)
+    {
+        Eye = Position;
+    }
+
+    // Sets yaw and pitch, in degrees.
+    void SetAngles(float NewSpin, float NewTilt)
+    {
+        Spin = NewSpin;
+        Tilt = NewTilt;
+    }
+
 private:
     float Ry = 0.57f;
     float Front = 0.1f;

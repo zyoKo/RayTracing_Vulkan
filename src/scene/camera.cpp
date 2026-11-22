@@ -1,5 +1,8 @@
 #include "scene/camera.h"
 
+#include <cmath>
+
+#include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
 
 namespace rtrt
@@ -40,9 +43,20 @@ void Camera::MoveBy(const glm::vec3& Step)
     Eye += Step;
 }
 
+float Camera::GetFovY() const
+{
+    return glm::degrees(2.0f * std::atan(Ry));
+}
+
+void Camera::SetFovY(float Degrees)
+{
+    Ry = std::tan(glm::radians(Degrees) * 0.5f);
+}
+
 void Camera::Reset()
 {
     const Camera Defaults;
+    Ry = Defaults.Ry;
     Spin = Defaults.Spin;
     Tilt = Defaults.Tilt;
     Eye = Defaults.Eye;

@@ -5,7 +5,9 @@
 
 #include "scene/scene.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -39,6 +41,7 @@ struct ModelData
     std::vector<Material> Materials;
     std::vector<int32_t> MatIndx;
     std::vector<std::string> Textures;
+    std::vector<std::string> MaterialNames;
 
     void ReadAssimpFile(const std::string& Path, const mat4& M);
     // Appends one Assimp material, and its diffuse texture if it has one.
@@ -127,6 +130,17 @@ void Scene::LoadModel(const Device& Gpu, const CommandPool& Pool,
     CollectEmitters(Meshdata, Emitters);
 
     Mesh Object = UploadModel(Gpu, Pool, Meshdata);
+    Object.Name = fs::path(FileName).stem().string();
+    Object.Materials = Meshdata.Materials;
+    Object.MaterialNames = Meshdata.MaterialNames;
+    Object.MaterialTriangles.assign(Meshdata.Materials.size(), 0);
+    for (const int32_t Index : Meshdata.MatIndx)
+    {
+        if (Index >= 0 && static_cast<size_t>(Index) < Object.MaterialTriangles.size())
+        {
+            Object.MaterialTriangles[Index]++;
+        }
+    }
 
     // Creates all textures on the GPU
     // Offset is current size
@@ -134,6 +148,7 @@ void Scene::LoadModel(const Device& Gpu, const CommandPool& Pool,
     for (const auto& TexName : Meshdata.Textures)
     {
         Textures.push_back(LoadTexture(Gpu, Pool, TexName));
+        TextureNames.push_back(fs::path(TexName).filename().string());
     }
 
     // Assuming one instance of an object with its supplied transform.
@@ -161,9 +176,54 @@ void Scene::CreateDescriptionBuffer(const Device& Gpu, const CommandPool& Pool)
                                      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 }
 
+void Scene::SetMaterial(uint32_t MeshIndex, uint32_t MaterialIndex, const Material& Value)
+{
+    Meshes[MeshIndex].Materials[MaterialIndex] = Value;
+    const std::pair<uint32_t, uint32_t> Key{MeshIndex, MaterialIndex};
+    if (std::find(DirtyMaterials.begin(), DirtyMaterials.end(), Key) ==
+        DirtyMaterials.end())
+    {
+        DirtyMaterials.push_back(Key);
+    }
+}
+
+bool Scene::RecordMaterialUpdates(VkCommandBuffer Cmd)
+{
+    if (DirtyMaterials.empty())
+    {
+        return false;
+    }
+
+    const VkPipelineStageFlags ReaderStages =
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+        VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+    VkMemoryBarrier Barrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+    Barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    Barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    vkCmdPipelineBarrier(Cmd, ReaderStages, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1,
+                         &Barrier, 0, nullptr, 0, nullptr);
+
+    for (const auto& [MeshIndex, MaterialIndex] : DirtyMaterials)
+    {
+        const Mesh& Object = Meshes[MeshIndex];
+        vkCmdUpdateBuffer(Cmd, Object.MatColorBuffer.GetHandle(),
+                          sizeof(Material) * MaterialIndex, sizeof(Material),
+                          &Object.Materials[MaterialIndex]);
+    }
+    DirtyMaterials.clear();
+
+    Barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    vkCmdPipelineBarrier(Cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, ReaderStages, 0, 1,
+                         &Barrier, 0, nullptr, 0, nullptr);
+    return true;
+}
+
 void Scene::Destroy()
 {
     Textures.clear();
+    TextureNames.clear();
+    DirtyMaterials.clear();
     Meshes.clear();
     Descriptions.clear();
     Instances.clear();
@@ -239,6 +299,7 @@ void ModelData::ReadMaterial(const aiMaterial* Mtl, const std::string& Path)
     aiColor3D Trans;
     bool Ht = Mtl->Get(AI_MATKEY_COLOR_TRANSPARENT, Trans);
 
+    MaterialNames.emplace_back(Name.C_Str());
     Material Newmat;
     // An emitter
     if (!Emit.IsBlack())
