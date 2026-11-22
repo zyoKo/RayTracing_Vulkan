@@ -121,6 +121,10 @@ Formatting is set in `.clang-format`. Format the code with the clang-format that
 
 ## Changelog
 
+### 2.4 Shader script in scripts/ and assimp.dll beside the exe ([ca5c863](https://github.com/zyoKo/RayTracing_Vulkan/commit/ca5c863c64a3f4b8e7a7feb95895a5a32c94c2c2))
+
+`compile_shaders.bat` sat among the sources and a copy of `assimp.dll` was kept in `src/`. The script now lives in `scripts/` and runs from any folder, and the build copies `assimp.dll` next to `rtrt.exe` instead of into the repository.
+
 ### 2.3 Script for generating the Visual Studio solution ([3e39227](https://github.com/zyoKo/RayTracing_Vulkan/commit/3e392277ab09506c399750fdf9fe58b14c159840))
 
 Generating the solution meant typing the CMake command by hand. `scripts/generate_vs_files.bat` now checks for CMake and the Vulkan SDK, generates the solution in `build/` and can open it, and the build steps name the `.slnx` file that Visual Studio 2026 uses.
