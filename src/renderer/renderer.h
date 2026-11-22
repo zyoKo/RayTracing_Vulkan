@@ -1,6 +1,8 @@
 #ifndef RTRT_SRC_RENDERER_RENDERER_H_
 #define RTRT_SRC_RENDERER_RENDERER_H_
 
+#include <string>
+
 #include <glm/glm.hpp>
 #include <vulkan/vulkan_core.h>
 
@@ -11,6 +13,7 @@
 #include "renderer/post_pass.h"
 #include "renderer/ray_trace_pass.h"
 #include "renderer/scanline_pass.h"
+#include "renderer/screenshot.h"
 #include "renderer/ui_pass.h"
 #include "rt/acceleration_structure.h"
 #include "scene/camera.h"
@@ -137,6 +140,17 @@ public:
         return GpuWaitMs;
     }
 
+    // Saves the next frame's viewport image as a PNG at Path.
+    void RequestScreenshot(const std::string& Path)
+    {
+        Capture.Request(Path);
+    }
+
+    const Screenshot& GetScreenshot() const
+    {
+        return Capture;
+    }
+
     // GPU time of each pass in the last finished frame.
     const GpuTimer& GetGpuTimer() const
     {
@@ -162,6 +176,7 @@ private:
     DenoisePass Denoiser;
     UiPass Ui;
     GpuTimer Timer;
+    Screenshot Capture;
     VkExtent2D RequestedExtent{0, 0};
     uint32_t ViewportVersion = 0;
 

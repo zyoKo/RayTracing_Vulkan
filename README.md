@@ -83,6 +83,7 @@ Command-line options:
 |---|---|
 | `-glsl` | Start with the shaders built from Slang's generated GLSL, building them first if needed |
 | `-d` | Enable the Vulkan API dump layer |
+| `-shot <file>` | Save the viewport as a PNG once 240 frames have accumulated |
 
 ## Controls
 

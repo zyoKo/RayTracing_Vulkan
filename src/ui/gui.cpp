@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdint>
 #include <future>
+#include <string>
 #include <thread>
 
 #include <backends/imgui_impl_glfw.h>
@@ -228,6 +229,15 @@ void Gui::DrawSettingsWindow(Renderer& VK, Camera& View, CameraController& Contr
 
     ImGui::Separator();
     ImGui::Checkbox("Show performance window", &ShowPerf);
+    if (ImGui::Button("Save screenshot"))
+    {
+        VK.RequestScreenshot("screenshots/rtrt_" +
+                             std::to_string(VK.GetScreenshot().GetSaveCount()) + ".png");
+    }
+    if (VK.GetScreenshot().GetSaveCount() > 0)
+    {
+        ImGui::TextWrapped("%s", VK.GetScreenshot().GetLastResult().c_str());
+    }
     if (ImGui::Button("Restore default settings"))
     {
         VK.SetDefaultSettings();
