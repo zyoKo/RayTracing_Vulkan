@@ -78,12 +78,14 @@ The project is described by `CMakeLists.txt`. No Visual Studio files are kept in
    ```bash
    cmake -S . -B build -A x64
    ```
-2. Open `build/rtrt.slnx` (`build/rtrt.sln` with Visual Studio 2022) and build `Debug` or `Release`, or build from the command line:
+2. Open `build/rtrt.slnx` (`build/rtrt.sln` with Visual Studio 2022) in Visual Studio or Rider and build `Debug` or `Release`, or build from the command line:
    ```bash
    cmake --build build --config Release
    ```
    The shaders are compiled to `src/spv/` as part of the build. Source files added under `src/` are picked up the next time CMake runs, which the build does on its own.
-3. The build writes `rtrt.exe` to `build/<configuration>/`. Visual Studio starts it with `src/` as the working directory, so it can find `models/` and `spv/`. When starting it some other way, run it from `src/`.
+3. The build writes `rtrt.exe` to `build/<configuration>/`. Visual Studio and Rider start it with `src/` as the working directory, so it can find `models/` and `spv/`. When starting it some other way, run it from `src/`.
+
+If the build picks up an old project or stale output, run `scripts/clean_project_files.bat` and then `scripts/generate_vs_files.bat`. The clean script deletes the generated solution, build output and compiled shaders (`build/`, `out/`, `vs/`, `.vs/`, `cmake-build-*/`, `src/spv/`, `src/shaders/glsl/`), leaving only the files in the repository plus your `imgui.ini` and screenshots.
 
 You can also open the repository folder directly in Visual Studio (File > Open > Folder), which uses `CMakeLists.txt` without a solution.
 

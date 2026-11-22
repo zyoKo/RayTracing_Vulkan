@@ -50,7 +50,7 @@ bool CompileShaders(bool WithGlsl)
     return std::system(WithGlsl ? "..\\scripts\\compile_shaders.bat glsl"
                                 : "..\\scripts\\compile_shaders.bat") == 0;
 #else
-    fprintf(stderr, "Run make to compile the shaders\n");
+    fprintf(stderr, "Compiling shaders is only set up on Windows\n");
     return false;
 #endif
 }

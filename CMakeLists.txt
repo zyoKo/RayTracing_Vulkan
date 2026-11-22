@@ -61,7 +61,7 @@ target_include_directories(rtrt PRIVATE
 target_link_libraries(rtrt PRIVATE
     Vulkan::Vulkan
     ${LIBS_DIR}/assimp/64/assimp.lib
-    ${LIBS_DIR}/glfw-3.3.2.bin.WIN64/lib-vc2019/glfw3.lib
+    ${LIBS_DIR}/glfw/lib-vc2019/glfw3.lib
 )
 # The prebuilt glfw3.lib uses the release CRT.
 target_link_options(rtrt PRIVATE $<$<CONFIG:Debug>:/NODEFAULTLIB:MSVCRT>)
