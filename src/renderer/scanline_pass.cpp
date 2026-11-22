@@ -64,7 +64,7 @@ void ScanlinePass::Record(VkCommandBuffer Cmd, const PassContext& Context,
     PassBeginInfo.pClearValues = ClearValues.data();
     PassBeginInfo.renderPass = Pass.GetHandle();
     PassBeginInfo.framebuffer = Target.GetHandle();
-    PassBeginInfo.renderArea = {{0, 0}, Context.Chain->GetExtent()};
+    PassBeginInfo.renderArea = {{0, 0}, Context.Extent};
     vkCmdBeginRenderPass(Cmd, &PassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     vkCmdBindPipeline(Cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, DrawPipeline.GetHandle());
@@ -164,7 +164,7 @@ void ScanlinePass::CreateFramebuffer(const PassContext& Context, const Image& Ou
                                      const Image& Depth)
 {
     Target.Create(Context.Gpu->GetHandle(), Pass.GetHandle(),
-                  {Output.GetView(), Depth.GetView()}, Context.Chain->GetExtent());
+                  {Output.GetView(), Depth.GetView()}, Context.Extent);
 }
 
 void ScanlinePass::CreatePipeline(const PassContext& Context,
@@ -197,7 +197,7 @@ void ScanlinePass::CreatePipeline(const PassContext& Context,
                                   "spv/scanline.frag.spv", "spv/scanline.frag.slang.spv"};
     DrawPipeline = CreateFullWindowPipeline(
         Context.Gpu->GetHandle(), Context.UseSlang, Shaders, VertexInputInfo,
-        DrawLayout.GetHandle(), Pass.GetHandle(), Context.Chain->GetExtent());
+        DrawLayout.GetHandle(), Pass.GetHandle(), Context.Extent);
 }
 
 }  // namespace rtrt

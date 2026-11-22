@@ -3,18 +3,15 @@
 #include <array>
 #include <cstdint>
 
-#include <backends/imgui_impl_vulkan.h>
-#include <imgui.h>
-
 #include "renderer/graphics_pipeline.h"
 
 namespace rtrt
 {
 
-void PostPass::Create(const PassContext& Context, const Image& Input, const Image& Depth)
+void PostPass::Create(const PassContext& Context, const Image& Input)
 {
     CreateRenderPass(Context.Gpu->GetHandle());
-    CreateFramebuffers(Context, Depth);
+    CreateOutput(Context);
 
     DescriptorBuilder()
         .AddCombinedImageSampler(VK_SHADER_STAGE_FRAGMENT_BIT)
@@ -26,15 +23,15 @@ void PostPass::Create(const PassContext& Context, const Image& Input, const Imag
 
 void PostPass::ReleaseSized()
 {
-    Framebuffers.clear();
+    Target.Destroy();
+    Output.Destroy();
     DrawPipeline.Destroy();
     DrawLayout.Destroy();
 }
 
-void PostPass::OnResize(const PassContext& Context, const Image& Input,
-                        const Image& Depth)
+void PostPass::OnResize(const PassContext& Context, const Image& Input)
 {
-    CreateFramebuffers(Context, Depth);
+    CreateOutput(Context);
     Desc.Set.Write(0, Input.Descriptor());
     // The pipeline bakes in the viewport size
     CreatePipeline(Context);
@@ -50,7 +47,8 @@ void PostPass::RebuildPipeline(const PassContext& Context)
 void PostPass::Destroy()
 {
     Pass.Destroy();
-    Framebuffers.clear();
+    Target.Destroy();
+    Output.Destroy();
     Desc.Destroy();
     DrawLayout.Destroy();
     DrawPipeline.Destroy();
@@ -59,97 +57,93 @@ void PostPass::Destroy()
 void PostPass::Record(VkCommandBuffer Cmd, const PassContext& Context,
                       const PushConstantPost& Constants) const
 {
-    std::array<VkClearValue, 2> ClearValues{};
-    ClearValues[0].color = {{1, 1, 1, 1}};
-    ClearValues[1].depthStencil = {1.0f, 0};
+    VkClearValue ClearValue{};
+    ClearValue.color = {{0, 0, 0, 1}};
 
     VkRenderPassBeginInfo PassBeginInfo{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
-    PassBeginInfo.clearValueCount = 2;
-    PassBeginInfo.pClearValues = ClearValues.data();
+    PassBeginInfo.clearValueCount = 1;
+    PassBeginInfo.pClearValues = &ClearValue;
     PassBeginInfo.renderPass = Pass.GetHandle();
-    PassBeginInfo.framebuffer = Framebuffers[Context.Chain->GetImageIndex()].GetHandle();
-    PassBeginInfo.renderArea = {{0, 0}, Context.Chain->GetExtent()};
+    PassBeginInfo.framebuffer = Target.GetHandle();
+    PassBeginInfo.renderArea = {{0, 0}, Context.Extent};
 
     vkCmdBeginRenderPass(Cmd, &PassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-    {  // extra indent for renderpass commands
-
-        vkCmdBindPipeline(Cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, DrawPipeline.GetHandle());
-        vkCmdBindDescriptorSets(Cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                DrawLayout.GetHandle(), 0, 1, &Desc.Set.GetHandle(), 0,
-                                nullptr);
-
-        vkCmdPushConstants(Cmd, DrawLayout.GetHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-                           sizeof(PushConstantPost), &Constants);
-
-        // Full-screen triangle: the vertex shader generates positions from gl_VertexIndex
-        vkCmdDraw(Cmd, 3, 1, 0, 0);
-
-        ImGui::Render();  // Rendering UI
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), Cmd);
-    }
+    vkCmdBindPipeline(Cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, DrawPipeline.GetHandle());
+    vkCmdBindDescriptorSets(Cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, DrawLayout.GetHandle(),
+                            0, 1, &Desc.Set.GetHandle(), 0, nullptr);
+    vkCmdPushConstants(Cmd, DrawLayout.GetHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                       sizeof(PushConstantPost), &Constants);
+    // Full-screen triangle: the vertex shader generates positions from gl_VertexIndex
+    vkCmdDraw(Cmd, 3, 1, 0, 0);
     vkCmdEndRenderPass(Cmd);
 }
 
 void PostPass::CreateRenderPass(VkDevice LogicalDevice)
 {
-    std::array<VkAttachmentDescription, 2> Attachments{};
-    // Color attachment
-    Attachments[0].format = VK_FORMAT_B8G8R8A8_UNORM;
-    Attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    Attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    Attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
-
-    // Depth attachment
-    Attachments[1].format = VK_FORMAT_X8_D24_UNORM_PACK32;
-    Attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    Attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    Attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    Attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
+    VkAttachmentDescription Attachment{};
+    Attachment.format = kOutputFormat;
+    Attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    Attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    Attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    Attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    Attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    Attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    Attachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     const VkAttachmentReference ColorReference{0,
                                                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
-    const VkAttachmentReference DepthReference{
-        1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
 
-    std::array<VkSubpassDependency, 1> SubpassDependencies{};
-    // Transition from final to initial (VK_SUBPASS_EXTERNAL refers to all commands
-    // executed outside of the actual renderpass)
-    SubpassDependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-    SubpassDependencies[0].dstSubpass = 0;
-    SubpassDependencies[0].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    SubpassDependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    SubpassDependencies[0].srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-    SubpassDependencies[0].dstAccessMask =
-        VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    SubpassDependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+    std::array<VkSubpassDependency, 2> Dependencies{};
+    // Last frame's UI draw and screenshot copy read the image before it is cleared
+    Dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+    Dependencies[0].dstSubpass = 0;
+    Dependencies[0].srcStageMask =
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT;
+    Dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    Dependencies[0].srcAccessMask = 0;
+    Dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    // The UI samples the result
+    Dependencies[1].srcSubpass = 0;
+    Dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+    Dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    Dependencies[1].dstStageMask =
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT;
+    Dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    Dependencies[1].dstAccessMask =
+        VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT;
 
-    VkSubpassDescription SubpassDescription{};
-    SubpassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    SubpassDescription.colorAttachmentCount = 1;
-    SubpassDescription.pColorAttachments = &ColorReference;
-    SubpassDescription.pDepthStencilAttachment = &DepthReference;
+    VkSubpassDescription Subpass{};
+    Subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    Subpass.colorAttachmentCount = 1;
+    Subpass.pColorAttachments = &ColorReference;
 
-    VkRenderPassCreateInfo RenderPassInfo{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
-    RenderPassInfo.attachmentCount = static_cast<uint32_t>(Attachments.size());
-    RenderPassInfo.pAttachments = Attachments.data();
-    RenderPassInfo.subpassCount = 1;
-    RenderPassInfo.pSubpasses = &SubpassDescription;
-    RenderPassInfo.dependencyCount = static_cast<uint32_t>(SubpassDependencies.size());
-    RenderPassInfo.pDependencies = SubpassDependencies.data();
+    VkRenderPassCreateInfo Info{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
+    Info.attachmentCount = 1;
+    Info.pAttachments = &Attachment;
+    Info.subpassCount = 1;
+    Info.pSubpasses = &Subpass;
+    Info.dependencyCount = static_cast<uint32_t>(Dependencies.size());
+    Info.pDependencies = Dependencies.data();
 
-    Pass.Create(LogicalDevice, RenderPassInfo);
+    Pass.Create(LogicalDevice, Info);
 }
 
-void PostPass::CreateFramebuffers(const PassContext& Context, const Image& Depth)
+void PostPass::CreateOutput(const PassContext& Context)
 {
-    // One framebuffer per swapchain image, all sharing one depth buffer
-    Framebuffers.resize(Context.Chain->GetImageCount());
-    for (uint32_t I = 0; I < Context.Chain->GetImageCount(); I++)
-    {
-        Framebuffers[I].Create(Context.Gpu->GetHandle(), Pass.GetHandle(),
-                               {Context.Chain->GetView(I), Depth.GetView()},
-                               Context.Chain->GetExtent());
-    }
+    Output.Create(*Context.Gpu, Context.Extent.width, Context.Extent.height,
+                  kOutputFormat,
+                  VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
+                      VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    Output.CreateView(kOutputFormat);
+    Output.CreateSampler(*Context.Gpu);
+    Output.SetLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    // The UI may sample it before the first post draw
+    Output.TransitionLayout(*Context.Pool, VK_IMAGE_LAYOUT_UNDEFINED,
+                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    Target.Create(Context.Gpu->GetHandle(), Pass.GetHandle(), {Output.GetView()},
+                  Context.Extent);
 }
 
 void PostPass::CreatePipeline(const PassContext& Context)
@@ -159,19 +153,14 @@ void PostPass::CreatePipeline(const PassContext& Context)
     DrawLayout.Create(Context.Gpu->GetHandle(), {Desc.Layout.GetHandle()},
                       {PushConstant});
 
-    // No geometry in this pipeline's draw.
-    VkPipelineVertexInputStateCreateInfo VertexInputInfo{};
-    VertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    VertexInputInfo.vertexBindingDescriptionCount = 0;
-    VertexInputInfo.pVertexBindingDescriptions = nullptr;
-    VertexInputInfo.vertexAttributeDescriptionCount = 0;
-    VertexInputInfo.pVertexAttributeDescriptions = nullptr;
+    VkPipelineVertexInputStateCreateInfo VertexInputInfo{
+        VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
 
     const GraphicsShaders Shaders{"spv/post.vert.spv", "spv/post.vert.slang.spv",
                                   "spv/post.frag.spv", "spv/post.frag.slang.spv"};
     DrawPipeline = CreateFullWindowPipeline(
         Context.Gpu->GetHandle(), Context.UseSlang, Shaders, VertexInputInfo,
-        DrawLayout.GetHandle(), Pass.GetHandle(), Context.Chain->GetExtent());
+        DrawLayout.GetHandle(), Pass.GetHandle(), Context.Extent);
 }
 
 }  // namespace rtrt

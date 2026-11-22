@@ -100,16 +100,15 @@ void DenoisePass::Record(VkCommandBuffer Cmd, const PassContext& Context,
                            sizeof(PushConstantDenoise), &PassConstants);
 
         // One 128x1 workgroup per row segment
-        vkCmdDispatch(Cmd,
-                      (Context.Chain->GetExtent().width + kGroupSize - 1) / kGroupSize,
-                      Context.Chain->GetExtent().height, 1);
+        vkCmdDispatch(Cmd, (Context.Extent.width + kGroupSize - 1) / kGroupSize,
+                      Context.Extent.height, 1);
 
         CmdMemoryBarrier(Cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                          VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
                          VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT);
 
         // Feed this pass's output back in as the next pass's input
-        CmdCopyImage(Cmd, Output, Color, Context.Chain->GetExtent());
+        CmdCopyImage(Cmd, Output, Color, Context.Extent);
 
         // The next pass, or the post pass, reads Color
         CmdMemoryBarrier(
@@ -121,7 +120,7 @@ void DenoisePass::Record(VkCommandBuffer Cmd, const PassContext& Context,
 
 void DenoisePass::CreateOutput(const PassContext& Context)
 {
-    Output = CreateRenderImage(*Context.Gpu, Context.Chain->GetExtent());
+    Output = CreateRenderImage(*Context.Gpu, Context.Extent);
     Output.TransitionLayout(*Context.Pool, VK_IMAGE_LAYOUT_UNDEFINED,
                             VK_IMAGE_LAYOUT_GENERAL);
 }

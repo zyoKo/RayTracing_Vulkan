@@ -105,54 +105,53 @@ void RayTracePass::Record(VkCommandBuffer Cmd, const PassContext& Context,
                        0, sizeof(PushConstantRay), &Constants);
 
     // This dispatches the ray generation shader for each pixel on screen.
-    Sbt.CmdTraceRays(Cmd, Context.Chain->GetExtent().width,
-                     Context.Chain->GetExtent().height);
+    Sbt.CmdTraceRays(Cmd, Context.Extent.width, Context.Extent.height);
 
     // Copy the ray tracer output image to the scanline output image
     // -- because we already have the operations needed to display
     // that image on the screen.  The debug views show a G-buffer image instead.
     if (ViewMode == kViewAlbedo)
     {
-        CmdCopyImage(Cmd, KdCurr, Output, Context.Chain->GetExtent());
+        CmdCopyImage(Cmd, KdCurr, Output, Context.Extent);
     }
     else if (ViewMode == kViewNormal || ViewMode == kViewDepth)
     {
-        CmdCopyImage(Cmd, NdCurr, Output, Context.Chain->GetExtent());
+        CmdCopyImage(Cmd, NdCurr, Output, Context.Extent);
     }
     else
     {
-        CmdCopyImage(Cmd, ColCurr, Output, Context.Chain->GetExtent());
+        CmdCopyImage(Cmd, ColCurr, Output, Context.Extent);
     }
 
     // Save current frame buffers as history for the next frame
-    CmdCopyImage(Cmd, ColCurr, ColPrev, Context.Chain->GetExtent());
-    CmdCopyImage(Cmd, KdCurr, KdPrev, Context.Chain->GetExtent());
-    CmdCopyImage(Cmd, NdCurr, NdPrev, Context.Chain->GetExtent());
+    CmdCopyImage(Cmd, ColCurr, ColPrev, Context.Extent);
+    CmdCopyImage(Cmd, KdCurr, KdPrev, Context.Extent);
+    CmdCopyImage(Cmd, NdCurr, NdPrev, Context.Extent);
 }
 
 void RayTracePass::CreateImages(const PassContext& Context)
 {
-    ColCurr = CreateRenderImage(*Context.Gpu, Context.Chain->GetExtent());
+    ColCurr = CreateRenderImage(*Context.Gpu, Context.Extent);
     ColCurr.TransitionLayout(*Context.Pool, VK_IMAGE_LAYOUT_UNDEFINED,
                              VK_IMAGE_LAYOUT_GENERAL);
 
-    ColPrev = CreateRenderImage(*Context.Gpu, Context.Chain->GetExtent());
+    ColPrev = CreateRenderImage(*Context.Gpu, Context.Extent);
     ColPrev.TransitionLayout(*Context.Pool, VK_IMAGE_LAYOUT_UNDEFINED,
                              VK_IMAGE_LAYOUT_GENERAL);
 
-    NdCurr = CreateRenderImage(*Context.Gpu, Context.Chain->GetExtent());
+    NdCurr = CreateRenderImage(*Context.Gpu, Context.Extent);
     NdCurr.TransitionLayout(*Context.Pool, VK_IMAGE_LAYOUT_UNDEFINED,
                             VK_IMAGE_LAYOUT_GENERAL);
 
-    NdPrev = CreateRenderImage(*Context.Gpu, Context.Chain->GetExtent());
+    NdPrev = CreateRenderImage(*Context.Gpu, Context.Extent);
     NdPrev.TransitionLayout(*Context.Pool, VK_IMAGE_LAYOUT_UNDEFINED,
                             VK_IMAGE_LAYOUT_GENERAL);
 
-    KdCurr = CreateRenderImage(*Context.Gpu, Context.Chain->GetExtent());
+    KdCurr = CreateRenderImage(*Context.Gpu, Context.Extent);
     KdCurr.TransitionLayout(*Context.Pool, VK_IMAGE_LAYOUT_UNDEFINED,
                             VK_IMAGE_LAYOUT_GENERAL);
 
-    KdPrev = CreateRenderImage(*Context.Gpu, Context.Chain->GetExtent());
+    KdPrev = CreateRenderImage(*Context.Gpu, Context.Extent);
     KdPrev.TransitionLayout(*Context.Pool, VK_IMAGE_LAYOUT_UNDEFINED,
                             VK_IMAGE_LAYOUT_GENERAL);
 }

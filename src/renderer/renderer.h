@@ -10,6 +10,7 @@
 #include "renderer/post_pass.h"
 #include "renderer/ray_trace_pass.h"
 #include "renderer/scanline_pass.h"
+#include "renderer/ui_pass.h"
 #include "rt/acceleration_structure.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
@@ -70,6 +71,33 @@ public:
     // Throws away the accumulated path-tracing history.
     void ResetRtAccumulation();
 
+    // Asks for render images of Size; ApplyRenderExtent rebuilds them.
+    void RequestRenderExtent(VkExtent2D Size)
+    {
+        RequestedExtent = Size;
+    }
+
+    // Rebuilds every render-sized resource when the requested size differs. Call before
+    // the UI frame is built, since it replaces the viewport image.
+    void ApplyRenderExtent();
+
+    VkExtent2D GetRenderExtent() const
+    {
+        return PassCtx.Extent;
+    }
+
+    // The tone-mapped frame, in the shader-read layout.
+    const Image& GetViewportImage() const
+    {
+        return Post.GetOutput();
+    }
+
+    // Changes whenever GetViewportImage is rebuilt.
+    uint32_t GetViewportVersion() const
+    {
+        return ViewportVersion;
+    }
+
     RenderSettings& GetSettings()
     {
         return Settings;
@@ -99,7 +127,7 @@ public:
     // The render pass the UI is drawn in.
     VkRenderPass GetUiRenderPass() const
     {
-        return Post.GetRenderPass();
+        return Ui.GetRenderPass();
     }
 
     // Time blocked on the previous frame's fence.
@@ -125,6 +153,9 @@ private:
     ScanlinePass Scanline;
     RayTracePass RayTrace;
     DenoisePass Denoiser;
+    UiPass Ui;
+    VkExtent2D RequestedExtent{0, 0};
+    uint32_t ViewportVersion = 0;
 
     RenderSettings Settings;
     // Frames rendered since the history was last reset
@@ -137,9 +168,9 @@ private:
     double RecordMs = 0.0;
 
     // False if the window closed while minimized
-    bool RecreateSizedResources();
-    // Everything that depends on the window size.
-    void DestroySizedResources();
+    bool RecreateSwapchain();
+    void CreateRenderSized();
+    void DestroyRenderSized();
 
     CommandPool MainCmdPool;
     CommandBuffer FrameCmd;

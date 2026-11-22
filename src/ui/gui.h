@@ -114,7 +114,13 @@ private:
     void DrawCameraSettings(Camera& View, CameraController& Controller);
     void DrawShaderSettings(Renderer& VK);
 
+    // Registers the viewport image with ImGui again after the renderer rebuilds it.
+    void SyncViewportTexture(const Renderer& VK);
+    void DrawViewportBackground(Renderer& VK);
+
     VkDevice DeviceHandle = VK_NULL_HANDLE;
+    VkDescriptorSet ViewportTexture = VK_NULL_HANDLE;
+    uint32_t ViewportVersion = 0;
     // GLSL was picked before its shaders were built
     bool WantGlsl = false;
     std::future<bool> GlslBuild;

@@ -1,8 +1,6 @@
 #ifndef RTRT_SRC_RENDERER_POST_PASS_H_
 #define RTRT_SRC_RENDERER_POST_PASS_H_
 
-#include <vector>
-
 #include <vulkan/vulkan_core.h>
 
 #include "renderer/pass_context.h"
@@ -17,42 +15,45 @@
 namespace rtrt
 {
 
-// Tone-maps the rendered image into the swapchain image and draws the UI on top.
+// Tone-maps the rendered image into an RGBA8 viewport image that the UI samples.
 class PostPass
 {
 public:
-    // Creates the render pass, one framebuffer per swapchain image (sharing Depth), the
-    // descriptor set that samples Input, and the pipeline.
-    void Create(const PassContext& Context, const Image& Input, const Image& Depth);
+    static constexpr VkFormat kOutputFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
-    // Frees what depends on the window size, before the swapchain is rebuilt.
+    // Creates the render pass, the output image and its framebuffer, the descriptor set
+    // that samples Input, and the pipeline.
+    void Create(const PassContext& Context, const Image& Input);
+
+    // Frees what depends on the render size.
     void ReleaseSized();
-    // Rebuilds it once the swapchain, Input and Depth have their new size.
-    void OnResize(const PassContext& Context, const Image& Input, const Image& Depth);
+    // Rebuilds it once Input has its new size.
+    void OnResize(const PassContext& Context, const Image& Input);
 
     // Rebuilds the pipeline after a shader language switch.
     void RebuildPipeline(const PassContext& Context);
 
     void Destroy();
 
-    // Records the full-screen draw into the acquired swapchain image, then the ImGui
-    // draw data.
+    // Records the full-screen draw into the output image, leaving it ready for
+    // fragment-shader reads.
     void Record(VkCommandBuffer Cmd, const PassContext& Context,
                 const PushConstantPost& Constants) const;
 
-    VkRenderPass GetRenderPass() const
+    // In the shader-read layout after Record.
+    const Image& GetOutput() const
     {
-        return Pass.GetHandle();
+        return Output;
     }
 
 private:
     void CreateRenderPass(VkDevice LogicalDevice);
-    void CreateFramebuffers(const PassContext& Context, const Image& Depth);
+    void CreateOutput(const PassContext& Context);
     void CreatePipeline(const PassContext& Context);
 
     RenderPass Pass;
-    // One per swapchain image
-    std::vector<Framebuffer> Framebuffers;
+    Image Output;
+    Framebuffer Target;
     DescriptorBundle Desc;
     PipelineLayout DrawLayout;
     Pipeline DrawPipeline;
