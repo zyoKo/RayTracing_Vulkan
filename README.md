@@ -32,10 +32,15 @@ A real-time path tracer written in C++ on Vulkan's hardware ray tracing pipeline
   - Slang writes buffer pointers as `std430` in its GLSL output, while the C++ data is tightly packed. `compile_shaders.bat` switches them to `scalar`, the layout Slang's own SPIR-V uses.
 
 ### Tools
-- **Settings panel** (F1 to show or hide). Every path tracer, temporal history, denoiser, display and camera setting can be adjusted live, with buttons to reset history and restore defaults.
-- **Performance window.** Opened from the settings panel. It shows:
-  - FPS, frame latency and a frame-time graph.
-  - Now/average/min/max timings over the last 240 frames, split into CPU work (input, camera and UI), draw work (acquire, record, submit and present), and time spent waiting for the GPU.
+- **Editor interface.** A docked Dear ImGui layout that can be rearranged and is kept in `imgui.ini`:
+  - **Viewport**: the path-traced image at 1:1 pixels (the render size follows the panel), with a toolbar for renderer, view mode, denoiser, reset and screenshot, and an fps / spp / resolution overlay.
+  - **Outliner**: the camera, models, lights, materials and textures, with a filter.
+  - **Inspector**: the selected camera (position, angles, field of view, speed), model (geometry counts) or material (base color, specular, roughness, emission, edited live).
+  - **Render Settings**: integrator, accumulation, denoiser, display and shader source.
+  - **Stats**: frame, UI build, record, fence and vsync timings, per-pass GPU timings from timestamp queries, and a frame/GPU time graph.
+  - **Console**: timestamped engine messages.
+  - A menu bar (File, View, Render, Help) and a status bar with renderer, resolution, samples and timings.
+- **Screenshots.** F12 or the viewport's Screenshot button saves the viewport as a PNG in `src/screenshots/`.
 
 ![Settings panel and performance window](images/Settings_And_Performance.png)
 
@@ -89,10 +94,13 @@ Command-line options:
 
 | Input | Action |
 |---|---|
-| Left-mouse drag | Look around |
-| W / A / S / D | Move forward / left / back / right |
+| Left-mouse drag in the viewport | Look around |
+| W / A / S / D | Move forward / left / back / right (viewport hovered or focused) |
 | E / C | Move up / down |
-| F1 | Show or hide the settings panel |
+| Mouse wheel over the viewport | Change move speed |
+| F1 | Hide or show the interface |
+| F5 | Reset accumulation |
+| F12 | Save a screenshot |
 | Esc | Quit |
 
 ## Coding guidelines

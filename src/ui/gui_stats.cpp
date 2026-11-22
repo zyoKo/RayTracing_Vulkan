@@ -73,7 +73,7 @@ void Gui::DrawStats(const Renderer& VK)
                                            ImGuiTableFlags_SizingStretchProp;
         if (ImGui::BeginTable("Timings", 5, TableFlags))
         {
-            ImGui::TableSetupColumn("ms", ImGuiTableColumnFlags_WidthStretch, 1.7f);
+            ImGui::TableSetupColumn("ms", ImGuiTableColumnFlags_WidthStretch, 2.1f);
             ImGui::TableSetupColumn("Now", ImGuiTableColumnFlags_WidthStretch, 1.0f);
             ImGui::TableSetupColumn("Avg", ImGuiTableColumnFlags_WidthStretch, 1.0f);
             ImGui::TableSetupColumn("Min", ImGuiTableColumnFlags_WidthStretch, 1.0f);

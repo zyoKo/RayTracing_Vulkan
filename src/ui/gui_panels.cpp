@@ -1,5 +1,6 @@
 #include "ui/gui.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
@@ -37,36 +38,27 @@ void InspectorHeader(ImFont* Title, const char* Name, const char* Kind)
     ImGui::PushFont(Title);
     ImGui::TextUnformatted(Name);
     ImGui::PopFont();
-    ImGui::PushStyleColor(ImGuiCol_Text, kAccent);
-    ImGui::TextUnformatted(Kind);
-    ImGui::PopStyleColor();
+    ImGui::TextDisabled("%s", Kind);
     ImGui::Spacing();
 }
 
-// 1234567 as "1,234,567".
-std::string GroupDigits(uint64_t Value)
+// A round colour chip with a thin ring on the current line, for outliner rows. Lights
+// get a soft halo so they read as emitters.
+void Swatch(const glm::vec3& Color, bool Light)
 {
-    std::string Digits = std::to_string(Value);
-    for (int I = static_cast<int>(Digits.size()) - 3; I > 0; I -= 3)
-    {
-        Digits.insert(static_cast<size_t>(I), ",");
-    }
-    return Digits;
-}
-
-// A bordered colour square on the current line, for outliner rows.
-void Swatch(const glm::vec3& Color)
-{
-    const float Size = ImGui::GetTextLineHeight() * 0.7f;
+    const float LineHeight = ImGui::GetTextLineHeight();
+    const float Radius = LineHeight * 0.3f;
     const ImVec2 Pos = ImGui::GetCursorScreenPos();
-    const float Top = Pos.y + (ImGui::GetTextLineHeight() - Size) * 0.5f;
+    const ImVec2 Center(Pos.x + LineHeight * 0.5f, Pos.y + LineHeight * 0.5f);
     ImDrawList* DrawList = ImGui::GetWindowDrawList();
-    DrawList->AddRectFilled(ImVec2(Pos.x, Top), ImVec2(Pos.x + Size, Top + Size),
-                            ImGui::GetColorU32(ToColor(Color)), 2.0f);
-    DrawList->AddRect(ImVec2(Pos.x, Top), ImVec2(Pos.x + Size, Top + Size),
-                      IM_COL32(150, 152, 156, 160), 2.0f);
-    ImGui::Dummy(ImVec2(Size, ImGui::GetTextLineHeight()));
-    ImGui::SameLine(0.0f, 6.0f);
+    if (Light)
+    {
+        DrawList->AddCircleFilled(Center, Radius * 1.7f, IM_COL32(255, 236, 170, 45));
+    }
+    DrawList->AddCircleFilled(Center, Radius, ImGui::GetColorU32(ToColor(Color)));
+    DrawList->AddCircle(Center, Radius, IM_COL32(150, 152, 156, 170), 0, 1.0f);
+    ImGui::Dummy(ImVec2(LineHeight, LineHeight));
+    ImGui::SameLine(0.0f, 4.0f);
 }
 
 // A colour swatch that opens a picker, followed by its values in the mono font.
@@ -75,12 +67,26 @@ bool ColorProperty(const char* Id, float* Rgb, ImFont* Mono, bool Hdr)
     const ImGuiColorEditFlags Flags =
         ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel |
         ImGuiColorEditFlags_Float | (Hdr ? ImGuiColorEditFlags_HDR : 0);
-    const bool Changed = ImGui::ColorEdit3(Id, Rgb, Flags);
-    ImGui::SameLine();
+    ImGui::PushID(Id);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+    ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.55f, 0.56f, 0.58f, 0.6f));
+    bool Changed = ImGui::ColorEdit3("##Swatch", Rgb, Flags);
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar();
+    ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+    constexpr const char* kChannels[] = {"", "", ""};
     ImGui::PushFont(Mono);
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextDisabled("%.2f %.2f %.2f", Rgb[0], Rgb[1], Rgb[2]);
+    Changed |= AxisProperty("Channels", Rgb, 3, kChannels, 0.005f, "%.2f");
     ImGui::PopFont();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+    {
+        ImGui::SetTooltip("Red, green, blue");
+    }
+    for (int I = 0; I < 3; I++)
+    {
+        Rgb[I] = Hdr ? std::max(Rgb[I], 0.0f) : std::clamp(Rgb[I], 0.0f, 1.0f);
+    }
+    ImGui::PopID();
     return Changed;
 }
 
@@ -95,8 +101,8 @@ void Gui::OutlinerMaterialRow(uint32_t MeshIndex, uint32_t Index, const Mesh& Mo
 {
     const char* Name = Model.MaterialNames[Index].c_str();
     ImGui::PushID(static_cast<int>(Index));
-    Swatch(IsEmissive(Model.Materials[Index]) ? Model.Materials[Index].Emission
-                                              : Model.Materials[Index].Diffuse);
+    const bool Light = IsEmissive(Model.Materials[Index]);
+    Swatch(Light ? glm::vec3(1.0f, 0.93f, 0.72f) : Model.Materials[Index].Diffuse, Light);
     const bool IsSelected = Selected == Selection::kMaterial &&
                             SelectedMesh == MeshIndex && SelectedMaterial == Index;
     if (ImGui::Selectable(Name, IsSelected))
@@ -186,7 +192,7 @@ void Gui::DrawOutliner(Renderer& VK)
                 {
                     LightCount += IsEmissive(Value) ? 1 : 0;
                 }
-                snprintf(Label, sizeof(Label), "Lights (%u)", LightCount);
+                snprintf(Label, sizeof(Label), "Lights (%u emissive)", LightCount);
                 if (Filtering)
                 {
                     ImGui::SetNextItemOpen(true);
@@ -291,14 +297,16 @@ void Gui::DrawCameraInspector(Camera& View, CameraController& Controller)
     if (Section(Fonts.Bold, "Transform") && BeginProperties("CameraTransform"))
     {
         glm::vec3 Eye = View.GetEye();
-        PropertyRow("Position", "World-space eye position, in metres");
-        if (ImGui::DragFloat3("##Position", &Eye.x, 0.01f, 0.0f, 0.0f, "%.2f"))
+        constexpr const char* kAxes[] = {"X", "Y", "Z"};
+        PropertyRow("Position (m)", "World-space eye position, in metres");
+        if (AxisProperty("Position", &Eye.x, 3, kAxes, 0.01f, "%.2f"))
         {
             View.SetEye(Eye);
         }
         float Angles[2] = {View.GetSpin(), View.GetTilt()};
         PropertyRow("Yaw / pitch", "Degrees");
-        if (ImGui::DragFloat2("##Angles", Angles, 0.2f, 0.0f, 0.0f, kDegreeFormat))
+        constexpr const char* kAngles[] = {"Yaw", "Pitch"};
+        if (AxisProperty("Angles", Angles, 2, kAngles, 0.2f, kDegreeFormat))
         {
             View.SetAngles(Angles[0], Angles[1]);
         }
@@ -309,7 +317,7 @@ void Gui::DrawCameraInspector(Camera& View, CameraController& Controller)
     {
         float Fov = View.GetFovY();
         PropertyRow("Vertical FOV");
-        if (ImGui::SliderFloat("##Fov", &Fov, 20.0f, 110.0f, kDegreeFormat))
+        if (ScalarProperty("##Fov", &Fov, 20.0f, 110.0f, kDegreeFormat))
         {
             View.SetFovY(Fov);
         }
@@ -320,8 +328,8 @@ void Gui::DrawCameraInspector(Camera& View, CameraController& Controller)
     {
         float MoveSpeed = Controller.GetMoveSpeed();
         PropertyRow("Move speed", "Also the mouse wheel over the viewport");
-        if (ImGui::SliderFloat("##Speed", &MoveSpeed, 0.05f, 20.0f, "%.2f m/s",
-                               ImGuiSliderFlags_Logarithmic))
+        if (ScalarProperty("##Speed", &MoveSpeed, 0.05f, 20.0f, "%.2f m/s",
+                           ImGuiSliderFlags_Logarithmic))
         {
             Controller.SetMoveSpeed(MoveSpeed);
         }
@@ -391,8 +399,7 @@ void Gui::DrawMaterialInspector(Renderer& VK)
         PropertyRow("Specular", "Specular reflectance at normal incidence");
         Changed |= ColorProperty("##Specular", &Value.Specular.x, Fonts.Mono, false);
         PropertyRow("Roughness", "GGX roughness: 0 is a mirror, 1 is fully rough");
-        Changed |=
-            ImGui::SliderFloat("##Roughness", &Value.Shininess, 0.0f, 1.0f, "%.3f");
+        Changed |= ScalarProperty("##Roughness", &Value.Shininess, 0.0f, 1.0f, "%.3f");
         EndProperties();
     }
 
@@ -477,10 +484,9 @@ bool Gui::DrawIntegratorSettings(Renderer& VK)
     ResetHistory |= ImGui::DragInt("##Depth", &Ray.Depth, 0.1f, 1, 32, "%d bounces",
                                    ImGuiSliderFlags_AlwaysClamp);
     PropertyRow("Survival chance", "Russian roulette probability, tested per bounce");
-    ResetHistory |= ImGui::SliderFloat("##Rr", &Ray.Rr, 0.1f, 0.95f, "%.2f");
+    ResetHistory |= ScalarProperty("##Rr", &Ray.Rr, 0.1f, 0.95f, "%.2f");
     PropertyRow("Emission scale", "Multiplier on every emitter");
-    ResetHistory |=
-        ImGui::SliderFloat("##Emission", &Ray.EmissionScale, 0.0f, 5.0f, "%.2f");
+    ResetHistory |= ScalarProperty("##Emission", &Ray.EmissionScale, 0.0f, 5.0f, "%.2f");
     ImGui::EndDisabled();
     EndProperties();
     return ResetHistory;
@@ -499,13 +505,13 @@ bool Gui::DrawAccumulationSettings(Renderer& VK)
     ImGui::Checkbox("##UseHistory", &Ray.UseHistory);
     ImGui::BeginDisabled(!Ray.UseHistory);
     PropertyRow("Normal threshold", "Minimum normal agreement to reuse a sample");
-    ImGui::SliderFloat("##NormalThreshold", &Ray.NormalThreshold, 0.0f, 1.0f, "%.2f");
+    ScalarProperty("##NormalThreshold", &Ray.NormalThreshold, 0.0f, 1.0f, "%.2f");
     PropertyRow("Depth threshold", "Maximum relative depth change to reuse a sample");
-    ImGui::SliderFloat("##DepthThreshold", &Ray.DepthThreshold, 0.001f, 0.2f, "%.3f");
+    ScalarProperty("##DepthThreshold", &Ray.DepthThreshold, 0.001f, 0.2f, "%.3f");
     PropertyRow("Sample limit", "Stop accumulating at this many samples; 0 is unlimited");
-    ImGui::SliderFloat("##MaxSamples", &Ray.MaxSamples, 0.0f, 4096.0f,
-                       Ray.MaxSamples > 0.0f ? "%.0f spp" : "Unlimited",
-                       ImGuiSliderFlags_Logarithmic);
+    ScalarProperty("##MaxSamples", &Ray.MaxSamples, 0.0f, 4096.0f,
+                   Ray.MaxSamples > 0.0f ? "%.0f spp" : "Unlimited",
+                   ImGuiSliderFlags_Logarithmic);
     ImGui::EndDisabled();
 
     PropertyRow("Progress");
@@ -547,17 +553,17 @@ void Gui::DrawDenoiserSettings(Renderer& VK)
     ImGui::DragInt("##Iterations", &Settings.NumAtrousIterations, 0.05f, 0, 8,
                    "%d passes", ImGuiSliderFlags_AlwaysClamp);
     PropertyRow("Normal weight");
-    ImGui::SliderFloat("##Normal", &Denoise.NormFactor, 0.0f, 0.1f, "%.4f",
-                       ImGuiSliderFlags_Logarithmic);
+    ScalarProperty("##Normal", &Denoise.NormFactor, 0.0f, 0.1f, "%.4f",
+                   ImGuiSliderFlags_Logarithmic);
     PropertyRow("Depth weight");
-    ImGui::SliderFloat("##Depth", &Denoise.DepthFactor, 0.0f, 0.1f, "%.4f",
-                       ImGuiSliderFlags_Logarithmic);
+    ScalarProperty("##Depth", &Denoise.DepthFactor, 0.0f, 0.1f, "%.4f",
+                   ImGuiSliderFlags_Logarithmic);
     PropertyRow("Albedo weight");
-    ImGui::SliderFloat("##Albedo", &Denoise.AlbedoFactor, 0.0f, 1.0f, "%.3f",
-                       ImGuiSliderFlags_Logarithmic);
+    ScalarProperty("##Albedo", &Denoise.AlbedoFactor, 0.0f, 1.0f, "%.3f",
+                   ImGuiSliderFlags_Logarithmic);
     PropertyRow("Color weight", "Halved on every pass");
-    ImGui::SliderFloat("##Color", &Denoise.ColorFactor, 0.0f, 2.0f, "%.3f",
-                       ImGuiSliderFlags_Logarithmic);
+    ScalarProperty("##Color", &Denoise.ColorFactor, 0.0f, 2.0f, "%.3f",
+                   ImGuiSliderFlags_Logarithmic);
     bool ClampFireflies = Denoise.ClampFireflies != 0;
     PropertyRow("Clamp fireflies", "Clamp outlier pixels before filtering");
     if (ImGui::Checkbox("##Clamp", &ClampFireflies))
@@ -579,10 +585,10 @@ void Gui::DrawDisplaySettings(Renderer& VK)
     ImGui::BeginDisabled(!Settings.UseRaytracer);
     ImGui::Combo("##ViewMode", &Settings.ViewMode, kViewModeNames, kViewModeCount);
     ImGui::EndDisabled();
-    PropertyRow("Exposure");
-    ImGui::SliderFloat("##Exposure", &Settings.Exposure, 0.1f, 4.0f, "%.2f");
+    PropertyRow("Exposure", "Linear multiplier applied before gamma");
+    ScalarProperty("##Exposure", &Settings.Exposure, 0.1f, 4.0f, "%.2fx");
     PropertyRow("Gamma");
-    ImGui::SliderFloat("##Gamma", &Settings.Gamma, 1.0f, 3.0f, "%.2f");
+    ScalarProperty("##Gamma", &Settings.Gamma, 1.0f, 3.0f, "%.2f");
     EndProperties();
 }
 

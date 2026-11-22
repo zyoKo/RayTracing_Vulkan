@@ -16,6 +16,7 @@
 #include <imgui_internal.h>
 
 #include "shaders/shared_structs.h"
+#include "ui/property_grid.h"
 #include "ui/theme.h"
 #include "vk_check.h"
 
@@ -109,12 +110,26 @@ void Gui::Init(const Window& Target, const Context& Instance, const Device& Gpu,
     {
         Triangles += Model.NbIndices / 3;
         MaterialCount += Model.Materials.size();
-        Log(LogLevel::kInfo, "Loaded model '%s': %u vertices, %u triangles",
-            Model.Name.c_str(), Model.NbVertices, Model.NbIndices / 3);
+        Log(LogLevel::kInfo, "Loaded model '%s': %s vertices, %s triangles",
+            Model.Name.c_str(), GroupDigits(Model.NbVertices).c_str(),
+            GroupDigits(Model.NbIndices / 3).c_str());
     }
-    Log(LogLevel::kInfo, "Scene: %zu meshes, %llu triangles, %zu materials, %zu textures",
-        World.GetMeshes().size(), static_cast<unsigned long long>(Triangles),
-        MaterialCount, World.GetTextures().size());
+    size_t EmissiveCount = 0;
+    for (const Mesh& Model : World.GetMeshes())
+    {
+        for (const Material& Value : Model.Materials)
+        {
+            EmissiveCount += Value.Emission.x > 0.0f || Value.Emission.y > 0.0f ||
+                                     Value.Emission.z > 0.0f
+                                 ? 1
+                                 : 0;
+        }
+    }
+    Log(LogLevel::kInfo,
+        "Scene: %zu %s, %s triangles, %zu materials (%zu emissive), %zu textures",
+        World.GetMeshes().size(), World.GetMeshes().size() == 1 ? "mesh" : "meshes",
+        GroupDigits(Triangles).c_str(), MaterialCount, EmissiveCount,
+        World.GetTextures().size());
     Log(LogLevel::kInfo, "Shaders: %s", VK.GetUseSlang() ? "Slang" : "GLSL (generated)");
 }
 
@@ -446,8 +461,8 @@ void Gui::DrawStatusBar(const Renderer& VK)
     {
         const RenderSettings& Settings = VK.GetSettings();
         const VkExtent2D Extent = VK.GetRenderExtent();
-        ImGui::TextColored(kAccent, "%s",
-                           Settings.UseRaytracer ? "Path tracer" : "Rasterizer");
+        ImGui::PushFont(Fonts.Mono);
+        ImGui::TextUnformatted(Settings.UseRaytracer ? "Path tracer" : "Rasterizer");
         ImGui::TextDisabled("|");
         ImGui::TextUnformatted(VK.GetUseSlang() ? "Slang" : "GLSL");
         ImGui::TextDisabled("|");
@@ -472,7 +487,6 @@ void Gui::DrawStatusBar(const Renderer& VK)
         char Right[128];
         snprintf(Right, sizeof(Right), "GPU %.2f ms   Frame %.2f ms (%.0f fps)", Gpu.Avg,
                  Frame.Avg, Frame.Avg > 0.0f ? 1000.0f / Frame.Avg : 0.0f);
-        ImGui::PushFont(Fonts.Mono);
         const float Width = ImGui::CalcTextSize(Right).x;
         ImGui::SameLine(ImGui::GetWindowWidth() - Width -
                         ImGui::GetStyle().WindowPadding.x * 2.0f);
