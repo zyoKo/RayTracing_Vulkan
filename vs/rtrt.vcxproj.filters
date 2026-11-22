@@ -22,6 +22,9 @@
     <ClCompile Include="..\src\renderer\ui_pass.cpp">
       <Filter>Source Files\renderer</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\renderer\gpu_timer.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\renderer\post_pass.cpp">
       <Filter>Source Files\renderer</Filter>
     </ClCompile>
@@ -215,6 +218,9 @@
       <Filter>Header Files\renderer</Filter>
     </ClInclude>
     <ClInclude Include="..\src\renderer\ui_pass.h">
+      <Filter>Header Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\renderer\gpu_timer.h">
       <Filter>Header Files\renderer</Filter>
     </ClInclude>
     <ClInclude Include="..\src\renderer\post_pass.h">

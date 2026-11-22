@@ -30,6 +30,7 @@ bool Renderer::Init(Window& Target, Context& Instance, Device& Gpu, Swapchain& C
 
     CreateSwapchain();
     CreateFrameFence();
+    Timer.Create(*GpuDevice, 8);
     PassCtx.Extent = MainSwapchain->GetExtent();
     RequestedExtent = PassCtx.Extent;
     Ui.Create(PassCtx);
@@ -64,27 +65,35 @@ void Renderer::DrawFrame()
         return;
     }
 
+    const VkCommandBuffer Cmd = FrameCmd.GetHandle();
     FrameCmd.Begin();
     {  // Extra indent for code clarity
+        Timer.BeginFrame(Cmd);
         UpdateCameraBuffer();
 
         // Draw scene
         if (Settings.UseRaytracer)
         {
+            Timer.Begin(Cmd, "Path trace");
             RayTrace.Record(FrameCmd.GetHandle(), PassCtx, ScDesc.Set.GetHandle(),
                             ScImageBuffer, Settings.ViewMode, ResetHistory);
             ResetHistory = false;
             FrameCount++;
+            Timer.End(Cmd);
             if (Settings.DenoiseEnabled && Settings.ViewMode == kViewFinal)
             {
+                Timer.Begin(Cmd, "Denoise");
                 Denoiser.Record(FrameCmd.GetHandle(), PassCtx, ScImageBuffer,
                                 Settings.NumAtrousIterations);
+                Timer.End(Cmd);
             }
         }
         else
         {
+            Timer.Begin(Cmd, "Rasterize");
             Scanline.Record(FrameCmd.GetHandle(), PassCtx, ScDesc.Set.GetHandle(),
                             MainScene);
+            Timer.End(Cmd);
         }
 
         // The rasterizer has no G-buffer images, so the debug views only apply to the
@@ -93,8 +102,12 @@ void Renderer::DrawFrame()
             Settings.Exposure, Settings.Gamma,
             static_cast<uint32_t>(Settings.UseRaytracer ? Settings.ViewMode
                                                         : kViewFinal)};
+        Timer.Begin(Cmd, "Tone map");
         Post.Record(FrameCmd.GetHandle(), PassCtx, PcPost);
+        Timer.End(Cmd);
+        Timer.Begin(Cmd, "UI");
         Ui.Record(FrameCmd.GetHandle(), PassCtx);
+        Timer.End(Cmd);
 
     }  // Done recording;  Execute!
 
@@ -112,6 +125,7 @@ bool Renderer::PrepareFrame()
     const double WaitStart = glfwGetTime();
     FrameFence.Wait();
     GpuWaitMs = (glfwGetTime() - WaitStart) * 1000.0;
+    Timer.Resolve();
 
     if (MainWindow->GetFramebufferResized() && !RecreateSwapchain())
     {
@@ -173,6 +187,7 @@ void Renderer::DestroyAllVulkanResources()
 
     MainSwapchain->Destroy();
     FrameFence.Destroy();
+    Timer.Destroy();
     MainCmdPool.Destroy();
 
     Post.Destroy();

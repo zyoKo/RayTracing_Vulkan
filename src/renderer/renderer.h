@@ -6,6 +6,7 @@
 
 #include "core/window.h"
 #include "renderer/denoise_pass.h"
+#include "renderer/gpu_timer.h"
 #include "renderer/pass_context.h"
 #include "renderer/post_pass.h"
 #include "renderer/ray_trace_pass.h"
@@ -136,6 +137,12 @@ public:
         return GpuWaitMs;
     }
 
+    // GPU time of each pass in the last finished frame.
+    const GpuTimer& GetGpuTimer() const
+    {
+        return Timer;
+    }
+
     // Time to acquire, record, submit and present.
     double GetRecordMs() const
     {
@@ -154,6 +161,7 @@ private:
     RayTracePass RayTrace;
     DenoisePass Denoiser;
     UiPass Ui;
+    GpuTimer Timer;
     VkExtent2D RequestedExtent{0, 0};
     uint32_t ViewportVersion = 0;
 
