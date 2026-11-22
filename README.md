@@ -74,11 +74,11 @@ At the default 1280×768 window, the path tracer with the denoiser runs at about
 
 The project is described by `CMakeLists.txt`. No Visual Studio files are kept in the repository.
 
-1. Generate the Visual Studio solution in `build/`:
+1. Generate the Visual Studio solution in `build/` by running `scripts/generate_vs_files.bat` (double-click it, or pass `open` to also open the solution). It runs:
    ```bash
-   cmake -S . -B build
+   cmake -S . -B build -A x64
    ```
-2. Open `build/rtrt.sln` and build `Debug` or `Release`, or build from the command line:
+2. Open `build/rtrt.slnx` (`build/rtrt.sln` with Visual Studio 2022) and build `Debug` or `Release`, or build from the command line:
    ```bash
    cmake --build build --config Release
    ```
