@@ -75,6 +75,11 @@ void Gui::Init(const Window& Target, const Context& Instance, const Device& Gpu,
 void Gui::Shutdown()
 {
     RTRT_CHECK_VK(vkDeviceWaitIdle(DeviceHandle));
+    if (ViewportTexture != VK_NULL_HANDLE)
+    {
+        ImGui_ImplVulkan_RemoveTexture(ViewportTexture);
+        ViewportTexture = VK_NULL_HANDLE;
+    }
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -96,6 +101,9 @@ void Gui::Draw(Renderer& VK, Camera& View, CameraController& Controller)
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
+    SyncViewportTexture(VK);
+    DrawViewportBackground(VK);
+
     if (ShowGui)
     {
         DrawSettingsWindow(VK, View, Controller);
@@ -104,6 +112,33 @@ void Gui::Draw(Renderer& VK, Camera& View, CameraController& Controller)
     {
         DrawPerfWindow();
     }
+}
+
+void Gui::SyncViewportTexture(const Renderer& VK)
+{
+    if (ViewportTexture != VK_NULL_HANDLE && ViewportVersion == VK.GetViewportVersion())
+    {
+        return;
+    }
+    if (ViewportTexture != VK_NULL_HANDLE)
+    {
+        ImGui_ImplVulkan_RemoveTexture(ViewportTexture);
+    }
+    const VkDescriptorImageInfo Info = VK.GetViewportImage().Descriptor();
+    ViewportTexture =
+        ImGui_ImplVulkan_AddTexture(Info.sampler, Info.imageView, Info.imageLayout);
+    ViewportVersion = VK.GetViewportVersion();
+}
+
+void Gui::DrawViewportBackground(Renderer& VK)
+{
+    const ImGuiIO& Io = ImGui::GetIO();
+    ImGui::GetBackgroundDrawList()->AddImage(
+        reinterpret_cast<ImTextureID>(ViewportTexture), ImVec2(0.0f, 0.0f),
+        Io.DisplaySize);
+    VK.RequestRenderExtent(
+        {static_cast<uint32_t>(Io.DisplaySize.x * Io.DisplayFramebufferScale.x),
+         static_cast<uint32_t>(Io.DisplaySize.y * Io.DisplayFramebufferScale.y)});
 }
 
 void Gui::DrawPerfWindow()

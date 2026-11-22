@@ -24,15 +24,18 @@ bool Renderer::Init(Window& Target, Context& Instance, Device& Gpu, Swapchain& C
     MainSwapchain = &Chain;
     MainCamera = &View;
     UseSlang = UseSlangShaders;
-    PassCtx = {GpuDevice, &MainCmdPool, MainSwapchain, UseSlang};
+    PassCtx = {GpuDevice, &MainCmdPool, MainSwapchain, {0, 0}, UseSlang};
 
     CreateCommandPool();
 
     CreateSwapchain();
     CreateFrameFence();
+    PassCtx.Extent = MainSwapchain->GetExtent();
+    RequestedExtent = PassCtx.Extent;
+    Ui.Create(PassCtx);
     CreateDepthResource();
     CreateScBuffer();
-    Post.Create(PassCtx, ScImageBuffer, DepthImage);
+    Post.Create(PassCtx, ScImageBuffer);
 
     MainScene.LoadModel(*GpuDevice, MainCmdPool, "models/living_room/living_room.obj",
                         glm::mat4(1.0f));
@@ -91,6 +94,7 @@ void Renderer::DrawFrame()
             static_cast<uint32_t>(Settings.UseRaytracer ? Settings.ViewMode
                                                         : kViewFinal)};
         Post.Record(FrameCmd.GetHandle(), PassCtx, PcPost);
+        Ui.Record(FrameCmd.GetHandle(), PassCtx);
 
     }  // Done recording;  Execute!
 
@@ -109,7 +113,7 @@ bool Renderer::PrepareFrame()
     FrameFence.Wait();
     GpuWaitMs = (glfwGetTime() - WaitStart) * 1000.0;
 
-    if (MainWindow->GetFramebufferResized() && !RecreateSizedResources())
+    if (MainWindow->GetFramebufferResized() && !RecreateSwapchain())
     {
         return false;
     }
@@ -119,7 +123,7 @@ bool Renderer::PrepareFrame()
     VkResult Result = MainSwapchain->AcquireNextImage();
     while (Result == VK_ERROR_OUT_OF_DATE_KHR)
     {
-        if (!RecreateSizedResources())
+        if (!RecreateSwapchain())
         {
             return false;
         }
@@ -172,6 +176,7 @@ void Renderer::DestroyAllVulkanResources()
     MainCmdPool.Destroy();
 
     Post.Destroy();
+    Ui.Destroy();
     Scanline.Destroy();
     RayTrace.Destroy();
     Denoiser.Destroy();
@@ -183,7 +188,7 @@ void Renderer::DestroyAllVulkanResources()
     MainScene.Destroy();
 }
 
-bool Renderer::RecreateSizedResources()
+bool Renderer::RecreateSwapchain()
 {
     if (!MainWindow->WaitWhileMinimized())
     {
@@ -193,28 +198,47 @@ bool Renderer::RecreateSizedResources()
     RTRT_CHECK_VK(vkDeviceWaitIdle(GpuDevice->GetHandle()));
     MainWindow->SetFramebufferResized(false);
 
-    DestroySizedResources();
-
+    Ui.ReleaseSized();
+    MainSwapchain->Destroy();
     CreateSwapchain();
+    Ui.OnResize(PassCtx);
+    return true;
+}
+
+void Renderer::ApplyRenderExtent()
+{
+    const VkExtent2D Current = PassCtx.Extent;
+    if (RequestedExtent.width == 0 || RequestedExtent.height == 0 ||
+        (RequestedExtent.width == Current.width &&
+         RequestedExtent.height == Current.height))
+    {
+        return;
+    }
+
+    RTRT_CHECK_VK(vkDeviceWaitIdle(GpuDevice->GetHandle()));
+    DestroyRenderSized();
+    PassCtx.Extent = RequestedExtent;
+    CreateRenderSized();
+    ResetRtAccumulation();
+    ViewportVersion++;
+}
+
+void Renderer::CreateRenderSized()
+{
     CreateDepthResource();
     CreateScBuffer();
-    Post.OnResize(PassCtx, ScImageBuffer, DepthImage);
+    Post.OnResize(PassCtx, ScImageBuffer);
     Scanline.OnResize(PassCtx, ScImageBuffer, DepthImage, ScDesc.Layout.GetHandle());
     RayTrace.OnResize(PassCtx);
     Denoiser.OnResize(PassCtx, ScImageBuffer, RayTrace.GetAlbedo(),
                       RayTrace.GetNormalDepth());
-
-    ResetRtAccumulation();
-    return true;
 }
 
-void Renderer::DestroySizedResources()
+void Renderer::DestroyRenderSized()
 {
     Post.ReleaseSized();
     Scanline.ReleaseSized();
     DepthImage.Destroy();
-    MainSwapchain->Destroy();
-
     ScImageBuffer.Destroy();
     RayTrace.ReleaseSized();
     Denoiser.ReleaseSized();
@@ -247,8 +271,8 @@ void Renderer::CreateFrameFence()
 
 void Renderer::CreateDepthResource()
 {
-    DepthImage.Create(*GpuDevice, MainSwapchain->GetExtent().width,
-                      MainSwapchain->GetExtent().height, VK_FORMAT_X8_D24_UNORM_PACK32,
+    DepthImage.Create(*GpuDevice, PassCtx.Extent.width, PassCtx.Extent.height,
+                      VK_FORMAT_X8_D24_UNORM_PACK32,
                       VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     DepthImage.CreateView(VK_FORMAT_X8_D24_UNORM_PACK32, VK_IMAGE_ASPECT_DEPTH_BIT);
@@ -290,7 +314,7 @@ void Renderer::ReloadShaders()
 
 void Renderer::CreateScBuffer()
 {
-    ScImageBuffer = CreateRenderImage(*GpuDevice, MainSwapchain->GetExtent());
+    ScImageBuffer = CreateRenderImage(*GpuDevice, PassCtx.Extent);
 
     VkCommandBuffer CmdBuf = MainCmdPool.BeginSingleUse();
     CmdImageBarrier(CmdBuf, ScImageBuffer.GetHandle(), VK_IMAGE_LAYOUT_UNDEFINED,
@@ -331,8 +355,8 @@ void Renderer::CreateMatrixBuffer()
 void Renderer::UpdateCameraBuffer()
 {
     // Prepare new UBO contents on host.
-    const float AspectRatio = MainSwapchain->GetExtent().width /
-                              static_cast<float>(MainSwapchain->GetExtent().height);
+    const float AspectRatio =
+        PassCtx.Extent.width / static_cast<float>(PassCtx.Extent.height);
     MatrixUniforms HostUBO = {};
 
     glm::mat4 View = MainCamera->View();

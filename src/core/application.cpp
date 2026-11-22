@@ -120,6 +120,7 @@ int Application::Run()
         MainWindow.PollEvents();
         UpdateCamera();
 
+        MainRenderer.ApplyRenderExtent();
         MainGui.Draw(MainRenderer, MainCamera, MainController);
 
         const double CpuEnd = glfwGetTime();
