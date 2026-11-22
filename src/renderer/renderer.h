@@ -102,6 +102,11 @@ public:
         return ViewportVersion;
     }
 
+    Scene& GetScene()
+    {
+        return MainScene;
+    }
+
     RenderSettings& GetSettings()
     {
         return Settings;

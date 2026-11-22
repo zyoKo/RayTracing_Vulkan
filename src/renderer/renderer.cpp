@@ -70,6 +70,10 @@ void Renderer::DrawFrame()
     {  // Extra indent for code clarity
         Timer.BeginFrame(Cmd);
         UpdateCameraBuffer();
+        if (MainScene.RecordMaterialUpdates(Cmd))
+        {
+            ResetRtAccumulation();
+        }
 
         // Draw scene
         if (Settings.UseRaytracer)

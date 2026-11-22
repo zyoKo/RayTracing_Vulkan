@@ -1,10 +1,13 @@
 #ifndef RTRT_SRC_SCENE_SCENE_H_
 #define RTRT_SRC_SCENE_SCENE_H_
 
+#include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <glm/glm.hpp>
+#include <vulkan/vulkan_core.h>
 
 #include "scene/mesh.h"
 #include "shaders/shared_structs.h"
@@ -45,6 +48,19 @@ public:
         return Instances;
     }
 
+    // File names of GetTextures(), in the same order.
+    const std::vector<std::string>& GetTextureNames() const
+    {
+        return TextureNames;
+    }
+
+    // Changes a material on the host; RecordMaterialUpdates copies it to the device.
+    void SetMaterial(uint32_t MeshIndex, uint32_t MaterialIndex, const Material& Value);
+
+    // Records the copies of every material changed since the last call, with barriers
+    // against the shaders that read them. Returns true if anything changed.
+    bool RecordMaterialUpdates(VkCommandBuffer Cmd);
+
     const std::vector<Image>& GetTextures() const
     {
         return Textures;
@@ -60,6 +76,9 @@ private:
     // Device addresses of each mesh's buffers, in mesh order
     std::vector<ObjDesc> Descriptions;
     std::vector<Image> Textures;
+    std::vector<std::string> TextureNames;
+    // Mesh and material index pairs waiting for RecordMaterialUpdates
+    std::vector<std::pair<uint32_t, uint32_t>> DirtyMaterials;
     std::vector<MeshInstance> Instances;
     // Emissive triangles, not uploaded yet
     std::vector<Emitter> Emitters;

@@ -2,9 +2,12 @@
 #define RTRT_SRC_SCENE_MESH_H_
 
 #include <cstdint>
+#include <string>
+#include <vector>
 
 #include <glm/glm.hpp>
 
+#include "shaders/shared_structs.h"
 #include "vk/buffer.h"
 
 namespace rtrt
@@ -22,6 +25,12 @@ struct Mesh
     Buffer MatColorBuffer;
     // Each triangle's material index
     Buffer MatIndexBuffer;
+
+    std::string Name;
+    // Host copies of what MatColorBuffer holds, in the same order
+    std::vector<Material> Materials;
+    std::vector<std::string> MaterialNames;
+    std::vector<uint32_t> MaterialTriangles;
 };
 
 // A placement of one mesh in the world.
