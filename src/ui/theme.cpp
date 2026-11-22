@@ -14,6 +14,7 @@ namespace
 
 constexpr float kUiFontSize = 16.0f;
 constexpr float kMonoFontSize = 15.0f;
+constexpr float kTitleFontSize = 21.0f;
 
 ImFont* AddFontIfPresent(const std::string& FileName, float Size)
 {
@@ -51,10 +52,19 @@ EditorFonts LoadEditorFonts()
     {
         Fonts.Bold = AddFontIfPresent(Folder + "segoeuib.ttf", kUiFontSize);
     }
+    Fonts.Title = AddFontIfPresent(Folder + "seguisb.ttf", kTitleFontSize);
+    if (Fonts.Title == nullptr)
+    {
+        Fonts.Title = AddFontIfPresent(Folder + "segoeuib.ttf", kTitleFontSize);
+    }
     Fonts.Mono = AddFontIfPresent(Folder + "consola.ttf", kMonoFontSize);
     if (Fonts.Bold == nullptr)
     {
         Fonts.Bold = Fonts.Ui;
+    }
+    if (Fonts.Title == nullptr)
+    {
+        Fonts.Title = Fonts.Bold;
     }
     if (Fonts.Mono == nullptr)
     {
@@ -73,7 +83,8 @@ void ApplyEditorTheme()
     Style.ItemInnerSpacing = ImVec2(5.0f, 4.0f);
     Style.IndentSpacing = 14.0f;
     Style.ScrollbarSize = 12.0f;
-    Style.GrabMinSize = 9.0f;
+    // A thin grab keeps the value text readable
+    Style.GrabMinSize = 4.0f;
     Style.WindowBorderSize = 1.0f;
     Style.FrameBorderSize = 0.0f;
     Style.PopupBorderSize = 1.0f;

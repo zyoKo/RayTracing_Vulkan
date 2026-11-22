@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <future>
+#include <string>
 
 #include <glm/glm.hpp>
 #include <imgui.h>
@@ -30,48 +31,127 @@ ImVec4 ToColor(const glm::vec3& Value)
     return ImVec4(Value.x, Value.y, Value.z, 1.0f);
 }
 
-// The inspector's title: a bold name over a dim kind.
-void InspectorHeader(ImFont* Bold, const char* Name, const char* Kind)
+// The inspector's title: a large name with a small kind tag under it.
+void InspectorHeader(ImFont* Title, const char* Name, const char* Kind)
 {
-    ImGui::PushFont(Bold);
+    ImGui::PushFont(Title);
     ImGui::TextUnformatted(Name);
     ImGui::PopFont();
-    ImGui::TextDisabled("%s", Kind);
-    ImGui::Separator();
+    ImGui::PushStyleColor(ImGuiCol_Text, kAccent);
+    ImGui::TextUnformatted(Kind);
+    ImGui::PopStyleColor();
+    ImGui::Spacing();
+}
+
+// 1234567 as "1,234,567".
+std::string GroupDigits(uint64_t Value)
+{
+    std::string Digits = std::to_string(Value);
+    for (int I = static_cast<int>(Digits.size()) - 3; I > 0; I -= 3)
+    {
+        Digits.insert(static_cast<size_t>(I), ",");
+    }
+    return Digits;
+}
+
+// A bordered colour square on the current line, for outliner rows.
+void Swatch(const glm::vec3& Color)
+{
+    const float Size = ImGui::GetTextLineHeight() * 0.7f;
+    const ImVec2 Pos = ImGui::GetCursorScreenPos();
+    const float Top = Pos.y + (ImGui::GetTextLineHeight() - Size) * 0.5f;
+    ImDrawList* DrawList = ImGui::GetWindowDrawList();
+    DrawList->AddRectFilled(ImVec2(Pos.x, Top), ImVec2(Pos.x + Size, Top + Size),
+                            ImGui::GetColorU32(ToColor(Color)), 2.0f);
+    DrawList->AddRect(ImVec2(Pos.x, Top), ImVec2(Pos.x + Size, Top + Size),
+                      IM_COL32(150, 152, 156, 160), 2.0f);
+    ImGui::Dummy(ImVec2(Size, ImGui::GetTextLineHeight()));
+    ImGui::SameLine(0.0f, 6.0f);
+}
+
+// A colour swatch that opens a picker, followed by its values in the mono font.
+bool ColorProperty(const char* Id, float* Rgb, ImFont* Mono, bool Hdr)
+{
+    const ImGuiColorEditFlags Flags =
+        ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel |
+        ImGuiColorEditFlags_Float | (Hdr ? ImGuiColorEditFlags_HDR : 0);
+    const bool Changed = ImGui::ColorEdit3(Id, Rgb, Flags);
+    ImGui::SameLine();
+    ImGui::PushFont(Mono);
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("%.2f %.2f %.2f", Rgb[0], Rgb[1], Rgb[2]);
+    ImGui::PopFont();
+    return Changed;
+}
+
+bool IsEmissive(const Material& Value)
+{
+    return Value.Emission.x > 0.0f || Value.Emission.y > 0.0f || Value.Emission.z > 0.0f;
 }
 
 }  // namespace
 
+void Gui::OutlinerMaterialRow(uint32_t MeshIndex, uint32_t Index, const Mesh& Model)
+{
+    const char* Name = Model.MaterialNames[Index].c_str();
+    ImGui::PushID(static_cast<int>(Index));
+    Swatch(IsEmissive(Model.Materials[Index]) ? Model.Materials[Index].Emission
+                                              : Model.Materials[Index].Diffuse);
+    const bool IsSelected = Selected == Selection::kMaterial &&
+                            SelectedMesh == MeshIndex && SelectedMaterial == Index;
+    if (ImGui::Selectable(Name, IsSelected))
+    {
+        Selected = Selection::kMaterial;
+        SelectedMesh = MeshIndex;
+        SelectedMaterial = Index;
+    }
+    if (IsSelected && ScrollToSelection)
+    {
+        ImGui::SetScrollHereY(0.35f);
+        ScrollToSelection = false;
+    }
+    ImGui::PopID();
+}
+
 void Gui::DrawOutliner(Renderer& VK)
 {
-    if (!ImGui::Begin("Outliner", &ShowOutliner))
+    if (!ImGui::Begin("Outliner"))
     {
         ImGui::End();
         return;
     }
     const Scene& World = VK.GetScene();
 
-    ImGui::SetNextItemWidth(-FLT_MIN);
-    MaterialFilter.Draw("##Filter", -FLT_MIN);
-    if (!MaterialFilter.IsActive() && !ImGui::IsItemActive())
+    SceneFilter.Draw("##Filter", -FLT_MIN);
+    if (!SceneFilter.IsActive() && !ImGui::IsItemActive())
     {
         const ImVec2 Min = ImGui::GetItemRectMin();
         ImGui::GetWindowDrawList()->AddText(
             ImVec2(Min.x + ImGui::GetStyle().FramePadding.x,
                    Min.y + ImGui::GetStyle().FramePadding.y),
-            ImGui::GetColorU32(kTextDim), "Filter materials");
+            ImGui::GetColorU32(kTextDim), "Filter scene");
     }
     ImGui::Spacing();
 
-    if (ImGui::TreeNodeEx("Scene", ImGuiTreeNodeFlags_DefaultOpen |
-                                       ImGuiTreeNodeFlags_SpanAvailWidth))
+    if (!ImGui::BeginChild("OutlinerTree"))
     {
-        ImGui::TreeNodeEx("Camera", kLeafFlags | (Selected == Selection::kCamera
-                                                      ? ImGuiTreeNodeFlags_Selected
-                                                      : 0));
-        if (ImGui::IsItemClicked())
+        ImGui::EndChild();
+        ImGui::End();
+        return;
+    }
+    const bool Filtering = SceneFilter.IsActive();
+    if (ImGui::TreeNodeEx(
+            "Scene", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth))
+    {
+        if (SceneFilter.PassFilter("Camera"))
         {
-            Selected = Selection::kCamera;
+            ImGui::TreeNodeEx("Camera", kLeafFlags | (Selected == Selection::kCamera
+                                                          ? ImGuiTreeNodeFlags_Selected
+                                                          : 0));
+            if (ImGui::IsItemClicked())
+            {
+                Selected = Selection::kCamera;
+            }
         }
 
         for (uint32_t MeshIndex = 0; MeshIndex < World.GetMeshes().size(); MeshIndex++)
@@ -79,7 +159,14 @@ void Gui::DrawOutliner(Renderer& VK)
             const Mesh& Model = World.GetMeshes()[MeshIndex];
             const bool ModelSelected =
                 Selected == Selection::kModel && SelectedMesh == MeshIndex;
+            const bool RevealMaterial = ScrollToSelection &&
+                                        Selected == Selection::kMaterial &&
+                                        SelectedMesh == MeshIndex;
             ImGui::PushID(static_cast<int>(MeshIndex));
+            if (RevealMaterial || Filtering)
+            {
+                ImGui::SetNextItemOpen(true);
+            }
             const bool Open = ImGui::TreeNodeEx(
                 "##Model",
                 ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow |
@@ -94,43 +181,67 @@ void Gui::DrawOutliner(Renderer& VK)
             if (Open)
             {
                 char Label[64];
-                snprintf(Label, sizeof(Label), "Materials (%zu)", Model.Materials.size());
-                if (ImGui::TreeNodeEx(Label, ImGuiTreeNodeFlags_DefaultOpen |
-                                                 ImGuiTreeNodeFlags_SpanAvailWidth))
+                uint32_t LightCount = 0;
+                for (const Material& Value : Model.Materials)
+                {
+                    LightCount += IsEmissive(Value) ? 1 : 0;
+                }
+                snprintf(Label, sizeof(Label), "Lights (%u)", LightCount);
+                if (Filtering)
+                {
+                    ImGui::SetNextItemOpen(true);
+                }
+                if (ImGui::TreeNodeEx("##Lights",
+                                      ImGuiTreeNodeFlags_DefaultOpen |
+                                          ImGuiTreeNodeFlags_SpanAvailWidth,
+                                      "%s", Label))
                 {
                     for (uint32_t I = 0; I < Model.Materials.size(); I++)
                     {
-                        const char* Name = Model.MaterialNames[I].c_str();
-                        if (!MaterialFilter.PassFilter(Name))
+                        if (IsEmissive(Model.Materials[I]) &&
+                            SceneFilter.PassFilter(Model.MaterialNames[I].c_str()))
                         {
-                            continue;
+                            OutlinerMaterialRow(MeshIndex, I, Model);
                         }
-                        ImGui::PushID(static_cast<int>(I));
-                        ImGui::ColorButton("##Swatch", ToColor(Model.Materials[I].Diffuse),
-                                           ImGuiColorEditFlags_NoTooltip,
-                                           ImVec2(10.0f, 10.0f));
-                        ImGui::SameLine(0.0f, 6.0f);
-                        const bool IsSelected = Selected == Selection::kMaterial &&
-                                                SelectedMesh == MeshIndex &&
-                                                SelectedMaterial == I;
-                        if (ImGui::Selectable(Name, IsSelected))
+                    }
+                    ImGui::TreePop();
+                }
+
+                snprintf(Label, sizeof(Label), "Materials (%zu)",
+                         Model.Materials.size() - LightCount);
+                if (RevealMaterial || Filtering)
+                {
+                    ImGui::SetNextItemOpen(true);
+                }
+                if (ImGui::TreeNodeEx("##Materials", ImGuiTreeNodeFlags_SpanAvailWidth,
+                                      "%s", Label))
+                {
+                    for (uint32_t I = 0; I < Model.Materials.size(); I++)
+                    {
+                        if (!IsEmissive(Model.Materials[I]) &&
+                            SceneFilter.PassFilter(Model.MaterialNames[I].c_str()))
                         {
-                            Selected = Selection::kMaterial;
-                            SelectedMesh = MeshIndex;
-                            SelectedMaterial = I;
+                            OutlinerMaterialRow(MeshIndex, I, Model);
                         }
-                        ImGui::PopID();
                     }
                     ImGui::TreePop();
                 }
 
                 snprintf(Label, sizeof(Label), "Textures (%zu)",
                          World.GetTextureNames().size());
-                if (ImGui::TreeNodeEx(Label, ImGuiTreeNodeFlags_SpanAvailWidth))
+                if (Filtering)
+                {
+                    ImGui::SetNextItemOpen(true);
+                }
+                if (ImGui::TreeNodeEx("##Textures", ImGuiTreeNodeFlags_SpanAvailWidth,
+                                      "%s", Label))
                 {
                     for (const std::string& Name : World.GetTextureNames())
                     {
-                        ImGui::TreeNodeEx(Name.c_str(), kLeafFlags);
+                        if (SceneFilter.PassFilter(Name.c_str()))
+                        {
+                            ImGui::TreeNodeEx(Name.c_str(), kLeafFlags);
+                        }
                     }
                     ImGui::TreePop();
                 }
@@ -140,12 +251,17 @@ void Gui::DrawOutliner(Renderer& VK)
         }
         ImGui::TreePop();
     }
+    if (Selected != Selection::kMaterial)
+    {
+        ScrollToSelection = false;
+    }
+    ImGui::EndChild();
     ImGui::End();
 }
 
 void Gui::DrawInspector(Renderer& VK, Camera& View, CameraController& Controller)
 {
-    if (!ImGui::Begin("Inspector", &ShowInspector))
+    if (!ImGui::Begin("Inspector"))
     {
         ImGui::End();
         return;
@@ -170,7 +286,7 @@ void Gui::DrawInspector(Renderer& VK, Camera& View, CameraController& Controller
 
 void Gui::DrawCameraInspector(Camera& View, CameraController& Controller)
 {
-    InspectorHeader(Fonts.Bold, "Camera", "Perspective fly camera");
+    InspectorHeader(Fonts.Title, "Camera", "CAMERA");
 
     if (Section(Fonts.Bold, "Transform") && BeginProperties("CameraTransform"))
     {
@@ -227,12 +343,12 @@ void Gui::DrawModelInspector(Renderer& VK)
         return;
     }
     const Mesh& Model = World.GetMeshes()[SelectedMesh];
-    InspectorHeader(Fonts.Bold, Model.Name.c_str(), "Triangle mesh");
+    InspectorHeader(Fonts.Title, Model.Name.c_str(), "MESH");
 
     if (Section(Fonts.Bold, "Geometry") && BeginProperties("ModelGeometry"))
     {
-        PropertyText("Vertices", "%u", Model.NbVertices);
-        PropertyText("Triangles", "%u", Model.NbIndices / 3);
+        PropertyText("Vertices", "%s", GroupDigits(Model.NbVertices).c_str());
+        PropertyText("Triangles", "%s", GroupDigits(Model.NbIndices / 3).c_str());
         PropertyText("Materials", "%zu", Model.Materials.size());
         PropertyText("Textures", "%zu", World.GetTextures().size());
         uint32_t Instances = 0;
@@ -262,8 +378,8 @@ void Gui::DrawMaterialInspector(Renderer& VK)
     }
     const Mesh& Model = World.GetMeshes()[SelectedMesh];
     Material Value = Model.Materials[SelectedMaterial];
-    InspectorHeader(Fonts.Bold, Model.MaterialNames[SelectedMaterial].c_str(),
-                    "GGX material");
+    InspectorHeader(Fonts.Title, Model.MaterialNames[SelectedMaterial].c_str(),
+                    "MATERIAL");
 
     bool Changed = false;
     if (Section(Fonts.Bold, "Surface") && BeginProperties("MaterialSurface"))
@@ -271,21 +387,19 @@ void Gui::DrawMaterialInspector(Renderer& VK)
         PropertyRow("Base color", Value.TextureId >= 0
                                       ? "Multiplied with the base color texture"
                                       : "Diffuse albedo");
-        Changed |= ImGui::ColorEdit3("##Diffuse", &Value.Diffuse.x,
-                                     ImGuiColorEditFlags_Float);
+        Changed |= ColorProperty("##Diffuse", &Value.Diffuse.x, Fonts.Mono, false);
         PropertyRow("Specular", "Specular reflectance at normal incidence");
-        Changed |= ImGui::ColorEdit3("##Specular", &Value.Specular.x,
-                                     ImGuiColorEditFlags_Float);
+        Changed |= ColorProperty("##Specular", &Value.Specular.x, Fonts.Mono, false);
         PropertyRow("Roughness", "GGX roughness: 0 is a mirror, 1 is fully rough");
-        Changed |= ImGui::SliderFloat("##Roughness", &Value.Shininess, 0.0f, 1.0f, "%.3f");
+        Changed |=
+            ImGui::SliderFloat("##Roughness", &Value.Shininess, 0.0f, 1.0f, "%.3f");
         EndProperties();
     }
 
     if (Section(Fonts.Bold, "Emission") && BeginProperties("MaterialEmission"))
     {
         PropertyRow("Radiance", "Emitted radiance; values above 1 are allowed");
-        Changed |= ImGui::ColorEdit3("##Emission", &Value.Emission.x,
-                                     ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR);
+        Changed |= ColorProperty("##Emission", &Value.Emission.x, Fonts.Mono, true);
         EndProperties();
     }
 
@@ -294,10 +408,11 @@ void Gui::DrawMaterialInspector(Renderer& VK)
         const bool HasTexture =
             Value.TextureId >= 0 &&
             static_cast<size_t>(Value.TextureId) < World.GetTextureNames().size();
-        PropertyText("Texture", "%s",
-                     HasTexture ? World.GetTextureNames()[Value.TextureId].c_str()
-                                : "None");
-        PropertyText("Triangles", "%u", Model.MaterialTriangles[SelectedMaterial]);
+        PropertyText(
+            "Texture", "%s",
+            HasTexture ? World.GetTextureNames()[Value.TextureId].c_str() : "None");
+        PropertyText("Triangles", "%s",
+                     GroupDigits(Model.MaterialTriangles[SelectedMaterial]).c_str());
         PropertyText("Index", "%u", SelectedMaterial);
         EndProperties();
     }
@@ -310,7 +425,7 @@ void Gui::DrawMaterialInspector(Renderer& VK)
 
 void Gui::DrawRenderSettings(Renderer& VK)
 {
-    if (!ImGui::Begin("Render Settings", &ShowRenderSettings))
+    if (!ImGui::Begin("Render Settings"))
     {
         ImGui::End();
         return;
@@ -359,11 +474,13 @@ bool Gui::DrawIntegratorSettings(Renderer& VK)
     PropertyRow("Specular BRDF", "Off: Lambertian only");
     ResetHistory |= ImGui::Checkbox("##Specular", &Ray.FullBrdf);
     PropertyRow("Max path length", "Bounces before a path is cut off");
-    ResetHistory |= ImGui::SliderInt("##Depth", &Ray.Depth, 1, 32, "%d bounces");
+    ResetHistory |= ImGui::DragInt("##Depth", &Ray.Depth, 0.1f, 1, 32, "%d bounces",
+                                   ImGuiSliderFlags_AlwaysClamp);
     PropertyRow("Survival chance", "Russian roulette probability, tested per bounce");
     ResetHistory |= ImGui::SliderFloat("##Rr", &Ray.Rr, 0.1f, 0.95f, "%.2f");
     PropertyRow("Emission scale", "Multiplier on every emitter");
-    ResetHistory |= ImGui::SliderFloat("##Emission", &Ray.EmissionScale, 0.0f, 5.0f, "%.2f");
+    ResetHistory |=
+        ImGui::SliderFloat("##Emission", &Ray.EmissionScale, 0.0f, 5.0f, "%.2f");
     ImGui::EndDisabled();
     EndProperties();
     return ResetHistory;
@@ -427,7 +544,8 @@ void Gui::DrawDenoiserSettings(Renderer& VK)
     ImGui::Checkbox("##Enabled", &Settings.DenoiseEnabled);
     ImGui::BeginDisabled(!Settings.DenoiseEnabled);
     PropertyRow("Iterations", "Each pass doubles the filter step");
-    ImGui::SliderInt("##Iterations", &Settings.NumAtrousIterations, 0, 8);
+    ImGui::DragInt("##Iterations", &Settings.NumAtrousIterations, 0.05f, 0, 8,
+                   "%d passes", ImGuiSliderFlags_AlwaysClamp);
     PropertyRow("Normal weight");
     ImGui::SliderFloat("##Normal", &Denoise.NormFactor, 0.0f, 0.1f, "%.4f",
                        ImGuiSliderFlags_Logarithmic);
@@ -504,7 +622,8 @@ void Gui::DrawShaderSettings(Renderer& VK)
     if (BeginProperties("Shaders"))
     {
         int Language = VK.GetUseSlang() && !WantGlsl ? 0 : 1;
-        PropertyRow("Source", "Slang SPIR-V, or SPIR-V built from Slang's generated GLSL");
+        PropertyRow("Source",
+                    "Slang SPIR-V, or SPIR-V built from Slang's generated GLSL");
         if (ImGui::Combo("##Language", &Language, "Slang\0GLSL (generated)\0"))
         {
             if (Language == 0)
@@ -544,7 +663,8 @@ void Gui::DrawShaderSettings(Renderer& VK)
         {
             GlslBuildFailed = false;
             Log(LogLevel::kInfo, "Building GLSL shaders");
-            GlslBuild = std::async(std::launch::async, [] { return CompileShaders(true); });
+            GlslBuild =
+                std::async(std::launch::async, [] { return CompileShaders(true); });
         }
     }
 }

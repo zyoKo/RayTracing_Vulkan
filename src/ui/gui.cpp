@@ -28,6 +28,7 @@ namespace
 constexpr uint32_t kUiTextureSets = 16;
 constexpr float kOverlayMargin = 8.0f;
 constexpr double kResizeLogDelay = 0.5;
+constexpr double kStatusMessageSeconds = 6.0;
 
 // "screenshots/rtrt_20261121_190455.png", from the local time.
 std::string ScreenshotPath()
@@ -46,7 +47,7 @@ std::string ScreenshotPath()
 
 ImU32 OverlayBg()
 {
-    return IM_COL32(16, 17, 18, 190);
+    return IM_COL32(14, 15, 16, 215);
 }
 
 ImTextureID ToTextureId(VkDescriptorSet Set)
@@ -138,19 +139,13 @@ void Gui::RegisterSettingsHandler()
     Handler.UserData = this;
     Handler.ReadOpenFn = [](ImGuiContext*, ImGuiSettingsHandler* Self,
                             const char* Name) -> void*
-    {
-        return strcmp(Name, "State") == 0 ? Self->UserData : nullptr;
-    };
-    Handler.ReadLineFn = [](ImGuiContext*, ImGuiSettingsHandler*, void* Entry,
-                            const char* Line)
-    {
-        static_cast<Gui*>(Entry)->ReadSetting(Line);
-    };
-    Handler.WriteAllFn = [](ImGuiContext*, ImGuiSettingsHandler* Self,
-                            ImGuiTextBuffer* Out)
-    {
-        static_cast<Gui*>(Self->UserData)->WriteSettings(Out);
-    };
+    { return strcmp(Name, "State") == 0 ? Self->UserData : nullptr; };
+    Handler.ReadLineFn =
+        [](ImGuiContext*, ImGuiSettingsHandler*, void* Entry, const char* Line)
+    { static_cast<Gui*>(Entry)->ReadSetting(Line); };
+    Handler.WriteAllFn =
+        [](ImGuiContext*, ImGuiSettingsHandler* Self, ImGuiTextBuffer* Out)
+    { static_cast<Gui*>(Self->UserData)->WriteSettings(Out); };
     ImGui::AddSettingsHandler(&Handler);
 }
 
@@ -209,8 +204,11 @@ void Gui::Log(LogLevel Level, const char* Format, ...)
 
 void Gui::Draw(Renderer& VK, Camera& View, CameraController& Controller)
 {
+    const double Start = glfwGetTime();
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
+    const double BuildStart = glfwGetTime();
+    LastDisplayWaitMs = static_cast<float>((BuildStart - Start) * 1000.0);
     ImGui::NewFrame();
 
     SyncViewportTexture(VK);
@@ -220,6 +218,7 @@ void Gui::Draw(Renderer& VK, Camera& View, CameraController& Controller)
     if (!ShowUi)
     {
         DrawFullWindowViewport(VK);
+        LastUiMs = static_cast<float>((glfwGetTime() - BuildStart) * 1000.0);
         return;
     }
 
@@ -251,6 +250,7 @@ void Gui::Draw(Renderer& VK, Camera& View, CameraController& Controller)
     }
     DrawControlsPopup();
     ImGui::PopFont();
+    LastUiMs = static_cast<float>((glfwGetTime() - BuildStart) * 1000.0);
 }
 
 void Gui::HandleShortcuts(Renderer& VK)
@@ -285,6 +285,10 @@ void Gui::TrackRendererEvents(const Renderer& VK)
     if (Capture.GetSaveCount() != ScreenshotsSeen)
     {
         ScreenshotsSeen = Capture.GetSaveCount();
+        StatusMessageTime = glfwGetTime();
+        StatusMessageOk = Capture.GetLastSucceeded();
+        StatusMessage = Capture.GetLastSucceeded() ? "Saved " + Capture.GetLastResult()
+                                                   : Capture.GetLastResult();
         if (Capture.GetLastSucceeded())
         {
             Log(LogLevel::kInfo, "Saved screenshot %s", Capture.GetLastResult().c_str());
@@ -447,11 +451,20 @@ void Gui::DrawStatusBar(const Renderer& VK)
         ImGui::TextDisabled("|");
         ImGui::TextUnformatted(VK.GetUseSlang() ? "Slang" : "GLSL");
         ImGui::TextDisabled("|");
+        ImGui::TextUnformatted("VSync");
+        ImGui::TextDisabled("|");
         ImGui::Text("%u x %u px", Extent.width, Extent.height);
         if (Settings.UseRaytracer)
         {
             ImGui::TextDisabled("|");
             ImGui::Text("%d spp", VK.GetFrameCount());
+        }
+        if (!StatusMessage.empty() &&
+            glfwGetTime() - StatusMessageTime < kStatusMessageSeconds)
+        {
+            ImGui::TextDisabled("|");
+            ImGui::TextColored(StatusMessageOk ? kGood : kError, "%s",
+                               StatusMessage.c_str());
         }
 
         const FrameStats::Summary Frame = Stats.Summarize(Stats.FrameMs);
@@ -571,10 +584,10 @@ void Gui::SyncViewportTexture(const Renderer& VK)
 void Gui::DrawViewport(Renderer& VK, CameraController& Controller)
 {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    const bool Visible = ImGui::Begin("Viewport", nullptr,
-                                      ImGuiWindowFlags_NoScrollbar |
-                                          ImGuiWindowFlags_NoScrollWithMouse |
-                                          ImGuiWindowFlags_NoCollapse);
+    const bool Visible =
+        ImGui::Begin("Viewport", nullptr,
+                     ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
+                         ImGuiWindowFlags_NoCollapse);
     ImGui::PopStyleVar();
     if (!Visible)
     {
@@ -588,8 +601,9 @@ void Gui::DrawViewport(Renderer& VK, CameraController& Controller)
     ImVec2 Size = ImGui::GetContentRegionAvail();
     Size.x = std::max(Size.x, 1.0f);
     Size.y = std::max(Size.y, 1.0f);
-    VK.RequestRenderExtent({static_cast<uint32_t>(Size.x * Io.DisplayFramebufferScale.x),
-                            static_cast<uint32_t>(Size.y * Io.DisplayFramebufferScale.y)});
+    VK.RequestRenderExtent(
+        {static_cast<uint32_t>(Size.x * Io.DisplayFramebufferScale.x),
+         static_cast<uint32_t>(Size.y * Io.DisplayFramebufferScale.y)});
 
     const ImVec2 Origin = ImGui::GetCursorScreenPos();
     ImGui::Image(ToTextureId(ViewportTexture), Size);
@@ -604,7 +618,8 @@ void Gui::DrawViewport(Renderer& VK, CameraController& Controller)
     if (Hovered && Io.MouseWheel != 0.0f)
     {
         const float Step = Io.MouseWheel > 0.0f ? 1.15f : 1.0f / 1.15f;
-        Controller.SetMoveSpeed(std::clamp(Controller.GetMoveSpeed() * Step, 0.05f, 20.0f));
+        Controller.SetMoveSpeed(
+            std::clamp(Controller.GetMoveSpeed() * Step, 0.05f, 20.0f));
     }
 
     DrawViewportOverlay(VK, Origin, Size);
@@ -664,6 +679,15 @@ void Gui::DrawViewportOverlay(Renderer& VK, const ImVec2& Origin, const ImVec2& 
     {
         ImGui::SetTooltip("Reset accumulation (F5)");
     }
+    ImGui::SameLine();
+    if (ImGui::Button("Screenshot"))
+    {
+        RequestScreenshot(VK);
+    }
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+    {
+        ImGui::SetTooltip("Save the viewport as a PNG in screenshots/ (F12)");
+    }
     ImGui::PopStyleColor(2);
     ImGui::PopStyleVar();
 
@@ -707,9 +731,9 @@ void Gui::DrawViewportOverlay(Renderer& VK, const ImVec2& Origin, const ImVec2& 
                           Origin.y + kOverlayMargin + LineHeight * 3.0f + 10.0f);
     const ImVec2 StatsMin(StatsMax.x - Width - 16.0f, Origin.y + kOverlayMargin);
     DrawList->AddRectFilled(StatsMin, StatsMax, OverlayBg(), 4.0f);
-    const ImU32 LineColors[3] = {ImGui::GetColorU32(ImGuiCol_Text),
-                                 ImGui::GetColorU32(Converged ? kGood : kTextDim),
-                                 ImGui::GetColorU32(kTextDim)};
+    const ImU32 Text = ImGui::GetColorU32(ImGuiCol_Text);
+    const ImU32 LineColors[3] = {Text, Converged ? ImGui::GetColorU32(kGood) : Text,
+                                 Text};
     for (int I = 0; I < 3; I++)
     {
         const float LineWidth = ImGui::CalcTextSize(Lines[I]).x;
@@ -725,8 +749,9 @@ void Gui::DrawFullWindowViewport(Renderer& VK)
     const ImGuiIO& Io = ImGui::GetIO();
     ImGui::GetBackgroundDrawList()->AddImage(ToTextureId(ViewportTexture),
                                              ImVec2(0.0f, 0.0f), Io.DisplaySize);
-    VK.RequestRenderExtent({static_cast<uint32_t>(Io.DisplaySize.x * Io.DisplayFramebufferScale.x),
-                            static_cast<uint32_t>(Io.DisplaySize.y * Io.DisplayFramebufferScale.y)});
+    VK.RequestRenderExtent(
+        {static_cast<uint32_t>(Io.DisplaySize.x * Io.DisplayFramebufferScale.x),
+         static_cast<uint32_t>(Io.DisplaySize.y * Io.DisplayFramebufferScale.y)});
     ViewportDragging = ImGui::IsMouseDown(ImGuiMouseButton_Left) && !Io.WantCaptureMouse;
     ViewportActive = true;
 }

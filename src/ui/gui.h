@@ -27,18 +27,21 @@ struct FrameStats
 {
     static constexpr int kFrameCount = 240;
     float FrameMs[kFrameCount] = {};
-    float CpuMs[kFrameCount] = {};
-    float DrawMs[kFrameCount] = {};
+    float UiMs[kFrameCount] = {};
+    float DisplayWaitMs[kFrameCount] = {};
+    float RecordMs[kFrameCount] = {};
     float GpuWaitMs[kFrameCount] = {};
     float GpuMs[kFrameCount] = {};
     int Next = 0;
     int Count = 0;
 
-    void Push(float Frame, float Cpu, float Draw, float GpuWait, float Gpu)
+    void Push(float Frame, float Ui, float DisplayWait, float Record, float GpuWait,
+              float Gpu)
     {
         FrameMs[Next] = Frame;
-        CpuMs[Next] = Cpu;
-        DrawMs[Next] = Draw;
+        UiMs[Next] = Ui;
+        DisplayWaitMs[Next] = DisplayWait;
+        RecordMs[Next] = Record;
         GpuWaitMs[Next] = GpuWait;
         GpuMs[Next] = Gpu;
         Next = (Next + 1) % kFrameCount;
@@ -111,10 +114,9 @@ public:
     void Draw(Renderer& VK, Camera& View, CameraController& Controller);
 
     // Adds one frame's timings, in milliseconds, to the performance history.
-    void RecordFrameTimes(float FrameMs, float CpuMs, float DrawMs, float GpuWaitMs,
-                          float GpuMs)
+    void RecordFrameTimes(float FrameMs, float RecordMs, float GpuWaitMs, float GpuMs)
     {
-        Stats.Push(FrameMs, CpuMs, DrawMs, GpuWaitMs, GpuMs);
+        Stats.Push(FrameMs, LastUiMs, LastDisplayWaitMs, RecordMs, GpuWaitMs, GpuMs);
     }
 
     // True while ImGui is taking keyboard text, such as a Ctrl+clicked slider.
@@ -162,6 +164,7 @@ private:
     void DrawFullWindowViewport(Renderer& VK);
 
     void DrawOutliner(Renderer& VK);
+    void OutlinerMaterialRow(uint32_t MeshIndex, uint32_t Index, const Mesh& Model);
     void DrawInspector(Renderer& VK, Camera& View, CameraController& Controller);
     void DrawCameraInspector(Camera& View, CameraController& Controller);
     void DrawModelInspector(Renderer& VK);
@@ -176,6 +179,8 @@ private:
     void DrawShaderSettings(Renderer& VK);
 
     void DrawStats(const Renderer& VK);
+    // Frame and GPU time history on one millisecond scale with grid lines.
+    void DrawTimeGraph(const ImVec2& Size) const;
     void DrawConsole();
 
     VkDevice DeviceHandle = VK_NULL_HANDLE;
@@ -202,11 +207,17 @@ private:
     Selection Selected = Selection::kCamera;
     uint32_t SelectedMesh = 0;
     uint32_t SelectedMaterial = 0;
-    ImGuiTextFilter MaterialFilter;
+    ImGuiTextFilter SceneFilter;
+    // Open and scroll the outliner to the selection, after it was restored from imgui.ini
+    bool ScrollToSelection = true;
     ImGuiTextFilter ConsoleFilter;
     size_t ConsoleSeen = 0;
 
     uint32_t ScreenshotsSeen = 0;
+    // Shown in the status bar for a few seconds, such as a saved screenshot's path
+    std::string StatusMessage;
+    double StatusMessageTime = 0.0;
+    bool StatusMessageOk = true;
     bool LastUseSlang = true;
     bool LastUseRaytracer = true;
     VkExtent2D LoggedExtent{0, 0};
@@ -217,6 +228,10 @@ private:
     std::future<bool> GlslBuild;
     bool GlslBuildFailed = false;
     FrameStats Stats;
+    float LastUiMs = 0.0f;
+    // Time in the platform backend's frame start, where the window system blocks for
+    // vsync
+    float LastDisplayWaitMs = 0.0f;
 };
 
 }  // namespace rtrt

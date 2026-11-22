@@ -13,7 +13,7 @@ namespace rtrt
 namespace
 {
 
-constexpr float kLabelFraction = 0.36f;
+constexpr float kLabelWidth = 118.0f;
 
 }  // namespace
 
@@ -23,9 +23,8 @@ bool BeginProperties(const char* Id)
     {
         return false;
     }
-    ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthStretch, kLabelFraction);
-    ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch,
-                            1.0f - kLabelFraction);
+    ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, kLabelWidth);
+    ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
     return true;
 }
 

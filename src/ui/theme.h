@@ -11,6 +11,7 @@ struct EditorFonts
 {
     ImFont* Ui = nullptr;
     ImFont* Bold = nullptr;
+    ImFont* Title = nullptr;
     ImFont* Mono = nullptr;
 };
 

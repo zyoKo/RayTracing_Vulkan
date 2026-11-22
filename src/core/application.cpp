@@ -130,12 +130,10 @@ int Application::Run()
             MainWindow.Close();
         }
 
-        const double CpuEnd = glfwGetTime();
         MainRenderer.DrawFrame();
 
         const double FrameEnd = glfwGetTime();
         MainGui.RecordFrameTimes(static_cast<float>((FrameEnd - FrameStart) * 1000.0),
-                                 static_cast<float>((CpuEnd - FrameStart) * 1000.0),
                                  static_cast<float>(MainRenderer.GetRecordMs()),
                                  static_cast<float>(MainRenderer.GetGpuWaitMs()),
                                  MainRenderer.GetGpuTimer().GetFrameMs());
