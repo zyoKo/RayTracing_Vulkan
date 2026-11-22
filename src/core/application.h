@@ -1,6 +1,8 @@
 #ifndef RTRT_SRC_CORE_APPLICATION_H_
 #define RTRT_SRC_CORE_APPLICATION_H_
 
+#include <string>
+
 #include "core/window.h"
 #include "renderer/renderer.h"
 #include "scene/camera.h"
@@ -45,6 +47,9 @@ private:
     bool DoApiDump = false;
     // -glsl: start with the shaders compiled from Slang's generated GLSL
     bool UseSlang = true;
+    // -shot <file>: save the viewport as a PNG once the image has settled
+    std::string ShotPath;
+    int FramesDrawn = 0;
 
     Camera MainCamera;
     CameraController MainController;

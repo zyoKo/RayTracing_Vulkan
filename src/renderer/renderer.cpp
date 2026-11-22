@@ -105,6 +105,7 @@ void Renderer::DrawFrame()
         Timer.Begin(Cmd, "Tone map");
         Post.Record(FrameCmd.GetHandle(), PassCtx, PcPost);
         Timer.End(Cmd);
+        Capture.Record(Cmd, *GpuDevice, Post.GetOutput(), PassCtx.Extent);
         Timer.Begin(Cmd, "UI");
         Ui.Record(FrameCmd.GetHandle(), PassCtx);
         Timer.End(Cmd);
@@ -126,6 +127,7 @@ bool Renderer::PrepareFrame()
     FrameFence.Wait();
     GpuWaitMs = (glfwGetTime() - WaitStart) * 1000.0;
     Timer.Resolve();
+    Capture.Resolve();
 
     if (MainWindow->GetFramebufferResized() && !RecreateSwapchain())
     {
@@ -188,6 +190,7 @@ void Renderer::DestroyAllVulkanResources()
     MainSwapchain->Destroy();
     FrameFence.Destroy();
     Timer.Destroy();
+    Capture.Destroy();
     MainCmdPool.Destroy();
 
     Post.Destroy();

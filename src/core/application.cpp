@@ -17,6 +17,8 @@ namespace
 constexpr int kWidth = 10 * 128;
 constexpr int kHeight = 6 * 128;
 constexpr char kProject[] = "rtrt";
+// Frames to accumulate before a -shot capture
+constexpr int kShotFrame = 240;
 
 }  // namespace
 
@@ -78,6 +80,10 @@ bool Application::Init(int Argc, char** Argv)
         {
             UseSlang = false;
         }
+        else if (Arg == "-shot" && ArgIndex < Argc)
+        {
+            ShotPath = Argv[ArgIndex++];
+        }
         else
         {
             fprintf(stderr, "Unknown argument: %s\n", Arg.c_str());
@@ -121,6 +127,10 @@ int Application::Run()
         UpdateCamera();
 
         MainRenderer.ApplyRenderExtent();
+        if (!ShotPath.empty() && ++FramesDrawn == kShotFrame)
+        {
+            MainRenderer.RequestScreenshot(ShotPath);
+        }
         MainGui.Draw(MainRenderer, MainCamera, MainController);
 
         const double CpuEnd = glfwGetTime();
